@@ -68,4 +68,10 @@ assert(treeSource:find("OpenAchievementContextMenu", 1, true),
 assert(cardsSource:find("OpenAchievementContextMenu", 1, true),
     "achievement cards do not expose the shared context menu")
 
+local rewardPanelSource = ReadSource("Modules/Achievements/RewardPanel.lua")
+assert(rewardPanelSource:find('previewEntry.rewardType == "mount"', 1,
+        true)
+    and rewardPanelSource:find("and 74 or 54", 1, true),
+    "mount model bottom offset is not raised by 20 pixels")
+
 print("achievement UI module structure: ok")
