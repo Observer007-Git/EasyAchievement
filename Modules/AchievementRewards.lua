@@ -8,6 +8,7 @@ local Data = assert(Addon.AchievementData,
     "EasyAchievement achievement data service was not loaded")
 local INDEX_BUDGET_MILLISECONDS =
     Addon.Config.Performance.IndexBudgetMilliseconds
+local ACHIEVEMENT_MOUNT_SOURCE_TYPE = 5
 
 local housingRewardIndex = {}
 local housingRewardNameIndex = {}
@@ -282,11 +283,15 @@ local function FindMountRewardByText(rewardText)
     end
     if not mountRewardIndex then
         mountRewardIndex = {}
-        for _, mountID in ipairs(C_MountJournal.GetMountIDs() or {}) do
-            local name = C_MountJournal.GetMountInfoByID
-                and C_MountJournal.GetMountInfoByID(mountID)
-            if name and name ~= "" then
-                mountRewardIndex[name] = mountID
+        if C_MountJournal.GetMountInfoByID then
+            for _, mountID in ipairs(C_MountJournal.GetMountIDs() or {}) do
+                local name, _, _, _, _, sourceType =
+                    C_MountJournal.GetMountInfoByID(mountID)
+                if sourceType == ACHIEVEMENT_MOUNT_SOURCE_TYPE
+                    and name and name ~= ""
+                then
+                    mountRewardIndex[name] = mountID
+                end
             end
         end
     end

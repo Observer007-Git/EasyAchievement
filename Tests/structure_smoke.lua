@@ -244,6 +244,12 @@ assert(rewardPanelSource:find("local function GetRewardTypeLabel(entry)",
         'rewardFrame.ItemType:SetPoint("LEFT", rewardFrame, "TOP"',
         1, true),
     "reward panel does not show its localized type left of the icon")
+local rewardsSource = ReadSource("Modules/AchievementRewards.lua")
+assert(rewardsSource:find(
+        "local ACHIEVEMENT_MOUNT_SOURCE_TYPE = 5", 1, true)
+    and rewardsSource:find(
+        "sourceType == ACHIEVEMENT_MOUNT_SOURCE_TYPE", 1, true),
+    "mount text fallback is not limited to achievement-source mounts")
 assert(rewardPanelSource:find('description:SetJustifyH("CENTER")', 1,
         true)
     and rewardPanelSource:find("20 + contentCenterOffset", 1, true)

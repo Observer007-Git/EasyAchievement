@@ -647,9 +647,12 @@ reward = GetAchievementRewardData(1)
 assert(reward and #reward.entries == 0,
     "title-only reward unexpectedly created a preview")
 
-C_MountJournal.GetMountIDs = function() return { 1614 } end
-C_MountJournal.GetMountInfoByID = function()
-    return "Direct Reward Mount", nil, 789
+C_MountJournal.GetMountIDs = function() return { 1614, 1690 } end
+C_MountJournal.GetMountInfoByID = function(mountID)
+    if mountID == 1690 then
+        return "Whelp", nil, 790, nil, nil, -1
+    end
+    return "Direct Reward Mount", nil, 789, nil, nil, 5
 end
 C_MountJournal.GetMountInfoExtraByID = function()
     return 321, "Direct mount details", nil, false, nil, 444
@@ -663,6 +666,19 @@ rewardEntry = reward.entries[1]
 assert(rewardEntry and rewardEntry.mountID == 1614
     and rewardEntry.previewType == "model",
     "direct mount reward text was not resolved")
+
+function GetAchievementInfo(id)
+    return id, "Achievement " .. id, 10, false, nil, nil, nil,
+        "Description", 0, 123, "Title: Whelp Caretaker", false
+end
+reward = GetAchievementRewardData(1)
+assert(reward and #reward.entries == 0,
+    "non-achievement mount source created a false reward match")
+
+function GetAchievementInfo(id)
+    return id, "Achievement " .. id, 10, false, nil, nil, nil,
+        "Description", 0, 123, "Mount: Direct Reward Mount", false
+end
 
 C_AchievementInfo.GetRewardItemID = function() return 9002 end
 C_Item.GetItemNameByID = function() return nil end
