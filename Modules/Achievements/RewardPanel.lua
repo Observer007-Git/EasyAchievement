@@ -106,8 +106,8 @@ function CreateAchievementRewardFrame()
 
     local description = frame:CreateFontString(nil, "OVERLAY",
         "GameFontHighlightSmall")
-    description:SetPoint("TOPLEFT", frame, "TOPLEFT", 20, -35)
-    description:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -20, -35)
+    description:SetPoint("TOPLEFT", frame, "TOPLEFT", 20, -65)
+    description:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -20, -65)
     description:SetHeight(88)
     description:SetJustifyH("CENTER")
     description:SetJustifyV("TOP")
@@ -116,7 +116,7 @@ function CreateAchievementRewardFrame()
 
     local modelScene = CreateFrame("ModelScene", nil, frame,
         "ModelSceneMixinTemplate")
-    modelScene:SetPoint("TOPLEFT", frame, "TOPLEFT", 20, -88)
+    modelScene:SetPoint("TOPLEFT", frame, "TOPLEFT", 20, -118)
     modelScene:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -20, 54)
     modelScene:EnableMouse(true)
     modelScene:EnableMouseWheel(true)
@@ -308,9 +308,9 @@ UpdateAchievementRewardPanel = function(frame, achievementID)
         rewardFrame.Description:SetHeight(44 + extraHeight)
         rewardFrame.ModelScene:ClearAllPoints()
         rewardFrame.ModelScene:SetPoint("TOPLEFT", rewardFrame,
-            "TOPLEFT", 20, -88 - extraHeight)
+            "TOPLEFT", 20, -118 - extraHeight)
         local modelBottomOffset = previewEntry.rewardType == "mount"
-            and 74 or 54
+            and 240 or 54
         rewardFrame.ModelScene:SetPoint("BOTTOMRIGHT", rewardFrame,
             "BOTTOMRIGHT", -20, modelBottomOffset)
         rewardFrame.ModelScene:Show()
@@ -394,9 +394,11 @@ UpdateAchievementRewardPanel = function(frame, achievementID)
         or rewardFrame.ToyButton:IsShown()
     local hasRewardName = rewardFrame.ItemName:IsShown()
     local maximumNameWidth = math.max(1, rewardFrame:GetWidth() - 98)
+    local unboundedNameWidth = rewardFrame.ItemName.GetUnboundedStringWidth
+        and rewardFrame.ItemName:GetUnboundedStringWidth()
+        or rewardFrame.ItemName:GetStringWidth()
     local rewardNameWidth = hasRewardName
-        and math.min(maximumNameWidth,
-            rewardFrame.ItemName:GetStringWidth()) or 0
+        and math.min(maximumNameWidth, unboundedNameWidth) or 0
     local iconWidth = hasRewardIcon and 48 or 0
     local headerGap = hasRewardIcon and hasRewardName and 10 or 0
     local headerWidth = iconWidth + headerGap + rewardNameWidth
@@ -406,12 +408,14 @@ UpdateAchievementRewardPanel = function(frame, achievementID)
         headerLeft + iconWidth / 2, -10)
     rewardFrame.ItemName:ClearAllPoints()
     rewardFrame.ItemName:SetWidth(math.max(1, rewardNameWidth))
+    rewardFrame.ItemName:SetHeight(48)
     rewardFrame.ItemName:SetJustifyH("CENTER")
+    rewardFrame.ItemName:SetJustifyV("MIDDLE")
     if hasRewardIcon then
-        rewardFrame.ItemName:SetPoint("TOPLEFT", rewardFrame, "TOP",
-            headerLeft + iconWidth + headerGap, -12)
+        rewardFrame.ItemName:SetPoint("LEFT", rewardFrame, "TOP",
+            headerLeft + iconWidth + headerGap, -34)
     else
-        rewardFrame.ItemName:SetPoint("TOP", rewardFrame, "TOP", 0, -12)
+        rewardFrame.ItemName:SetPoint("TOP", rewardFrame, "TOP", 0, -10)
     end
     rewardFrame:Show()
     rewardFrame:Raise()

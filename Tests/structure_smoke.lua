@@ -71,12 +71,13 @@ assert(cardsSource:find("OpenAchievementContextMenu", 1, true),
 local rewardPanelSource = ReadSource("Modules/Achievements/RewardPanel.lua")
 assert(rewardPanelSource:find('previewEntry.rewardType == "mount"', 1,
         true)
-    and rewardPanelSource:find("and 74 or 54", 1, true),
-    "mount model bottom offset is not raised by 20 pixels")
+    and rewardPanelSource:find("and 240 or 54", 1, true),
+    "mount model bottom offset is not 240 pixels")
 assert(rewardPanelSource:find('description:SetJustifyH("CENTER")', 1,
         true)
     and rewardPanelSource:find("local headerLeft = -headerWidth / 2", 1,
-        true),
+        true)
+    and rewardPanelSource:find("GetUnboundedStringWidth", 1, true),
     "reward header information is not horizontally centered")
 
 print("achievement UI module structure: ok")
