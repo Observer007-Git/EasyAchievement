@@ -127,6 +127,7 @@ function CreateAchievementLauncher()
             frame.ATTButton:Hide()
             frame.IncompleteOnly:Hide()
             frame.IncompleteOnlyLabel:Hide()
+            frame.TreeScaleControls:Hide()
             frame.EmptyText:SetText(L.ACHIEVEMENT_LAUNCHER_EMPTY)
             frame.EmptyText:Show()
             if achievementRewardFrame then

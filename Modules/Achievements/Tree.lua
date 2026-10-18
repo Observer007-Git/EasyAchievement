@@ -40,7 +40,7 @@ function AcquireNodeButton(frame, index)
 
     local rewardBorder = button:CreateTexture(nil, "OVERLAY", nil, 3)
     rewardBorder:SetAllPoints(icon)
-    SetTextureAtlas(rewardBorder, "LootToast-Azerite-Border")
+    SetTextureAtlas(rewardBorder, "duit_Arrows_Socketed")
     rewardBorder:Hide()
     button.RewardBorder = rewardBorder
 
@@ -318,6 +318,7 @@ LayoutAchievementTree = function(nodes, edges, root, preserveScroll, stats,
         frame.AchievementCardForwardButton:Hide()
     end
     frame.CardScaleControls:Show()
+    frame.TreeScaleControls:Show()
     frame.FitButton:Show()
     frame.ScrollFrame:Show()
     frame.updatingLayout = true

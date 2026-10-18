@@ -375,7 +375,7 @@ function CreateAchievementLauncherSearch(anchor)
     local searchTopInset = 0
     local resultsGap = 3
     local resultsBottomPadding = 4
-    panel:SetSize(336, collapsedHeight)
+    panel:SetSize(1, collapsedHeight)
     panel:SetFrameStrata("DIALOG")
     panel:SetClampedToScreen(true)
     panel:EnableMouse(true)
@@ -387,7 +387,8 @@ function CreateAchievementLauncherSearch(anchor)
     search:SetPoint("TOPRIGHT", -4, -searchTopInset)
     search:SetHeight(searchHeight)
     search:SetAutoFocus(false)
-    search:SetMaxLetters(12)
+    search:SetMaxLetters(MAX_ACHIEVEMENT_SEARCH_CHARACTERS)
+    panel:SetWidth(GetAchievementSearchBoxWidth(search) + 8)
     if search.SetInstructions then
         search:SetInstructions(L.ACHIEVEMENT_TREE_SEARCH)
     end

@@ -65,20 +65,43 @@ local searchSource = ReadSource("Modules/Achievements/Search.lua")
 assert(searchSource:find("OpenAchievementATTGuide(achievementID)", 1, true),
     "achievement context menu is not connected to the ATT guide")
 assert(searchSource:find("local collapsedHeight = 32", 1, true)
-    and searchSource:find("search:SetMaxLetters(12)", 1, true),
+    and searchSource:find(
+        "search:SetMaxLetters(MAX_ACHIEVEMENT_SEARCH_CHARACTERS)", 1,
+        true)
+    and searchSource:find(
+        "panel:SetWidth(GetAchievementSearchBoxWidth(search) + 8)", 1,
+        true),
     "launcher search dimensions or input limit changed")
+
+local coreSource = ReadSource("Modules/Achievements/Core.lua")
+assert(coreSource:find("MAX_ACHIEVEMENT_SEARCH_CHARACTERS = 12", 1, true)
+    and coreSource:find(
+        'string.rep("汉", MAX_ACHIEVEMENT_SEARCH_CHARACTERS)', 1, true),
+    "search width is not based on 12 Chinese characters")
 
 local windowSource = ReadSource("Modules/Achievements/Window.lua")
 assert(windowSource:find("OpenAchievementATTGuide(frame.sourceAchievementID)",
         1, true),
     "top-right ATT guide button is not connected")
-assert(windowSource:find("searchBox:SetMaxLetters(12)", 1, true)
-    and windowSource:find("local breadcrumbArrowHeight = 34", 1, true),
+assert(windowSource:find(
+        "searchBox:SetMaxLetters(MAX_ACHIEVEMENT_SEARCH_CHARACTERS)", 1,
+        true)
+    and windowSource:find(
+        "local searchBoxWidth = GetAchievementSearchBoxWidth(searchBox)",
+        1, true)
+    and windowSource:find("local breadcrumbArrowHeight = 34", 1, true)
+    and windowSource:find(
+        'backButton:SetPoint("BOTTOMLEFT", frame, "TOPLEFT", 70, -103)',
+        1, true),
     "main search limit or breadcrumb navigation size changed")
 assert(windowSource:find('"GM-icon-settings-pressed"', 1, true)
     and windowSource:find('"GM-icon-settings-hover"', 1, true)
+    and windowSource:find("settingsButton:SetSize(28, 28)", 1, true)
     and windowSource:find(
-        "CreateScaleControls(settingsPanel, L.ACHIEVEMENT_TREE_SCALE)",
+        "CreateScaleControls(frame, L.ACHIEVEMENT_TREE_SCALE)",
+        1, true)
+    and windowSource:find(
+        'treeScaleControls:SetPoint("RIGHT", fitButton, "LEFT", -8, 0)',
         1, true)
     and windowSource:find("popupAlphaPlus = CreateScaleControls(", 1,
         true)
@@ -95,12 +118,16 @@ local treeSource = ReadSource("Modules/Achievements/Tree.lua")
 local cardsSource = ReadSource("Modules/Achievements/Cards.lua")
 assert(treeSource:find("OpenAchievementContextMenu", 1, true),
     "achievement nodes do not expose the shared context menu")
-assert(treeSource:find('"LootToast-Azerite-Border"', 1, true)
+assert(treeSource:find('"duit_Arrows_Socketed"', 1, true)
     and treeSource:find("rewardBorder:SetAllPoints(icon)", 1, true)
     and treeSource:find(
         "Addon.AchievementRewards.Has(node.id, node)", 1, true),
     "rewarded achievement icons do not use a scale-aware atlas border")
-assert(cardsSource:find("OpenAchievementContextMenu", 1, true),
+assert(cardsSource:find("OpenAchievementContextMenu", 1, true)
+    and cardsSource:find('"duit_Arrows_Socketed"', 1, true)
+    and cardsSource:find("rewardBorder:SetAllPoints(icon)", 1, true)
+    and cardsSource:find(
+        "Addon.AchievementRewards.Has(data.id, data)", 1, true),
     "achievement cards do not expose the shared context menu")
 
 local rewardPanelSource = ReadSource("Modules/Achievements/RewardPanel.lua")

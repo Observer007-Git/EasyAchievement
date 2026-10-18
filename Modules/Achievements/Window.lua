@@ -320,7 +320,7 @@ function CreateAchievementTreeFrame()
     local breadcrumbArrowHeight = 34
     local breadcrumbArrowWidth = breadcrumbArrowHeight * 48 / 67
     local backButton = CreateFrame("Button", nil, frame)
-    backButton:SetPoint("LEFT", frame, "TOPLEFT", 70, -97)
+    backButton:SetPoint("BOTTOMLEFT", frame, "TOPLEFT", 70, -103)
     backButton:SetSize(breadcrumbArrowWidth, breadcrumbArrowHeight)
     backButton:SetNormalAtlas(
         "CovenantSanctum-Renown-DoubleArrow", false)
@@ -362,8 +362,8 @@ function CreateAchievementTreeFrame()
     frame.IncompleteOnlyLabel = incompleteOnlyLabel
 
     local treeScaleControls, scaleMinus, scaleValue, scalePlus =
-        CreateScaleControls(settingsPanel, L.ACHIEVEMENT_TREE_SCALE)
-    treeScaleControls:SetPoint("LEFT", settingsPanel, "LEFT", 10, 0)
+        CreateScaleControls(frame, L.ACHIEVEMENT_TREE_SCALE)
+    treeScaleControls:Hide()
     frame.TreeScaleControls = treeScaleControls
     frame.TreeScaleMinus = scaleMinus
     frame.TreeScaleValue = scaleValue
@@ -420,7 +420,7 @@ function CreateAchievementTreeFrame()
     frame.ScaleSlider = scaleSlider
 
     local favoritesScroll = CreateFrame("ScrollFrame", nil, frame)
-    favoritesScroll:SetPoint("TOPLEFT", 72, -54)
+    favoritesScroll:SetPoint("TOPLEFT", 128, -54)
     favoritesScroll:SetPoint("TOPRIGHT", -416, -54)
     favoritesScroll:SetHeight(24)
     favoritesScroll:EnableMouseWheel(true)
@@ -445,17 +445,19 @@ function CreateAchievementTreeFrame()
     local searchBox = CreateFrame("EditBox", nil, frame,
         "SearchBoxTemplate")
     searchBox:SetPoint("RIGHT", frame, "TOPRIGHT", -70, -65)
-    searchBox:SetSize(336, 24)
+    local searchBoxWidth = GetAchievementSearchBoxWidth(searchBox)
+    searchBox:SetSize(searchBoxWidth, 24)
     searchBox:SetHeight(24)
     searchBox:SetAutoFocus(false)
-    searchBox:SetMaxLetters(12)
+    searchBox:SetMaxLetters(MAX_ACHIEVEMENT_SEARCH_CHARACTERS)
     if searchBox.SetInstructions then
         searchBox:SetInstructions(L.ACHIEVEMENT_TREE_SEARCH)
     end
 
     local searchResults = CreateFrame("Frame", nil, frame)
     searchResults:SetPoint("TOPRIGHT", searchBox, "BOTTOMRIGHT", 0, -2)
-    searchResults:SetSize(340, 32)
+    local searchResultsWidth = searchBoxWidth + 4
+    searchResults:SetSize(searchResultsWidth, 32)
     searchResults:SetFrameLevel(borderFrame:GetFrameLevel() + 10)
     searchResults:EnableMouse(true)
     searchResults:EnableMouseWheel(true)
@@ -477,8 +479,8 @@ function CreateAchievementTreeFrame()
             texture:SetHeight(1)
         end
     end
-    CreateSearchBorder("TOPLEFT", 340)
-    CreateSearchBorder("BOTTOMLEFT", 340)
+    CreateSearchBorder("TOPLEFT", searchResultsWidth)
+    CreateSearchBorder("BOTTOMLEFT", searchResultsWidth)
     CreateSearchBorder("TOPLEFT", 1)
     CreateSearchBorder("TOPRIGHT", 1)
 
@@ -783,14 +785,16 @@ function CreateAchievementTreeFrame()
 
     fitButton:ClearAllPoints()
     fitButton:SetPoint("RIGHT", legend, "LEFT", -8, 0)
+    treeScaleControls:ClearAllPoints()
+    treeScaleControls:SetPoint("RIGHT", fitButton, "LEFT", -8, 0)
     incompleteOnlyLabel:ClearAllPoints()
-    incompleteOnlyLabel:SetPoint("RIGHT", fitButton, "LEFT", -8, 0)
+    incompleteOnlyLabel:SetPoint("RIGHT", treeScaleControls, "LEFT", -8, 0)
     incompleteOnly:ClearAllPoints()
     incompleteOnly:SetPoint("RIGHT", incompleteOnlyLabel, "LEFT", -2, 0)
 
     local cardScaleControls, cardScaleMinus, cardScaleValue, cardScalePlus =
         CreateScaleControls(settingsPanel, L.ACHIEVEMENT_CARD_SCALE)
-    cardScaleControls:SetPoint("LEFT", treeScaleControls, "RIGHT", 10, 0)
+    cardScaleControls:SetPoint("LEFT", settingsPanel, "LEFT", 10, 0)
     cardScaleMinus:SetScript("OnClick", function()
         Addon:SetSetting("achievementCardScale",
             GetAchievementCardScale() - ACHIEVEMENT_CARD_SCALE_STEP)
@@ -858,8 +862,8 @@ function CreateAchievementTreeFrame()
         > MIN_ACHIEVEMENT_POPUP_ALPHA)
     popupAlphaPlus:SetEnabled(initialPopupAlpha
         < MAX_ACHIEVEMENT_POPUP_ALPHA)
-    settingsPanel:SetWidth(50 + treeScaleControls:GetWidth()
-        + cardScaleControls:GetWidth() + popupScaleControls:GetWidth()
+    settingsPanel:SetWidth(40 + cardScaleControls:GetWidth()
+        + popupScaleControls:GetWidth()
         + popupAlphaControls:GetWidth())
 
     local closeButton = CreateFrame("Button", nil, frame)
@@ -891,7 +895,7 @@ function CreateAchievementTreeFrame()
 
     local settingsButton = CreateFrame("Button", nil, frame)
     settingsButton:SetPoint("RIGHT", closeButton, "LEFT", -1, 0)
-    settingsButton:SetSize(24, 24)
+    settingsButton:SetSize(28, 28)
     settingsButton:SetFrameLevel(borderFrame:GetFrameLevel() + 1)
     local settingsNormal = settingsButton:CreateTexture(nil, "ARTWORK")
     SetTextureAtlas(settingsNormal, "GM-icon-settings-pressed")

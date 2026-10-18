@@ -35,10 +35,28 @@ MIN_ACHIEVEMENT_POPUP_ALPHA = 0.2
 MAX_ACHIEVEMENT_POPUP_ALPHA = 1
 ACHIEVEMENT_POPUP_ALPHA_STEP = 0.05
 MAX_ACHIEVEMENT_SEARCH_RESULTS = Config.Search.MaxResults
+MAX_ACHIEVEMENT_SEARCH_CHARACTERS = 12
 DRESS_UP_FRAME_MODEL_SCENE_ID = Config.ModelScene.DressUpSceneID
 INDEX_BUDGET_MILLISECONDS = Config.Performance.IndexBudgetMilliseconds
 RESIZE_LAYOUT_INTERVAL = Config.Performance.ResizeLayoutInterval
 CRITERIA_REFRESH_DELAY = Config.Performance.CriteriaRefreshDelay
+
+function GetAchievementSearchBoxWidth(editBox)
+    local ruler = editBox.EasyAchievementWidthRuler
+    if not ruler then
+        ruler = editBox:CreateFontString(nil, "ARTWORK")
+        local fontFile, fontHeight, fontFlags = editBox:GetFont()
+        if fontFile then
+            ruler:SetFont(fontFile, fontHeight, fontFlags)
+        else
+            ruler:SetFontObject(GameFontHighlightSmall)
+        end
+        ruler:Hide()
+        editBox.EasyAchievementWidthRuler = ruler
+    end
+    ruler:SetText(string.rep("汉", MAX_ACHIEVEMENT_SEARCH_CHARACTERS))
+    return math.ceil(ruler:GetStringWidth()) + 44
+end
 
 function PlayAchievementSound(soundKit)
     if PlaySound and soundKit then
