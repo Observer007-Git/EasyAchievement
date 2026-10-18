@@ -90,10 +90,18 @@ assert(rewardPanelSource:find('description:SetJustifyH("CENTER")', 1,
     "reward header information is not horizontally centered")
 assert(rewardPanelSource:find("collections-itemborder-collected", 1, true)
     and rewardPanelSource:find("PetJournal-BattleSlot-IconBorder", 1, true)
-    and rewardPanelSource:find('primaryEntry.rewardType == "mount"', 1,
+    and rewardPanelSource:find('rewardType == "mount"', 1, true)
+    and rewardPanelSource:find('rewardType == "pet"', 1, true)
+    and rewardPanelSource:find('rewardType == "decor"', 1, true)
+    and rewardPanelSource:find('rewardType == "appearance"', 1, true),
+    "collection rewards do not use native icon borders")
+assert(rewardPanelSource:find("minimumHostWidth = showModel and 940", 1,
         true)
-    and rewardPanelSource:find('primaryEntry.rewardType == "pet"', 1,
+    and rewardPanelSource:find("hostFrame:GetWidth() * 0.46", 1, true)
+    and rewardPanelSource:find('"TOPLEFT", 8, -118 - extraHeight', 1,
+        true)
+    and rewardPanelSource:find('"BOTTOMRIGHT", -8, modelBottomOffset', 1,
         true),
-    "mount, pet, and toy rewards do not use native icon borders")
+    "3D reward model area is not using the widened layout")
 
 print("achievement UI module structure: ok")

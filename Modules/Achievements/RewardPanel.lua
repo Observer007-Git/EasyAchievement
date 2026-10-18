@@ -54,16 +54,16 @@ function CreateAchievementRewardFrame()
     itemIcon:SetTexCoord(0.06, 0.94, 0.06, 0.94)
     frame.ItemIcon = itemIcon
 
-    local mountBorder = frame:CreateTexture(nil, "OVERLAY")
-    mountBorder:SetPoint("CENTER", itemIcon, "CENTER")
-    mountBorder:SetSize(56, 56)
-    if not SetTextureAtlas(mountBorder,
+    local collectionBorder = frame:CreateTexture(nil, "OVERLAY")
+    collectionBorder:SetPoint("CENTER", itemIcon, "CENTER")
+    collectionBorder:SetSize(56, 56)
+    if not SetTextureAtlas(collectionBorder,
         "collections-itemborder-collected")
     then
-        mountBorder:SetTexture("Interface\\Common\\WhiteIconFrame")
+        collectionBorder:SetTexture("Interface\\Common\\WhiteIconFrame")
     end
-    mountBorder:Hide()
-    frame.MountBorder = mountBorder
+    collectionBorder:Hide()
+    frame.CollectionBorder = collectionBorder
 
     local petBorder = frame:CreateTexture(nil, "OVERLAY")
     petBorder:SetPoint("CENTER", itemIcon, "CENTER")
@@ -228,9 +228,14 @@ function CreateAchievementRewardFrame()
     return frame
 end
 
-function GetAchievementRewardPanelWidth(hostFrame)
-    if hostFrame:GetWidth() < 860 then
-        hostFrame:SetWidth(860)
+function GetAchievementRewardPanelWidth(hostFrame, showModel)
+    local minimumHostWidth = showModel and 940 or 860
+    if hostFrame:GetWidth() < minimumHostWidth then
+        hostFrame:SetWidth(minimumHostWidth)
+    end
+    if showModel then
+        return math.max(360,
+            math.min(540, hostFrame:GetWidth() * 0.46))
     end
     return math.max(300, math.min(460, hostFrame:GetWidth() * 0.42))
 end
@@ -240,7 +245,8 @@ function ConfigureAchievementRewardFrame(rewardFrame, hostFrame)
     rewardFrame:SetParent(hostFrame)
     rewardFrame:SetFrameStrata(hostFrame:GetFrameStrata())
     rewardFrame:SetFrameLevel(hostFrame:GetFrameLevel() + 20)
-    rewardFrame:SetWidth(GetAchievementRewardPanelWidth(hostFrame))
+    rewardFrame:SetWidth(GetAchievementRewardPanelWidth(hostFrame,
+        rewardFrame.ModelScene:IsShown()))
     rewardFrame:SetPoint("TOPRIGHT", hostFrame, "TOPRIGHT", -24, -145)
     rewardFrame:SetPoint("BOTTOMRIGHT", hostFrame,
         "BOTTOMRIGHT", -24, 26)
@@ -292,10 +298,12 @@ UpdateAchievementRewardPanel = function(frame, achievementID)
     rewardFrame.ItemIcon:SetShown(primaryEntry ~= nil
         and not showToy
         and (primaryEntry.icon ~= nil or primaryEntry.iconAtlas ~= nil))
-    rewardFrame.MountBorder:SetShown(rewardFrame.ItemIcon:IsShown()
-        and primaryEntry.rewardType == "mount")
+    local rewardType = primaryEntry and primaryEntry.rewardType
+    rewardFrame.CollectionBorder:SetShown(rewardFrame.ItemIcon:IsShown()
+        and (rewardType == "mount" or rewardType == "decor"
+            or rewardType == "appearance"))
     rewardFrame.PetBorder:SetShown(rewardFrame.ItemIcon:IsShown()
-        and primaryEntry.rewardType == "pet")
+        and rewardType == "pet")
     rewardFrame.ToyButton.itemID = showToy and primaryEntry.itemID or nil
     rewardFrame.ToyButton.Icon:SetTexture(showToy and primaryEntry.icon
         or nil)
@@ -334,11 +342,11 @@ UpdateAchievementRewardPanel = function(frame, achievementID)
         rewardFrame.Description:SetHeight(44 + extraHeight)
         rewardFrame.ModelScene:ClearAllPoints()
         rewardFrame.ModelScene:SetPoint("TOPLEFT", rewardFrame,
-            "TOPLEFT", 20, -118 - extraHeight)
+            "TOPLEFT", 8, -118 - extraHeight)
         local modelBottomOffset = previewEntry.rewardType == "mount"
             and 240 or 54
         rewardFrame.ModelScene:SetPoint("BOTTOMRIGHT", rewardFrame,
-            "BOTTOMRIGHT", -20, modelBottomOffset)
+            "BOTTOMRIGHT", -8, modelBottomOffset)
         rewardFrame.ModelScene:Show()
         local modelSceneID = showAppearance
             and DRESS_UP_FRAME_MODEL_SCENE_ID
@@ -419,7 +427,7 @@ UpdateAchievementRewardPanel = function(frame, achievementID)
     local hasRewardIcon = rewardFrame.ItemIcon:IsShown()
         or rewardFrame.ToyButton:IsShown()
     local hasRewardName = rewardFrame.ItemName:IsShown()
-    local hasNativeIconBorder = rewardFrame.MountBorder:IsShown()
+    local hasNativeIconBorder = rewardFrame.CollectionBorder:IsShown()
         or rewardFrame.PetBorder:IsShown()
         or rewardFrame.ToyButton:IsShown()
     local iconWidth = hasRewardIcon
