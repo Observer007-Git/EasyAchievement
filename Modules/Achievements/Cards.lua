@@ -377,6 +377,28 @@ function ShowAchievementCardInTree(frame, achievementID)
         end)
         forwardButton:Hide()
         frame.AchievementCardForwardButton = forwardButton
+
+        frame:EnableKeyboard(true)
+        frame:SetPropagateKeyboardInput(true)
+        frame:SetScript("OnKeyDown", function(self, key)
+            local searchHasFocus = self.SearchBox
+                and self.SearchBox:HasFocus()
+            local navigationButton
+            if not searchHasFocus and card:IsShown() then
+                if key == "LEFT" then
+                    navigationButton = self.AchievementCardBackButton
+                elseif key == "RIGHT" then
+                    navigationButton = self.AchievementCardForwardButton
+                end
+            end
+            local handled = navigationButton
+                and navigationButton:IsShown()
+                and navigationButton:IsEnabled()
+            self:SetPropagateKeyboardInput(not handled)
+            if handled then
+                navigationButton:Click()
+            end
+        end)
     end
 
     card.EasyAchievementElementData = { id = data.id }

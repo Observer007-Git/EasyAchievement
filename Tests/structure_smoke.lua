@@ -220,6 +220,12 @@ assert(cardsSource:find("frame.rewardCategoryCardContext", 1, true)
     and cardsSource:find(
         "ReturnToAchievementRewardCategory(frame)", 1, true),
     "category cards do not use their displayed order and return control")
+assert(cardsSource:find("frame:EnableKeyboard(true)", 1, true)
+    and cardsSource:find('if key == "LEFT" then', 1, true)
+    and cardsSource:find('elseif key == "RIGHT" then', 1, true)
+    and cardsSource:find("self.SearchBox:HasFocus()", 1, true)
+    and cardsSource:find("navigationButton:Click()", 1, true),
+    "achievement cards do not support left/right keyboard navigation")
 assert(tooltipSource:find(
         "local reward = Addon.AchievementRewards.Get(node.id)", 1, true)
     and tooltipSource:find(
