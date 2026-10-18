@@ -208,6 +208,28 @@ assert(sanitizedStates["75"] and not sanitizedStates["1"],
 local BuildAchievementTree = Addon.AchievementTreeData.Build
 local AchievementUI = assert(Addon.AchievementUI,
     "achievement UI namespace was not created")
+local atlasTexture = {
+    SetAtlas = function(self, atlas, useAtlasSize)
+        self.atlas = atlas
+        self.useAtlasSize = useAtlasSize
+    end,
+}
+C_Texture = {
+    GetAtlasInfo = function()
+        error("unable to find mixin or metatable (Vector2DMixin)")
+    end,
+}
+assert(AchievementUI.SetTextureAtlas(atlasTexture, "test-atlas", true)
+    and atlasTexture.atlas == "test-atlas"
+    and atlasTexture.useAtlasSize == true,
+    "texture atlas helper did not bypass unsafe atlas metadata lookup")
+assert(not AchievementUI.SetTextureAtlas({
+    SetAtlas = function()
+        error("invalid atlas")
+    end,
+}, "invalid-atlas"),
+    "texture atlas helper did not allow callers to use their fallback")
+C_Texture = nil
 local openedATTQuery
 AllTheThings = {
     CreatePopoutForSearch = function(query)

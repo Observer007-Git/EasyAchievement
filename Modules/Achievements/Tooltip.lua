@@ -11,13 +11,10 @@ else
 end
 
 function SetTextureAtlas(texture, atlas, useAtlasSize)
-    if C_Texture and C_Texture.GetAtlasInfo
-        and C_Texture.GetAtlasInfo(atlas)
-    then
-        texture:SetAtlas(atlas, useAtlasSize == true)
-        return true
+    if not texture or type(texture.SetAtlas) ~= "function" then
+        return false
     end
-    return false
+    return pcall(texture.SetAtlas, texture, atlas, useAtlasSize == true)
 end
 
 function GetCharacterReputationProgress(factionID)
