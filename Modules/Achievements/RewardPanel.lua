@@ -19,6 +19,25 @@ local MODEL_SCENE_RIGHT_OFFSET = 24
 local MODEL_SCENE_CENTER_OFFSET =
     (MODEL_SCENE_LEFT_OFFSET + MODEL_SCENE_RIGHT_OFFSET) / 2
 
+local REWARD_TYPE_LABEL_KEYS = {
+    mount = "ACHIEVEMENT_REWARD_TYPE_MOUNT",
+    pet = "ACHIEVEMENT_REWARD_TYPE_PET",
+    toy = "ACHIEVEMENT_REWARD_TYPE_TOY",
+    decor = "ACHIEVEMENT_REWARD_TYPE_DECOR",
+    appearance = "ACHIEVEMENT_REWARD_TYPE_APPEARANCE",
+    item = "ACHIEVEMENT_REWARD_TYPE_ITEM",
+}
+
+local function FormatRewardName(entry)
+    if not entry or not entry.name or entry.name == "" then
+        return nil
+    end
+    local labelKey = REWARD_TYPE_LABEL_KEYS[entry.rewardType]
+        or "ACHIEVEMENT_REWARD_TYPE_OTHER"
+    return string.format(L.ACHIEVEMENT_REWARD_NAME_WITH_TYPE,
+        entry.name, L[labelKey])
+end
+
 local function FitMountRewardModel(modelScene, actor)
     if not modelScene or not actor or not actor.IsLoaded
         or not actor:IsLoaded() or not actor.GetActiveBoundingBox
@@ -359,8 +378,9 @@ UpdateAchievementRewardPanel = function(frame, achievementID)
         math.min(#entries, rewardFrame.entryIndex or 1))
     local primaryEntry = entries[rewardFrame.entryIndex]
     local previewEntry = primaryEntry
-    local rewardNames = primaryEntry and primaryEntry.name
-        and primaryEntry.name ~= "" and { primaryEntry.name } or {}
+    local formattedRewardName = FormatRewardName(primaryEntry)
+    local rewardNames = formattedRewardName
+        and { formattedRewardName } or {}
     local rewardDescriptions = primaryEntry and primaryEntry.description
         and primaryEntry.description ~= "" and {
             primaryEntry.description,
