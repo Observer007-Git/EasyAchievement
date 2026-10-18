@@ -176,6 +176,7 @@ local achievementUIModules = {
     "Window.lua",
     "Navigator.lua",
     "Tree.lua",
+    "RewardCategories.lua",
     "Search.lua",
     "Launcher.lua",
 }
@@ -379,6 +380,31 @@ assert(calculatedLayout.verticalPositions[22]
 assert(calculatedLayout.contentWidth == 300
     and calculatedLayout.contentHeight == 200,
     "tree layout did not preserve the viewport minimum size")
+
+local gridNodes = {}
+for id = 1, 10 do
+    gridNodes[id] = { id = 1000 + id, layoutWidth = 50 }
+end
+local gridLayout = Addon.AchievementTreeLayout.Calculate(
+    gridNodes, {}, gridNodes[1], {
+        availableHeight = 65,
+        branchGap = 1,
+        levelGap = 8,
+        nodeRowPitch = 21,
+        leftPadding = 10,
+        padding = 10,
+        viewportWidth = 120,
+        viewportHeight = 85,
+    })
+assert(gridLayout.horizontalPositions[1001]
+        == gridLayout.horizontalPositions[1003]
+    and gridLayout.horizontalPositions[1004]
+        > gridLayout.horizontalPositions[1003]
+    and gridLayout.horizontalPositions[1010]
+        > gridLayout.horizontalPositions[1007],
+    "independent achievements were not packed by maximum rows into columns")
+assert(gridLayout.contentWidth > 120,
+    "overflowing achievement columns did not create a draggable grid")
 
 local GetAchievementRewardData = Addon.AchievementRewards.Get
 local HasAchievementReward = Addon.AchievementRewards.Has

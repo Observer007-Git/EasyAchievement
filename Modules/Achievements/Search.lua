@@ -150,6 +150,8 @@ ShowAchievementTree = function(achievementID, navigationMode, breadcrumbIDs,
     local nodes, edges, root = BuildAchievementTree(achievementID)
     if nodes then
         local frame = CreateAchievementTreeFrame()
+        frame.rewardCategoryMode = nil
+        frame.pendingRewardCategory = nil
         local rootChanged = frame.sourceAchievementID ~= achievementID
         if frame.sourceAchievementID and rootChanged then
             SaveAchievementTreeState(frame)

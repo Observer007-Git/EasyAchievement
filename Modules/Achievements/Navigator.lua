@@ -128,7 +128,9 @@ FitAchievementTreeToWindow = function(frame)
     if not frame or not frame.layoutNodes or #frame.layoutNodes == 0 then
         return
     end
-    if AchievementTreeData.IsParentIndexBuilding() then
+    if not frame.rewardCategoryMode
+        and AchievementTreeData.IsParentIndexBuilding()
+    then
         frame.fitAfterParentIndexID = frame.sourceAchievementID
         return
     end

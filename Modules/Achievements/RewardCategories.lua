@@ -1,0 +1,236 @@
+local _, Addon = ...
+local UI = assert(Addon.AchievementUI,
+    "EasyAchievement achievement UI environment was not loaded")
+
+if setfenv then
+    setfenv(1, UI)
+else
+    _ENV = UI
+end
+
+local CATEGORY_DEFINITIONS = {
+    { key = "mount", labelKey = "ACHIEVEMENT_REWARD_CATEGORY_MOUNT" },
+    { key = "pet", labelKey = "ACHIEVEMENT_REWARD_CATEGORY_PET" },
+    { key = "toy", labelKey = "ACHIEVEMENT_REWARD_CATEGORY_TOY" },
+    { key = "decor", labelKey = "ACHIEVEMENT_REWARD_CATEGORY_DECOR" },
+    { key = "title", labelKey = "ACHIEVEMENT_REWARD_CATEGORY_TITLE" },
+    {
+        key = "appearance",
+        labelKey = "ACHIEVEMENT_REWARD_CATEGORY_APPEARANCE",
+    },
+    { key = "other", labelKey = "ACHIEVEMENT_REWARD_CATEGORY_OTHER" },
+}
+
+local categoryIndex
+local categoryIndexState
+local categoryIndexCallbacks = {}
+
+local function IsTitleRewardText(text)
+    if type(text) ~= "string" or text == "" then
+        return false
+    end
+    local titleFormat = _G.TITLE_REWARD
+    if type(titleFormat) == "string" and titleFormat ~= "" then
+        local prefix = titleFormat:match("^(.-)%%s") or titleFormat
+        if prefix ~= "" and text:find(prefix, 1, true) then
+            return true
+        end
+    end
+    local hint = L.ACHIEVEMENT_REWARD_CATEGORY_TITLE_HINT
+    return type(hint) == "string" and hint ~= ""
+        and text:lower():find(hint:lower(), 1, true) ~= nil
+end
+
+local function AddCategoryAchievement(index, seen, category, achievementID)
+    if seen[category][achievementID] then
+        return
+    end
+    seen[category][achievementID] = true
+    index[category][#index[category] + 1] = achievementID
+end
+
+local function BuildCategoryIndex()
+    categoryIndexState = "loading"
+    categoryIndex = {}
+    local seen = {}
+    for _, definition in ipairs(CATEGORY_DEFINITIONS) do
+        categoryIndex[definition.key] = {}
+        seen[definition.key] = {}
+    end
+
+    local achievementIDs = {}
+    local database = Addon.AchievementRewardDatabase
+    for achievementID in pairs(database and database.records or {}) do
+        achievementIDs[#achievementIDs + 1] = achievementID
+    end
+    table.sort(achievementIDs)
+
+    local names = {}
+    local position = 1
+    local function Finish()
+        for _, definition in ipairs(CATEGORY_DEFINITIONS) do
+            table.sort(categoryIndex[definition.key], function(left, right)
+                local leftName = names[left] or tostring(left)
+                local rightName = names[right] or tostring(right)
+                if leftName ~= rightName then
+                    return leftName < rightName
+                end
+                return left < right
+            end)
+        end
+        categoryIndexState = "ready"
+        local callbacks = categoryIndexCallbacks
+        categoryIndexCallbacks = {}
+        for _, callback in ipairs(callbacks) do
+            callback(categoryIndex)
+        end
+    end
+
+    local function ProcessChunk()
+        local startedAt = debugprofilestop and debugprofilestop() or nil
+        local processed = 0
+        while position <= #achievementIDs do
+            if processed > 0 and startedAt and debugprofilestop()
+                - startedAt >= INDEX_BUDGET_MILLISECONDS
+            then
+                break
+            elseif processed >= 60 and not startedAt then
+                break
+            end
+            local achievementID = achievementIDs[position]
+            position = position + 1
+            processed = processed + 1
+            local achievement = GetAchievementData(achievementID)
+            if achievement then
+                names[achievementID] = achievement.name
+                local reward = Addon.AchievementRewards.Get(achievementID)
+                local matched = {}
+                if reward then
+                    for _, entry in ipairs(reward.entries or {}) do
+                        local category = entry.rewardType
+                        if category ~= "mount" and category ~= "pet"
+                            and category ~= "toy" and category ~= "decor"
+                            and category ~= "appearance"
+                        then
+                            category = "other"
+                        end
+                        matched[category] = true
+                    end
+                    if IsTitleRewardText(reward.text) then
+                        matched.title = true
+                    end
+                end
+                if not next(matched) then
+                    matched.other = true
+                end
+                for category in pairs(matched) do
+                    AddCategoryAchievement(categoryIndex, seen, category,
+                        achievementID)
+                end
+            end
+        end
+        if position <= #achievementIDs and C_Timer and C_Timer.After then
+            C_Timer.After(0, ProcessChunk)
+        elseif position <= #achievementIDs then
+            ProcessChunk()
+        else
+            Finish()
+        end
+    end
+    ProcessChunk()
+end
+
+local function GetCategoryIndex(callback)
+    if categoryIndexState == "ready" then
+        callback(categoryIndex)
+        return
+    end
+    categoryIndexCallbacks[#categoryIndexCallbacks + 1] = callback
+    if not categoryIndexState then
+        BuildCategoryIndex()
+    end
+end
+
+local function GetCategoryDefinition(category)
+    for _, definition in ipairs(CATEGORY_DEFINITIONS) do
+        if definition.key == category then
+            return definition
+        end
+    end
+end
+
+local function RenderRewardCategory(frame, definition, achievementIDs)
+    if frame.pendingRewardCategory ~= definition.key or not frame:IsShown() then
+        return
+    end
+    local nodes = {}
+    for _, achievementID in ipairs(achievementIDs or {}) do
+        local node = GetAchievementData(achievementID)
+        if node then
+            node.depth = 1
+            node.hasChildren = false
+            nodes[#nodes + 1] = node
+        end
+    end
+    local label = L[definition.labelKey]
+    local root = nodes[1] or {
+        id = 0,
+        name = label,
+        icon = 134400,
+        depth = 1,
+    }
+    frame.rewardCategoryMode = {
+        key = definition.key,
+        label = label,
+        icon = 134400,
+    }
+    frame.EmptyText:SetText(L.ACHIEVEMENT_REWARD_CATEGORY_EMPTY)
+    LayoutAchievementTree(nodes, {}, root, false,
+        GetAchievementTreeStats(nodes), root)
+end
+
+ShowAchievementRewardCategory = function(category)
+    local definition = GetCategoryDefinition(category)
+    if not definition then
+        return
+    end
+    local frame = CreateAchievementTreeFrame()
+    if frame.sourceAchievementID then
+        SaveAchievementTreeState(frame)
+    end
+    frame.sourceAchievementID = nil
+    frame.cardOnlyAchievementID = nil
+    frame.pendingRewardCategory = category
+    frame.rewardCategoryMode = {
+        key = category,
+        label = L[definition.labelKey],
+        icon = 134400,
+    }
+    frame.EmptyText:SetText(L.ACHIEVEMENT_REWARD_CATEGORY_LOADING)
+    local placeholder = {
+        id = 0,
+        name = L[definition.labelKey],
+        icon = 134400,
+        depth = 1,
+    }
+    LayoutAchievementTree({}, {}, placeholder, false,
+        GetAchievementTreeStats({}), placeholder)
+    GetCategoryIndex(function(index)
+        RenderRewardCategory(frame, definition, index[category])
+    end)
+end
+
+OpenAchievementRewardCategoryMenu = function(owner)
+    if not MenuUtil or not MenuUtil.CreateContextMenu then
+        return
+    end
+    MenuUtil.CreateContextMenu(owner, function(_, rootDescription)
+        rootDescription:CreateTitle(L.ACHIEVEMENT_REWARD_CATEGORY_VIEW)
+        for _, definition in ipairs(CATEGORY_DEFINITIONS) do
+            local category = definition.key
+            rootDescription:CreateButton(L[definition.labelKey], function()
+                ShowAchievementRewardCategory(category)
+            end)
+        end
+    end)
+end

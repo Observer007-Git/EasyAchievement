@@ -254,6 +254,15 @@ function ToggleAchievementFavorite(achievementID)
     then
         ShowAchievementTree(achievementTreeFrame.sourceAchievementID,
             "refresh")
+    elseif achievementTreeFrame and achievementTreeFrame:IsShown()
+        and achievementTreeFrame.rewardCategoryMode
+        and achievementTreeFrame.layoutNodes and LayoutAchievementTree
+    then
+        LayoutAchievementTree(achievementTreeFrame.layoutNodes,
+            achievementTreeFrame.layoutEdges,
+            achievementTreeFrame.layoutRoot, true,
+            achievementTreeFrame.layoutStats,
+            achievementTreeFrame.layoutTitleRoot)
     end
 end
 

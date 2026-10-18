@@ -8,6 +8,7 @@ local expectedUIModules = {
     "Modules/Achievements/Window.lua",
     "Modules/Achievements/Navigator.lua",
     "Modules/Achievements/Tree.lua",
+    "Modules/Achievements/RewardCategories.lua",
     "Modules/Achievements/Search.lua",
     "Modules/Achievements/Launcher.lua",
 }
@@ -128,9 +129,19 @@ assert(windowSource:find('"GM-icon-settings-pressed"', 1, true)
     and windowSource:find(
         'scrollFrame:SetPoint("TOPLEFT", 24, -114)', 1, true),
     "compact settings layout changed")
+assert(windowSource:find('"friends-icon-menu"', 1, true)
+    and windowSource:find("categoryButton:SetSize(40, 40)", 1, true)
+    and windowSource:find(
+        'categoryButton:SetPoint("RIGHT", settingsButton, "LEFT", -1, 0)',
+        1, true)
+    and windowSource:find("OpenAchievementRewardCategoryMenu(self)",
+        1, true),
+    "reward category button is not configured beside settings")
 
 local treeSource = ReadSource("Modules/Achievements/Tree.lua")
 local cardsSource = ReadSource("Modules/Achievements/Cards.lua")
+local rewardCategoriesSource = ReadSource(
+    "Modules/Achievements/RewardCategories.lua")
 assert(treeSource:find("OpenAchievementContextMenu", 1, true),
     "achievement nodes do not expose the shared context menu")
 assert(treeSource:find('"SoulBinds_Collection_Charge_Pending"', 1, true)
@@ -156,6 +167,21 @@ assert(cardsSource:find("OpenAchievementContextMenu", 1, true)
     and cardsSource:find(
         "Addon.AchievementRewards.Has(data.id, data)", 1, true),
     "achievement cards do not expose the shared context menu")
+for _, category in ipairs({ "mount", "pet", "toy", "decor", "title",
+    "appearance", "other" })
+do
+    assert(rewardCategoriesSource:find('key = "' .. category .. '"',
+            1, true),
+        "reward category menu is missing " .. category)
+end
+assert(rewardCategoriesSource:find(
+        "Addon.AchievementRewardDatabase", 1, true)
+    and rewardCategoriesSource:find(
+        "LayoutAchievementTree(nodes, {}, root", 1, true)
+    and treeSource:find("local categoryMode = frame.rewardCategoryMode",
+        1, true)
+    and treeSource:find("availableHeight = availableTreeHeight", 1, true),
+    "reward categories do not use the dynamic draggable tree grid")
 
 local rewardPanelSource = ReadSource("Modules/Achievements/RewardPanel.lua")
 assert(rewardPanelSource:find('description:SetJustifyH("CENTER")', 1,

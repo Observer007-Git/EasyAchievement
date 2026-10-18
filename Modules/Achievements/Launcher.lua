@@ -116,6 +116,8 @@ function CreateAchievementLauncher()
         else
             local frame = CreateAchievementTreeFrame()
             frame.sourceAchievementID = nil
+            frame.rewardCategoryMode = nil
+            frame.pendingRewardCategory = nil
             for _, nodeButton in ipairs(frame.nodeButtons) do
                 nodeButton:Hide()
             end

@@ -31,5 +31,6 @@ Modules/Achievements/Favorites.lua
 Modules/Achievements/Window.lua
 Modules/Achievements/Navigator.lua
 Modules/Achievements/Tree.lua
+Modules/Achievements/RewardCategories.lua
 Modules/Achievements/Search.lua
 Modules/Achievements/Launcher.lua

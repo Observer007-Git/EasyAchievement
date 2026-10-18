@@ -299,11 +299,12 @@ end
 LayoutAchievementTree = function(nodes, edges, root, preserveScroll, stats,
     titleRoot, cardAchievementID)
     local frame = CreateAchievementTreeFrame()
+    local categoryMode = frame.rewardCategoryMode
     cardAchievementID = cardAchievementID
         or frame.cardOnlyAchievementID
     ClearHoveredLines(frame)
     frame.Stats:Show()
-    frame.Legend:Show()
+    frame.Legend:SetShown(not categoryMode)
     if frame.RootAncestorButton then
         frame.RootAncestorButton:Hide()
     end
@@ -328,31 +329,52 @@ LayoutAchievementTree = function(nodes, edges, root, preserveScroll, stats,
     frame.layoutStats = stats
     frame.layoutTitleRoot = titleRoot
     titleRoot = titleRoot or root
-    StartAchievementParentIndex()
+    if not categoryMode then
+        StartAchievementParentIndex()
+    end
     stats = stats or GetAchievementTreeStats(nodes)
-    local showIncompleteFilter = stats.incomplete > 0
+    local showIncompleteFilter = not categoryMode and stats.incomplete > 0
     frame.IncompleteOnly:SetShown(showIncompleteFilter)
     frame.IncompleteOnlyLabel:SetShown(showIncompleteFilter)
-    frame.PortraitIcon:SetTexture(titleRoot.icon)
-    frame.ATTButton:SetShown(CanOpenAchievementATTGuide())
+    frame.PortraitIcon:SetTexture(categoryMode and categoryMode.icon
+        or titleRoot.icon)
+    frame.ATTButton:SetShown(not categoryMode and CanOpenAchievementATTGuide())
     local completionPercent = stats.total > 0
         and math.floor(stats.completed * 100 / stats.total + 0.5) or 0
-    UpdateAchievementHeader(frame,
-        string.format(L.ACHIEVEMENT_TREE_TITLE, titleRoot.name),
-        string.format(L.ACHIEVEMENT_TREE_STATS,
-            stats.total, stats.completed, stats.incomplete,
-            completionPercent))
-    UpdateAchievementRewardHeader(frame, titleRoot.id)
+    if categoryMode then
+        UpdateAchievementHeader(frame, categoryMode.label,
+            string.format(L.ACHIEVEMENT_REWARD_CATEGORY_STATS, stats.total))
+        UpdateAchievementRewardHeader(frame, nil)
+    else
+        UpdateAchievementHeader(frame,
+            string.format(L.ACHIEVEMENT_TREE_TITLE, titleRoot.name),
+            string.format(L.ACHIEVEMENT_TREE_STATS,
+                stats.total, stats.completed, stats.incomplete,
+                completionPercent))
+        UpdateAchievementRewardHeader(frame, titleRoot.id)
+    end
     local canGoBack = (frame.historyIndex or 1) > 1
     local canGoForward = (frame.historyIndex or 0)
         < #(frame.history or {})
+    frame.BackButton:SetShown(not categoryMode)
+    frame.ForwardButton:SetShown(not categoryMode)
     frame.BackButton:SetEnabled(canGoBack)
     frame.BackButton:SetAlpha(canGoBack and 1 or 0.35)
     frame.ForwardButton:SetEnabled(canGoForward)
     frame.ForwardButton:SetAlpha(canGoForward and 1 or 0.35)
+    if categoryMode then
+        frame.Breadcrumb:Hide()
+        for _, button in ipairs(frame.BreadcrumbButtons or {}) do
+            button:Hide()
+        end
+    else
+        frame.Breadcrumb:Show()
+    end
 
-    cardAchievementID = cardAchievementID
-        or (#nodes == 1 and #edges == 0 and nodes[1].id)
+    if not categoryMode then
+        cardAchievementID = cardAchievementID
+            or (#nodes == 1 and #edges == 0 and nodes[1].id)
+    end
     if cardAchievementID
         and ShowAchievementCardInTree(frame, cardAchievementID)
     then
@@ -406,11 +428,17 @@ LayoutAchievementTree = function(nodes, edges, root, preserveScroll, stats,
     local levelGap = LEVEL_GAP * scale
     local labelLeftGap = LABEL_LEFT_GAP * scale
     local treePadding = TREE_PADDING * scale
-    local topmostAchievementIDs, ancestorDepth =
-        GetTopmostAchievementIDs(titleRoot.id)
-    local topmostAchievementID = topmostAchievementIDs[1]
-    local hasAncestor = ancestorDepth > 0
-        and topmostAchievementID ~= titleRoot.id
+    local topmostAchievementIDs = {}
+    local topmostAchievementID
+    local hasAncestor = false
+    if not categoryMode then
+        local ancestorDepth
+        topmostAchievementIDs, ancestorDepth =
+            GetTopmostAchievementIDs(titleRoot.id)
+        topmostAchievementID = topmostAchievementIDs[1]
+        hasAncestor = ancestorDepth > 0
+            and topmostAchievementID ~= titleRoot.id
+    end
     local ancestorButtonWidth = math.max(6, 18 * scale)
     local treeLeftPadding = treePadding
         + (hasAncestor and ancestorButtonWidth + 3 * scale or 0)
@@ -496,7 +524,7 @@ LayoutAchievementTree = function(nodes, edges, root, preserveScroll, stats,
         button.FavoriteStar:SetShown(isFavorite)
         button.Label:SetText(node.name)
         SetAchievementTextColor(button.Label, node.completed, false)
-        button.RootGlow:SetShown(node == root)
+        button.RootGlow:SetShown(not categoryMode and node == root)
         local collapsed = frame.collapsedNodes
             and frame.collapsedNodes[node.id] == true
         button.CollapseButton:SetShown(node.hasChildren == true and collapsed)
