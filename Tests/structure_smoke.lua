@@ -118,10 +118,16 @@ local treeSource = ReadSource("Modules/Achievements/Tree.lua")
 local cardsSource = ReadSource("Modules/Achievements/Cards.lua")
 assert(treeSource:find("OpenAchievementContextMenu", 1, true),
     "achievement nodes do not expose the shared context menu")
-assert(treeSource:find('"duit_Arrows_Socketed"', 1, true)
+assert(treeSource:find('"ConduitIconFrame-Corners"', 1, true)
     and treeSource:find(
-        'CreateTexture(nil, "OVERLAY", nil, 7)', 1, true)
-    and treeSource:find("rewardBorder:SetAllPoints(icon)", 1, true)
+        'CreateTexture(nil, "OVERLAY", nil, 3)', 1, true)
+    and treeSource:find('local inset = 1', 1, true)
+    and treeSource:find(
+        'rewardBorder:SetPoint("TOPLEFT", icon, "TOPLEFT", inset, -inset)',
+        1, true)
+    and treeSource:find(
+        'rewardBorder:SetPoint("BOTTOMRIGHT", icon, "BOTTOMRIGHT", -inset, inset)',
+        1, true)
     and treeSource:find(
         "Addon.AchievementRewards.Has(node.id, node)", 1, true),
     "rewarded achievement icons do not use a scale-aware atlas border")
