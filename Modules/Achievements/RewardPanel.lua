@@ -87,6 +87,7 @@ local function FitMountRewardModel(modelScene, actor)
         camera:SetMaxZoomDistance(maximumDistance)
     end
     camera:SetZoomDistance(fitDistance)
+    modelScene:OnMouseWheel(-1)
     if camera.SnapAllInterpolatedValues then
         camera:SnapAllInterpolatedValues()
     end
@@ -427,7 +428,7 @@ UpdateAchievementRewardPanel = function(frame, achievementID)
         local modelTopOffset = hasMultipleEntries
             and -146 - extraHeight or -118 - extraHeight
         rewardFrame.ModelScene:SetPoint("TOPLEFT", rewardFrame,
-            "TOPLEFT", -60, modelTopOffset)
+            "TOPLEFT", -200, modelTopOffset)
         rewardFrame.ModelScene:SetPoint("BOTTOMRIGHT", rewardFrame,
             "BOTTOMRIGHT", 24, -20)
         rewardFrame.ModelScene:Show()

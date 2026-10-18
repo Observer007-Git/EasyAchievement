@@ -99,7 +99,7 @@ assert(rewardPanelSource:find(
         1, true)
     and rewardPanelSource:find(
         "local modelTopOffset = hasMultipleEntries", 1, true)
-    and rewardPanelSource:find('"TOPLEFT", -60, modelTopOffset', 1,
+    and rewardPanelSource:find('"TOPLEFT", -200, modelTopOffset', 1,
         true)
     and rewardPanelSource:find('"BOTTOMRIGHT", 24, -20)', 1,
         true),
@@ -110,7 +110,8 @@ assert(rewardPanelSource:find("local function FitMountRewardModel", 1, true)
     and rewardPanelSource:find(
         "actor:SetUseCenterForOrigin(true, true, true)", 1, true)
     and rewardPanelSource:find("camera:SetTarget(0, 0, 0)", 1, true)
-    and rewardPanelSource:find("fitDistance * 1.2", 1, true),
+    and rewardPanelSource:find("fitDistance * 1.2", 1, true)
+    and rewardPanelSource:find("modelScene:OnMouseWheel(-1)", 1, true),
     "mount models are not centered and fitted to the reward viewport")
 
 print("achievement UI module structure: ok")
