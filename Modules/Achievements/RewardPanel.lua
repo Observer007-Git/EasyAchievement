@@ -54,6 +54,28 @@ function CreateAchievementRewardFrame()
     itemIcon:SetTexCoord(0.06, 0.94, 0.06, 0.94)
     frame.ItemIcon = itemIcon
 
+    local mountBorder = frame:CreateTexture(nil, "OVERLAY")
+    mountBorder:SetPoint("CENTER", itemIcon, "CENTER")
+    mountBorder:SetSize(56, 56)
+    if not SetTextureAtlas(mountBorder,
+        "collections-itemborder-collected")
+    then
+        mountBorder:SetTexture("Interface\\Common\\WhiteIconFrame")
+    end
+    mountBorder:Hide()
+    frame.MountBorder = mountBorder
+
+    local petBorder = frame:CreateTexture(nil, "OVERLAY")
+    petBorder:SetPoint("CENTER", itemIcon, "CENTER")
+    petBorder:SetSize(56, 56)
+    if not SetTextureAtlas(petBorder,
+        "PetJournal-BattleSlot-IconBorder")
+    then
+        petBorder:SetTexture("Interface\\Common\\WhiteIconFrame")
+    end
+    petBorder:Hide()
+    frame.PetBorder = petBorder
+
     local toyButton = CreateFrame("Button", nil, frame)
     toyButton:SetPoint("CENTER", itemIcon, "CENTER", 0, 0)
     toyButton:SetSize(56, 56)
@@ -270,6 +292,10 @@ UpdateAchievementRewardPanel = function(frame, achievementID)
     rewardFrame.ItemIcon:SetShown(primaryEntry ~= nil
         and not showToy
         and (primaryEntry.icon ~= nil or primaryEntry.iconAtlas ~= nil))
+    rewardFrame.MountBorder:SetShown(rewardFrame.ItemIcon:IsShown()
+        and primaryEntry.rewardType == "mount")
+    rewardFrame.PetBorder:SetShown(rewardFrame.ItemIcon:IsShown()
+        and primaryEntry.rewardType == "pet")
     rewardFrame.ToyButton.itemID = showToy and primaryEntry.itemID or nil
     rewardFrame.ToyButton.Icon:SetTexture(showToy and primaryEntry.icon
         or nil)
@@ -393,14 +419,19 @@ UpdateAchievementRewardPanel = function(frame, achievementID)
     local hasRewardIcon = rewardFrame.ItemIcon:IsShown()
         or rewardFrame.ToyButton:IsShown()
     local hasRewardName = rewardFrame.ItemName:IsShown()
-    local maximumNameWidth = math.max(1, rewardFrame:GetWidth() - 98)
+    local hasNativeIconBorder = rewardFrame.MountBorder:IsShown()
+        or rewardFrame.PetBorder:IsShown()
+        or rewardFrame.ToyButton:IsShown()
+    local iconWidth = hasRewardIcon
+        and (hasNativeIconBorder and 56 or 48) or 0
+    local headerGap = hasRewardIcon and hasRewardName and 10 or 0
+    local maximumNameWidth = math.max(1,
+        rewardFrame:GetWidth() - iconWidth - headerGap - 40)
     local unboundedNameWidth = rewardFrame.ItemName.GetUnboundedStringWidth
         and rewardFrame.ItemName:GetUnboundedStringWidth()
         or rewardFrame.ItemName:GetStringWidth()
     local rewardNameWidth = hasRewardName
         and math.min(maximumNameWidth, unboundedNameWidth) or 0
-    local iconWidth = hasRewardIcon and 48 or 0
-    local headerGap = hasRewardIcon and hasRewardName and 10 or 0
     local headerWidth = iconWidth + headerGap + rewardNameWidth
     local headerLeft = -headerWidth / 2
     rewardFrame.ItemIcon:ClearAllPoints()
