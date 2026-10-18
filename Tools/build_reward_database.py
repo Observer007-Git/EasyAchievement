@@ -267,15 +267,17 @@ def build_database(input_dir):
             for value in achievement["rewards"].values())
         if not direct_item_id and not has_reward_text:
             continue
-        if direct_item_id:
-            records[achievement_id] = [(direct_item_id, 0)]
-            continue
 
-        inferred = set(direct_decor.get(achievement_id, set()))
+        inferred_by_type = {
+            reward_type: set() for reward_type in TYPE_MARKERS
+        }
+        inferred_by_type["decor"].update(
+            direct_decor.get(achievement_id, set()))
         for reward_type in ("mount", "pet", "toy"):
             for title in achievement["titles"].values():
-                inferred.update(source_indexes[reward_type].get(
-                    normalized(title), set()))
+                inferred_by_type[reward_type].update(
+                    source_indexes[reward_type].get(
+                        normalized(title), set()))
 
         detected_types = set()
         normalized_rewards = [normalized(value)
@@ -288,12 +290,32 @@ def build_database(input_dir):
                     if len(item_name) >= 2 and any(
                         item_name in text for text in normalized_rewards
                     ):
-                        inferred.update(name_indexes[reward_type][item_name])
+                        inferred_by_type[reward_type].update(
+                            name_indexes[reward_type][item_name])
 
+        if direct_item_id:
+            direct_types = {
+                reward_type for reward_type, item_ids
+                in named_item_types.items() if direct_item_id in item_ids
+            }
+            if len(detected_types) <= 1:
+                for reward_type in inferred_by_type:
+                    if (reward_type != "decor"
+                        or achievement_id not in direct_decor):
+                        inferred_by_type[reward_type].clear()
+            else:
+                for reward_type in direct_types.intersection(detected_types):
+                    inferred_by_type[reward_type].clear()
+
+        inferred = set().union(*inferred_by_type.values())
         inferred.discard(0)
-        if inferred:
-            records[achievement_id] = [(0, item_id)
-                for item_id in sorted(inferred)]
+        inferred.discard(direct_item_id)
+        reward_rows = []
+        if direct_item_id:
+            reward_rows.append((direct_item_id, 0))
+        reward_rows.extend((0, item_id) for item_id in sorted(inferred))
+        if reward_rows:
+            records[achievement_id] = reward_rows
             inferred_count += len(inferred)
         else:
             records[achievement_id] = [(0, 0)]

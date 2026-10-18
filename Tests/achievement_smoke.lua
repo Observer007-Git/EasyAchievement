@@ -387,6 +387,11 @@ assert(generatedReward and generatedReward[1]
     and generatedReward[1].rewardItemID == 0
     and generatedReward[1].inferredRewardItemID == 279921,
     "generated reward database is missing Kiklak")
+local combinedReward = Addon.AchievementRewardDatabase.records[20501]
+assert(combinedReward and #combinedReward == 2
+    and combinedReward[1].rewardItemID == 217612
+    and combinedReward[2].inferredRewardItemID == 248125,
+    "generated reward database lost a direct plus decor reward")
 
 local ConfigureAchievementCardChildLinks =
     AchievementUI.ConfigureAchievementCardChildLinks
@@ -417,8 +422,8 @@ assert(openedChildID == 4321,
 AchievementUI.ShowAchievementTree = originalShowAchievementTree
 
 Addon.AchievementRewardDatabase.records[1] = {
-    { achievementID = 1, rewardItemID = 0,
-        inferredRewardItemID = 9101 },
+    { achievementID = 1, rewardItemID = 9101,
+        inferredRewardItemID = 0 },
     { achievementID = 1, rewardItemID = 0,
         inferredRewardItemID = 9102 },
 }

@@ -3804,6 +3804,7 @@ Addon.AchievementRewardDatabase = {
         },
         [19458] = {
             { achievementID = 19458, rewardItemID = 210142, inferredRewardItemID = 0 },
+            { achievementID = 19458, rewardItemID = 0, inferredRewardItemID = 248124 },
         },
         [19460] = {
             { achievementID = 19460, rewardItemID = 0, inferredRewardItemID = 0 },
@@ -4416,6 +4417,7 @@ Addon.AchievementRewardDatabase = {
         },
         [20501] = {
             { achievementID = 20501, rewardItemID = 217612, inferredRewardItemID = 0 },
+            { achievementID = 20501, rewardItemID = 0, inferredRewardItemID = 248125 },
         },
         [20524] = {
             { achievementID = 20524, rewardItemID = 0, inferredRewardItemID = 0 },
@@ -6788,6 +6790,7 @@ Addon.AchievementRewardDatabase = {
         },
         [61451] = {
             { achievementID = 61451, rewardItemID = 258188, inferredRewardItemID = 0 },
+            { achievementID = 61451, rewardItemID = 0, inferredRewardItemID = 257353 },
         },
         [61463] = {
             { achievementID = 61463, rewardItemID = 258884, inferredRewardItemID = 0 },
