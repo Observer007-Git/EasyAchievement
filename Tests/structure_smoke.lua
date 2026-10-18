@@ -78,10 +78,6 @@ assert(cardsSource:find("OpenAchievementContextMenu", 1, true),
     "achievement cards do not expose the shared context menu")
 
 local rewardPanelSource = ReadSource("Modules/Achievements/RewardPanel.lua")
-assert(rewardPanelSource:find('previewEntry.rewardType == "mount"', 1,
-        true)
-    and rewardPanelSource:find("and 200 or 20", 1, true),
-    "reward model bottom offsets are not expanded downward")
 assert(rewardPanelSource:find('description:SetJustifyH("CENTER")', 1,
         true)
     and rewardPanelSource:find("local headerLeft = -headerWidth / 2", 1,
@@ -97,7 +93,7 @@ assert(rewardPanelSource:find("collections-itemborder-collected", 1, true)
     "collection rewards do not use native icon borders")
 assert(rewardPanelSource:find('"TOPLEFT", -36, -118 - extraHeight', 1,
         true)
-    and rewardPanelSource:find('"BOTTOMRIGHT", 24, modelBottomOffset', 1,
+    and rewardPanelSource:find('"BOTTOMRIGHT", 24, -20)', 1,
         true),
     "3D reward model area is not using the widened layout")
 

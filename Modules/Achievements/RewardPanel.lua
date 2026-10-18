@@ -337,10 +337,8 @@ UpdateAchievementRewardPanel = function(frame, achievementID)
         rewardFrame.ModelScene:ClearAllPoints()
         rewardFrame.ModelScene:SetPoint("TOPLEFT", rewardFrame,
             "TOPLEFT", -36, -118 - extraHeight)
-        local modelBottomOffset = previewEntry.rewardType == "mount"
-            and 200 or 20
         rewardFrame.ModelScene:SetPoint("BOTTOMRIGHT", rewardFrame,
-            "BOTTOMRIGHT", 24, modelBottomOffset)
+            "BOTTOMRIGHT", 24, -20)
         rewardFrame.ModelScene:Show()
         local modelSceneID = showAppearance
             and DRESS_UP_FRAME_MODEL_SCENE_ID
