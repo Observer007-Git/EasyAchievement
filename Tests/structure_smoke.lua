@@ -105,8 +105,11 @@ assert(windowSource:find(
     "main search limit or breadcrumb navigation size changed")
 assert(windowSource:find('"GM-icon-settings-pressed"', 1, true)
     and windowSource:find('"GM-icon-settings-hover"', 1, true)
+    and windowSource:find('closeButton:SetPoint("TOPRIGHT", 1, -1)',
+        1, true)
+    and windowSource:find("closeButton:SetSize(20, 20)", 1, true)
     and windowSource:find(
-        'settingsButton:SetPoint("RIGHT", closeButton, "LEFT", -1, -4)',
+        'settingsButton:SetPoint("RIGHT", closeButton, "LEFT", -1, -1)',
         1, true)
     and windowSource:find("settingsButton:SetSize(40, 40)", 1, true)
     and windowSource:find(
