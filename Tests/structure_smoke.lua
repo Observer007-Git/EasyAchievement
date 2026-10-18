@@ -64,11 +64,32 @@ assert(launcherSource:find(
 local searchSource = ReadSource("Modules/Achievements/Search.lua")
 assert(searchSource:find("OpenAchievementATTGuide(achievementID)", 1, true),
     "achievement context menu is not connected to the ATT guide")
+assert(searchSource:find("local collapsedHeight = 32", 1, true)
+    and searchSource:find("search:SetMaxLetters(12)", 1, true),
+    "launcher search dimensions or input limit changed")
 
 local windowSource = ReadSource("Modules/Achievements/Window.lua")
 assert(windowSource:find("OpenAchievementATTGuide(frame.sourceAchievementID)",
         1, true),
     "top-right ATT guide button is not connected")
+assert(windowSource:find("searchBox:SetMaxLetters(12)", 1, true)
+    and windowSource:find("local breadcrumbArrowHeight = 34", 1, true),
+    "main search limit or breadcrumb navigation size changed")
+assert(windowSource:find('"GM-icon-settings-pressed"', 1, true)
+    and windowSource:find('"GM-icon-settings-hover"', 1, true)
+    and windowSource:find(
+        "CreateScaleControls(settingsPanel, L.ACHIEVEMENT_TREE_SCALE)",
+        1, true)
+    and windowSource:find("popupAlphaPlus = CreateScaleControls(", 1,
+        true)
+    and windowSource:find("L.ACHIEVEMENT_POPUP_ALPHA", 1, true)
+    and not windowSource:find("frame.StatsDivider", 1, true)
+    and not windowSource:find("frame.ControlsDivider", 1, true)
+    and windowSource:find("frame.TreeDivider = CreateGoldDivider(-80)",
+        1, true)
+    and windowSource:find(
+        'scrollFrame:SetPoint("TOPLEFT", 24, -114)', 1, true),
+    "compact settings layout changed")
 
 local treeSource = ReadSource("Modules/Achievements/Tree.lua")
 local cardsSource = ReadSource("Modules/Achievements/Cards.lua")
@@ -92,6 +113,10 @@ assert(rewardPanelSource:find('description:SetJustifyH("CENTER")', 1,
         true)
     and rewardPanelSource:find("GetUnboundedStringWidth", 1, true),
     "reward header information is not horizontally centered")
+assert(rewardPanelSource:find(
+        'rewardFrame:SetPoint("TOPRIGHT", hostFrame, "TOPRIGHT", -24, -115)',
+        1, true),
+    "reward panel did not expand into the compacted header space")
 assert(rewardPanelSource:find("collections-itemborder-collected", 1, true)
     and rewardPanelSource:find("PetJournal-BattleSlot-IconBorder", 1, true)
     and rewardPanelSource:find('rewardType == "mount"', 1, true)

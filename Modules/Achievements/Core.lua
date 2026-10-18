@@ -31,6 +31,9 @@ TREE_SCALE_STEP = Config.Tree.ScaleStep
 MIN_ACHIEVEMENT_CARD_SCALE = Config.Card.MinScale
 MAX_ACHIEVEMENT_CARD_SCALE = Config.Card.MaxScale
 ACHIEVEMENT_CARD_SCALE_STEP = Config.Card.ScaleStep
+MIN_ACHIEVEMENT_POPUP_ALPHA = 0.2
+MAX_ACHIEVEMENT_POPUP_ALPHA = 1
+ACHIEVEMENT_POPUP_ALPHA_STEP = 0.05
 MAX_ACHIEVEMENT_SEARCH_RESULTS = Config.Search.MaxResults
 DRESS_UP_FRAME_MODEL_SCENE_ID = Config.ModelScene.DressUpSceneID
 INDEX_BUDGET_MILLISECONDS = Config.Performance.IndexBudgetMilliseconds
@@ -106,6 +109,12 @@ function GetAchievementPopupScale()
             tonumber(Addon:GetSetting("achievementPopupScale")) or 1))
 end
 
+function GetAchievementPopupAlpha()
+    return math.max(MIN_ACHIEVEMENT_POPUP_ALPHA,
+        math.min(MAX_ACHIEVEMENT_POPUP_ALPHA,
+            tonumber(Addon:GetSetting("achievementPopupAlpha")) or 1))
+end
+
 function ApplyAchievementCardScale(value)
     local scale = tonumber(value) or GetAchievementCardScale()
     scale = math.max(MIN_ACHIEVEMENT_CARD_SCALE,
@@ -143,6 +152,23 @@ function ApplyAchievementPopupScale(value)
             scale > MIN_ACHIEVEMENT_CARD_SCALE)
         achievementTreeFrame.PopupScalePlus:SetEnabled(
             scale < MAX_ACHIEVEMENT_CARD_SCALE)
+    end
+end
+
+function ApplyAchievementPopupAlpha(value)
+    local alpha = tonumber(value) or GetAchievementPopupAlpha()
+    alpha = math.max(MIN_ACHIEVEMENT_POPUP_ALPHA,
+        math.min(MAX_ACHIEVEMENT_POPUP_ALPHA, alpha))
+    for _, popup in ipairs(achievementPopupFrames) do
+        popup:SetAlpha(alpha)
+    end
+    if achievementTreeFrame and achievementTreeFrame.PopupAlphaValue then
+        achievementTreeFrame.PopupAlphaValue:SetText(string.format("%d%%",
+            math.floor(alpha * 100 + 0.5)))
+        achievementTreeFrame.PopupAlphaMinus:SetEnabled(
+            alpha > MIN_ACHIEVEMENT_POPUP_ALPHA)
+        achievementTreeFrame.PopupAlphaPlus:SetEnabled(
+            alpha < MAX_ACHIEVEMENT_POPUP_ALPHA)
     end
 end
 

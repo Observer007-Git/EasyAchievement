@@ -264,14 +264,63 @@ function CreateAchievementTreeFrame()
         divider:SetColorTexture(0.9, 0.66, 0.18, 0.8)
         return divider
     end
-    frame.StatsDivider = CreateGoldDivider(-50)
-    frame.ControlsDivider = CreateGoldDivider(-80)
-    frame.TreeDivider = CreateGoldDivider(-110)
+    frame.TreeDivider = CreateGoldDivider(-80)
 
-    local breadcrumbArrowHeight = 17
+    local settingsPanel = CreateFrame("Frame", nil, frame)
+    settingsPanel:SetHeight(36)
+    settingsPanel:SetFrameLevel(borderFrame:GetFrameLevel() + 20)
+    settingsPanel:EnableMouse(true)
+    local settingsBackground = settingsPanel:CreateTexture(nil, "BACKGROUND")
+    settingsBackground:SetAllPoints()
+    settingsBackground:SetColorTexture(0.035, 0.035, 0.035, 0.98)
+    local function CreateSettingsBorder(point, relativePoint, width, height)
+        local edge = settingsPanel:CreateTexture(nil, "BORDER")
+        edge:SetPoint(point)
+        edge:SetPoint(relativePoint)
+        edge:SetColorTexture(0.72, 0.52, 0.14, 0.95)
+        if width then
+            edge:SetWidth(width)
+        else
+            edge:SetHeight(height)
+        end
+    end
+    CreateSettingsBorder("TOPLEFT", "BOTTOMLEFT", 1)
+    CreateSettingsBorder("TOPRIGHT", "BOTTOMRIGHT", 1)
+    CreateSettingsBorder("TOPLEFT", "TOPRIGHT", nil, 1)
+    CreateSettingsBorder("BOTTOMLEFT", "BOTTOMRIGHT", nil, 1)
+    settingsPanel:Hide()
+    frame.SettingsPanel = settingsPanel
+
+    local function CreateScaleControls(parent, labelText)
+        local controls = CreateFrame("Frame", nil, parent)
+        controls:SetHeight(22)
+        local label = controls:CreateFontString(nil, "OVERLAY",
+            "GameFontNormalSmall")
+        label:SetPoint("LEFT")
+        label:SetText(labelText)
+        local minus = CreateFrame("Button", nil, controls,
+            "UIPanelButtonTemplate")
+        minus:SetPoint("LEFT", label, "RIGHT", 5, 0)
+        minus:SetSize(20, 20)
+        minus:SetText("-")
+        local value = controls:CreateFontString(nil, "OVERLAY",
+            "GameFontHighlightSmall")
+        value:SetPoint("LEFT", minus, "RIGHT", 5, 0)
+        value:SetWidth(38)
+        value:SetJustifyH("CENTER")
+        local plus = CreateFrame("Button", nil, controls,
+            "UIPanelButtonTemplate")
+        plus:SetPoint("LEFT", value, "RIGHT", 5, 0)
+        plus:SetSize(20, 20)
+        plus:SetText("+")
+        controls:SetWidth(math.ceil(label:GetStringWidth()) + 93)
+        return controls, minus, value, plus
+    end
+
+    local breadcrumbArrowHeight = 34
     local breadcrumbArrowWidth = breadcrumbArrowHeight * 48 / 67
     local backButton = CreateFrame("Button", nil, frame)
-    backButton:SetPoint("LEFT", frame, "TOPLEFT", 70, -127)
+    backButton:SetPoint("LEFT", frame, "TOPLEFT", 70, -97)
     backButton:SetSize(breadcrumbArrowWidth, breadcrumbArrowHeight)
     backButton:SetNormalAtlas(
         "CovenantSanctum-Renown-DoubleArrow", false)
@@ -312,49 +361,23 @@ function CreateAchievementTreeFrame()
     frame.IncompleteOnly = incompleteOnly
     frame.IncompleteOnlyLabel = incompleteOnlyLabel
 
-    local scaleLabel = frame:CreateFontString(nil, "OVERLAY",
-        "GameFontNormalSmall")
-    scaleLabel:SetPoint("LEFT", frame, "TOPLEFT", 210, -65)
-    scaleLabel:SetText(L.ACHIEVEMENT_TREE_SCALE)
+    local treeScaleControls, scaleMinus, scaleValue, scalePlus =
+        CreateScaleControls(settingsPanel, L.ACHIEVEMENT_TREE_SCALE)
+    treeScaleControls:SetPoint("LEFT", settingsPanel, "LEFT", 10, 0)
+    frame.TreeScaleControls = treeScaleControls
+    frame.TreeScaleMinus = scaleMinus
+    frame.TreeScaleValue = scaleValue
+    frame.TreeScalePlus = scalePlus
 
     local scaleSlider = CreateFrame("Slider",
         "EasyAchievementTreeScaleSlider", frame,
         "OptionsSliderTemplate")
     scaleSlider:SetOrientation("HORIZONTAL")
-    local scaleMinus = CreateFrame("Button", nil, frame,
-        "UIPanelButtonTemplate")
-    scaleMinus:SetPoint("LEFT", scaleLabel, "RIGHT", 8, 0)
-    scaleMinus:SetSize(20, 20)
-    scaleMinus:SetText("-")
-
-    scaleSlider:SetPoint("LEFT", scaleMinus, "RIGHT", 4, 0)
-    scaleSlider:SetSize(56, 16)
+    scaleSlider:SetSize(1, 1)
     scaleSlider:SetMinMaxValues(MIN_TREE_SCALE, MAX_TREE_SCALE)
     scaleSlider:SetValueStep(TREE_SCALE_STEP)
     scaleSlider:SetObeyStepOnDrag(true)
-    scaleSlider:SetValue(1)
-    local scaleLow = scaleSlider.Low
-        or _G[scaleSlider:GetName() .. "Low"]
-    local scaleHigh = scaleSlider.High
-        or _G[scaleSlider:GetName() .. "High"]
-    local scaleText = scaleSlider.Text
-        or _G[scaleSlider:GetName() .. "Text"]
-    if scaleLow then scaleLow:SetText("") end
-    if scaleHigh then scaleHigh:SetText("") end
-    if scaleText then scaleText:SetText("") end
-
-    local scalePlus = CreateFrame("Button", nil, frame,
-        "UIPanelButtonTemplate")
-    scalePlus:SetPoint("LEFT", scaleSlider, "RIGHT", 4, 0)
-    scalePlus:SetSize(20, 20)
-    scalePlus:SetText("+")
-
-    local scaleValue = frame:CreateFontString(nil, "OVERLAY",
-        "GameFontHighlightSmall")
-    scaleValue:SetPoint("LEFT", scalePlus, "RIGHT", 8, 0)
-    scaleValue:SetWidth(38)
-    scaleValue:SetJustifyH("CENTER")
-    scaleValue:SetText("100%")
+    scaleSlider:Hide()
 
     local fitButton = CreateFrame("Button", nil, frame,
         "UIPanelButtonTemplate")
@@ -383,26 +406,22 @@ function CreateAchievementTreeFrame()
                 frame.layoutTitleRoot)
         end
     end)
-    scaleSlider:HookScript("OnMouseDown", function()
-        frame.deferTreeStateSave = true
-    end)
-    scaleSlider:HookScript("OnMouseUp", function()
-        frame.deferTreeStateSave = nil
-        SaveAchievementTreeState(frame)
-    end)
     scaleMinus:SetScript("OnClick", function()
         scaleSlider:SetValue(math.max(MIN_TREE_SCALE,
             scaleSlider:GetValue() - TREE_SCALE_STEP))
+        SaveAchievementTreeState(frame)
     end)
     scalePlus:SetScript("OnClick", function()
         scaleSlider:SetValue(math.min(MAX_TREE_SCALE,
             scaleSlider:GetValue() + TREE_SCALE_STEP))
+        SaveAchievementTreeState(frame)
     end)
+    scaleSlider:SetValue(1)
     frame.ScaleSlider = scaleSlider
 
     local favoritesScroll = CreateFrame("ScrollFrame", nil, frame)
-    favoritesScroll:SetPoint("TOPLEFT", 72, -84)
-    favoritesScroll:SetPoint("TOPRIGHT", -416, -84)
+    favoritesScroll:SetPoint("TOPLEFT", 72, -54)
+    favoritesScroll:SetPoint("TOPRIGHT", -416, -54)
     favoritesScroll:SetHeight(24)
     favoritesScroll:EnableMouseWheel(true)
     local favoritesContent = CreateFrame("Frame", nil, favoritesScroll)
@@ -425,11 +444,11 @@ function CreateAchievementTreeFrame()
 
     local searchBox = CreateFrame("EditBox", nil, frame,
         "SearchBoxTemplate")
-    searchBox:SetPoint("RIGHT", frame, "TOPRIGHT", -70, -95)
+    searchBox:SetPoint("RIGHT", frame, "TOPRIGHT", -70, -65)
     searchBox:SetSize(336, 24)
     searchBox:SetHeight(24)
     searchBox:SetAutoFocus(false)
-    searchBox:SetMaxLetters(20)
+    searchBox:SetMaxLetters(12)
     if searchBox.SetInstructions then
         searchBox:SetInstructions(L.ACHIEVEMENT_TREE_SEARCH)
     end
@@ -750,15 +769,15 @@ function CreateAchievementTreeFrame()
 
     local breadcrumb = frame:CreateFontString(nil, "OVERLAY",
         "GameFontHighlightSmall")
-    breadcrumb:SetPoint("LEFT", frame, "TOPLEFT", 72, -127)
-    breadcrumb:SetPoint("RIGHT", frame, "TOPRIGHT", -330, -127)
+    breadcrumb:SetPoint("LEFT", frame, "TOPLEFT", 128, -97)
+    breadcrumb:SetPoint("RIGHT", frame, "TOPRIGHT", -330, -97)
     breadcrumb:SetJustifyH("LEFT")
     breadcrumb:SetWordWrap(false)
     frame.Breadcrumb = breadcrumb
 
     local legend = frame:CreateFontString(nil, "OVERLAY",
         "GameFontDisableSmall")
-    legend:SetPoint("RIGHT", frame, "TOPRIGHT", -70, -127)
+    legend:SetPoint("RIGHT", frame, "TOPRIGHT", -70, -97)
     legend:SetText(L.ACHIEVEMENT_TREE_LEGEND)
     frame.Legend = legend
 
@@ -769,28 +788,9 @@ function CreateAchievementTreeFrame()
     incompleteOnly:ClearAllPoints()
     incompleteOnly:SetPoint("RIGHT", incompleteOnlyLabel, "LEFT", -2, 0)
 
-    local cardScaleControls = CreateFrame("Frame", nil, frame)
-    cardScaleControls:SetPoint("LEFT", scaleValue, "RIGHT", 12, 0)
-    cardScaleControls:SetSize(200, 22)
-    local cardScaleLabel = cardScaleControls:CreateFontString(nil,
-        "OVERLAY", "GameFontNormalSmall")
-    cardScaleLabel:SetPoint("LEFT")
-    cardScaleLabel:SetText(L.ACHIEVEMENT_CARD_SCALE)
-    local cardScaleMinus = CreateFrame("Button", nil, cardScaleControls,
-        "UIPanelButtonTemplate")
-    cardScaleMinus:SetPoint("LEFT", cardScaleLabel, "RIGHT", 5, 0)
-    cardScaleMinus:SetSize(20, 20)
-    cardScaleMinus:SetText("-")
-    local cardScaleValue = cardScaleControls:CreateFontString(nil,
-        "OVERLAY", "GameFontHighlightSmall")
-    cardScaleValue:SetPoint("LEFT", cardScaleMinus, "RIGHT", 5, 0)
-    cardScaleValue:SetWidth(38)
-    cardScaleValue:SetJustifyH("CENTER")
-    local cardScalePlus = CreateFrame("Button", nil, cardScaleControls,
-        "UIPanelButtonTemplate")
-    cardScalePlus:SetPoint("LEFT", cardScaleValue, "RIGHT", 5, 0)
-    cardScalePlus:SetSize(20, 20)
-    cardScalePlus:SetText("+")
+    local cardScaleControls, cardScaleMinus, cardScaleValue, cardScalePlus =
+        CreateScaleControls(settingsPanel, L.ACHIEVEMENT_CARD_SCALE)
+    cardScaleControls:SetPoint("LEFT", treeScaleControls, "RIGHT", 10, 0)
     cardScaleMinus:SetScript("OnClick", function()
         Addon:SetSetting("achievementCardScale",
             GetAchievementCardScale() - ACHIEVEMENT_CARD_SCALE_STEP)
@@ -811,28 +811,10 @@ function CreateAchievementTreeFrame()
     cardScalePlus:SetEnabled(initialCardScale
         < MAX_ACHIEVEMENT_CARD_SCALE)
 
-    local popupScaleControls = CreateFrame("Frame", nil, frame)
-    popupScaleControls:SetPoint("LEFT", cardScaleControls, "RIGHT", 8, 0)
-    popupScaleControls:SetSize(200, 22)
-    local popupScaleLabel = popupScaleControls:CreateFontString(nil,
-        "OVERLAY", "GameFontNormalSmall")
-    popupScaleLabel:SetPoint("LEFT")
-    popupScaleLabel:SetText(L.ACHIEVEMENT_POPUP_SCALE)
-    local popupScaleMinus = CreateFrame("Button", nil,
-        popupScaleControls, "UIPanelButtonTemplate")
-    popupScaleMinus:SetPoint("LEFT", popupScaleLabel, "RIGHT", 5, 0)
-    popupScaleMinus:SetSize(20, 20)
-    popupScaleMinus:SetText("-")
-    local popupScaleValue = popupScaleControls:CreateFontString(nil,
-        "OVERLAY", "GameFontHighlightSmall")
-    popupScaleValue:SetPoint("LEFT", popupScaleMinus, "RIGHT", 5, 0)
-    popupScaleValue:SetWidth(38)
-    popupScaleValue:SetJustifyH("CENTER")
-    local popupScalePlus = CreateFrame("Button", nil,
-        popupScaleControls, "UIPanelButtonTemplate")
-    popupScalePlus:SetPoint("LEFT", popupScaleValue, "RIGHT", 5, 0)
-    popupScalePlus:SetSize(20, 20)
-    popupScalePlus:SetText("+")
+    local popupScaleControls, popupScaleMinus, popupScaleValue,
+        popupScalePlus = CreateScaleControls(settingsPanel,
+            L.ACHIEVEMENT_POPUP_SCALE)
+    popupScaleControls:SetPoint("LEFT", cardScaleControls, "RIGHT", 10, 0)
     popupScaleMinus:SetScript("OnClick", function()
         Addon:SetSetting("achievementPopupScale",
             GetAchievementPopupScale() - ACHIEVEMENT_CARD_SCALE_STEP)
@@ -852,6 +834,33 @@ function CreateAchievementTreeFrame()
         > MIN_ACHIEVEMENT_CARD_SCALE)
     popupScalePlus:SetEnabled(initialPopupScale
         < MAX_ACHIEVEMENT_CARD_SCALE)
+
+    local popupAlphaControls, popupAlphaMinus, popupAlphaValue,
+        popupAlphaPlus = CreateScaleControls(settingsPanel,
+            L.ACHIEVEMENT_POPUP_ALPHA)
+    popupAlphaControls:SetPoint("LEFT", popupScaleControls, "RIGHT", 10, 0)
+    popupAlphaMinus:SetScript("OnClick", function()
+        Addon:SetSetting("achievementPopupAlpha",
+            GetAchievementPopupAlpha() - ACHIEVEMENT_POPUP_ALPHA_STEP)
+    end)
+    popupAlphaPlus:SetScript("OnClick", function()
+        Addon:SetSetting("achievementPopupAlpha",
+            GetAchievementPopupAlpha() + ACHIEVEMENT_POPUP_ALPHA_STEP)
+    end)
+    frame.PopupAlphaControls = popupAlphaControls
+    frame.PopupAlphaMinus = popupAlphaMinus
+    frame.PopupAlphaValue = popupAlphaValue
+    frame.PopupAlphaPlus = popupAlphaPlus
+    local initialPopupAlpha = GetAchievementPopupAlpha()
+    popupAlphaValue:SetText(string.format("%d%%",
+        math.floor(initialPopupAlpha * 100 + 0.5)))
+    popupAlphaMinus:SetEnabled(initialPopupAlpha
+        > MIN_ACHIEVEMENT_POPUP_ALPHA)
+    popupAlphaPlus:SetEnabled(initialPopupAlpha
+        < MAX_ACHIEVEMENT_POPUP_ALPHA)
+    settingsPanel:SetWidth(50 + treeScaleControls:GetWidth()
+        + cardScaleControls:GetWidth() + popupScaleControls:GetWidth()
+        + popupAlphaControls:GetWidth())
 
     local closeButton = CreateFrame("Button", nil, frame)
     closeButton:SetPoint("TOPRIGHT", 1, 6)
@@ -880,6 +889,28 @@ function CreateAchievementTreeFrame()
         frame:Hide()
     end)
 
+    local settingsButton = CreateFrame("Button", nil, frame)
+    settingsButton:SetPoint("RIGHT", closeButton, "LEFT", -1, 0)
+    settingsButton:SetSize(24, 24)
+    settingsButton:SetFrameLevel(borderFrame:GetFrameLevel() + 1)
+    local settingsNormal = settingsButton:CreateTexture(nil, "ARTWORK")
+    SetTextureAtlas(settingsNormal, "GM-icon-settings-pressed")
+    settingsNormal:SetAllPoints()
+    settingsButton:SetNormalTexture(settingsNormal)
+    local settingsPushed = settingsButton:CreateTexture(nil, "ARTWORK")
+    SetTextureAtlas(settingsPushed, "GM-icon-settings-pressed")
+    settingsPushed:SetAllPoints()
+    settingsButton:SetPushedTexture(settingsPushed)
+    local settingsHighlight = settingsButton:CreateTexture(nil, "HIGHLIGHT")
+    SetTextureAtlas(settingsHighlight, "GM-icon-settings-hover")
+    settingsHighlight:SetAllPoints()
+    settingsButton:SetHighlightTexture(settingsHighlight)
+    settingsPanel:SetPoint("TOPRIGHT", settingsButton, "BOTTOMRIGHT", 0, -2)
+    settingsButton:SetScript("OnClick", function()
+        settingsPanel:SetShown(not settingsPanel:IsShown())
+    end)
+    frame.SettingsButton = settingsButton
+
     local attButton = CreateFrame("Button", nil, frame,
         "UIPanelButtonTemplate")
     attButton:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -36, -25)
@@ -894,7 +925,7 @@ function CreateAchievementTreeFrame()
 
     local scrollFrame = CreateFrame("ScrollFrame",
         "EasyAchievementTreeScrollFrame", frame)
-    scrollFrame:SetPoint("TOPLEFT", 24, -144)
+    scrollFrame:SetPoint("TOPLEFT", 24, -114)
     scrollFrame:SetPoint("BOTTOMRIGHT", -24, 26)
     scrollFrame:EnableMouse(true)
     scrollFrame:RegisterForDrag("LeftButton")
@@ -1121,6 +1152,7 @@ function CreateAchievementTreeFrame()
         if ClearHoveredLines then
             ClearHoveredLines(frame)
         end
+        frame.SettingsPanel:Hide()
         GameTooltip:Hide()
     end)
     table.insert(UISpecialFrames, frame:GetName())

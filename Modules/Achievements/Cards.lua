@@ -203,6 +203,7 @@ function PopulateAchievementPopup(frame, data)
     FormatAchievementCardDate(card, data)
     frame.achievementID = data.id
     ApplyAchievementPopupScale(GetAchievementPopupScale())
+    frame:SetAlpha(GetAchievementPopupAlpha())
     frame:Show()
     frame:Raise()
 end

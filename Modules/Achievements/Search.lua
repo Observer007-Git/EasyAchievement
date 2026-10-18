@@ -57,7 +57,7 @@ function UpdateBreadcrumb(frame)
         local width = 32 + math.ceil(button.Text:GetStringWidth()) + 8
         button:SetWidth(width)
         button:ClearAllPoints()
-        button:SetPoint("LEFT", frame, "TOPLEFT", offset, -127)
+        button:SetPoint("LEFT", frame, "TOPLEFT", offset, -97)
         button.achievementID = achievementID
         button.pathIndex = index
         button:SetScript("OnClick", function(self, mouseButton)
@@ -369,7 +369,7 @@ end
 function CreateAchievementLauncherSearch(anchor)
     local panel = CreateFrame("Frame", nil, UIParent)
     local anchorHeight = math.max(1, anchor:GetHeight() or 42)
-    local collapsedHeight = 35
+    local collapsedHeight = 32
     local searchHeight = collapsedHeight
     local anchorOffsetY = (collapsedHeight - anchorHeight) / 2
     local searchTopInset = 0
@@ -387,7 +387,7 @@ function CreateAchievementLauncherSearch(anchor)
     search:SetPoint("TOPRIGHT", -4, -searchTopInset)
     search:SetHeight(searchHeight)
     search:SetAutoFocus(false)
-    search:SetMaxLetters(20)
+    search:SetMaxLetters(12)
     if search.SetInstructions then
         search:SetInstructions(L.ACHIEVEMENT_TREE_SEARCH)
     end

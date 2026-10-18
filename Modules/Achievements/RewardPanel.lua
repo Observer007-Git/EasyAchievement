@@ -334,7 +334,7 @@ function ConfigureAchievementRewardFrame(rewardFrame, hostFrame)
     rewardFrame:SetFrameStrata(hostFrame:GetFrameStrata())
     rewardFrame:SetFrameLevel(hostFrame:GetFrameLevel() + 20)
     rewardFrame:SetWidth(GetAchievementRewardPanelWidth(hostFrame))
-    rewardFrame:SetPoint("TOPRIGHT", hostFrame, "TOPRIGHT", -24, -145)
+    rewardFrame:SetPoint("TOPRIGHT", hostFrame, "TOPRIGHT", -24, -115)
     rewardFrame:SetPoint("BOTTOMRIGHT", hostFrame,
         "BOTTOMRIGHT", -24, 26)
 end

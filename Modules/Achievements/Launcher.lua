@@ -272,6 +272,10 @@ Addon:RegisterSetting("achievementPopupScale", 1,
     Addon.NumberSetting(MIN_ACHIEVEMENT_CARD_SCALE,
         MAX_ACHIEVEMENT_CARD_SCALE, ACHIEVEMENT_CARD_SCALE_STEP),
     ApplyAchievementPopupScale)
+Addon:RegisterSetting("achievementPopupAlpha", 1,
+    Addon.NumberSetting(MIN_ACHIEVEMENT_POPUP_ALPHA,
+        MAX_ACHIEVEMENT_POPUP_ALPHA, ACHIEVEMENT_POPUP_ALPHA_STEP),
+    ApplyAchievementPopupAlpha)
 Addon:RegisterSetting("achievementPopupIDs", {},
     SanitizeAchievementFavorites)
 Addon:RegisterSetting("achievementPopupPosition", nil, Addon.PositionSetting)
