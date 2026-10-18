@@ -1,0 +1,394 @@
+local _, Addon = ...
+local UI = assert(Addon.AchievementUI,
+    "EasyAchievement achievement UI environment was not loaded")
+
+-- WoW uses Lua 5.1 semantics; local development uses newer Lua.
+-- Both branches bind this chunk to the same addon-private environment.
+if setfenv then
+    setfenv(1, UI)
+else
+    _ENV = UI
+end
+
+AchievementRewards = assert(Addon.AchievementRewards,
+    "EasyAchievement achievement reward service was not loaded")
+GetAchievementRewardData = AchievementRewards.Get
+
+AchievementRewards.SetIndexReadyCallback(function()
+    local frame = achievementTreeFrame
+    if not frame or not frame:IsShown() or not frame.sourceAchievementID
+        or not UpdateAchievementRewardHeader
+    then
+        return
+    end
+    frame.rewardLookupAchievementID = nil
+    UpdateAchievementRewardHeader(frame, frame.sourceAchievementID)
+    if frame.AchievementCard and frame.AchievementCard:IsShown() then
+        local shown = UpdateAchievementRewardPanel(frame,
+            frame.sourceAchievementID)
+        local offsetX = shown and
+            -(achievementRewardFrame:GetWidth() / 2 + 6) or 0
+        frame.AchievementCard:ClearAllPoints()
+        frame.AchievementCard:SetPoint("CENTER", frame, "CENTER",
+            offsetX, -45)
+        frame.AchievementCardHeader:ClearAllPoints()
+        frame.AchievementCardHeader:SetPoint("BOTTOM",
+            frame.AchievementCard, "TOP", 0, 10)
+        LayoutAchievementHeader(frame)
+    end
+end)
+
+function CreateAchievementRewardFrame()
+    if achievementRewardFrame then
+        return achievementRewardFrame
+    end
+
+    local frame = CreateFrame("Frame", "EasyAchievementRewardFrame",
+        UIParent)
+    frame:SetSize(380, 250)
+    frame:EnableMouse(true)
+
+    local itemIcon = frame:CreateTexture(nil, "ARTWORK")
+    itemIcon:SetPoint("TOPLEFT", frame, "TOPLEFT", 20, -10)
+    itemIcon:SetSize(48, 48)
+    itemIcon:SetTexCoord(0.06, 0.94, 0.06, 0.94)
+    frame.ItemIcon = itemIcon
+
+    local toyButton = CreateFrame("Button", nil, frame)
+    toyButton:SetPoint("CENTER", itemIcon, "CENTER", 0, 0)
+    toyButton:SetSize(56, 56)
+    local toyIcon = toyButton:CreateTexture(nil, "ARTWORK")
+    toyIcon:SetPoint("CENTER", toyButton, "CENTER", 0, 1)
+    toyIcon:SetSize(42, 42)
+    toyIcon:SetTexCoord(0.04347826, 0.95652173,
+        0.04347826, 0.95652173)
+    toyButton.Icon = toyIcon
+    local toyBorder = toyButton:CreateTexture(nil, "OVERLAY")
+    toyBorder:SetPoint("CENTER")
+    toyBorder:SetSize(56, 56)
+    toyBorder:SetAtlas("collections-itemborder-collected", false)
+    toyButton.Border = toyBorder
+    local toyHighlight = toyButton:CreateTexture(nil, "HIGHLIGHT")
+    toyHighlight:SetPoint("CENTER", toyButton, "CENTER", 0, 2)
+    toyHighlight:SetSize(48, 48)
+    toyHighlight:SetTexture("Interface\\Buttons\\ButtonHilight-Square")
+    toyHighlight:SetBlendMode("ADD")
+    local function ShowToyRewardTooltip(self)
+        if not self.itemID then
+            return
+        end
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        local shown
+        if GameTooltip.SetToyByItemID then
+            shown = GameTooltip:SetToyByItemID(self.itemID)
+        elseif GameTooltip.SetItemByID then
+            shown = GameTooltip:SetItemByID(self.itemID)
+        end
+        GameTooltip:Show()
+        self.UpdateTooltip = shown and ShowToyRewardTooltip or nil
+    end
+    toyButton:SetScript("OnEnter", ShowToyRewardTooltip)
+    toyButton:SetScript("OnLeave", function(self)
+        self.UpdateTooltip = nil
+        GameTooltip:Hide()
+    end)
+    toyButton:Hide()
+    frame.ToyButton = toyButton
+
+    local itemName = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    itemName:SetPoint("TOPLEFT", itemIcon, "TOPRIGHT", 10, -2)
+    itemName:SetPoint("RIGHT", frame, "RIGHT", -28, 0)
+    itemName:SetJustifyH("LEFT")
+    itemName:SetJustifyV("TOP")
+    itemName:SetWordWrap(true)
+    itemName:SetHeight(18)
+    frame.ItemName = itemName
+
+    local description = frame:CreateFontString(nil, "OVERLAY",
+        "GameFontHighlightSmall")
+    description:SetPoint("TOPLEFT", itemName, "BOTTOMLEFT", 0, -5)
+    description:SetPoint("RIGHT", frame, "RIGHT", -28, 0)
+    description:SetHeight(88)
+    description:SetJustifyH("LEFT")
+    description:SetJustifyV("TOP")
+    description:SetWordWrap(true)
+    frame.Description = description
+
+    local modelScene = CreateFrame("ModelScene", nil, frame,
+        "ModelSceneMixinTemplate")
+    modelScene:SetPoint("TOPLEFT", frame, "TOPLEFT", 20, -88)
+    modelScene:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -20, 54)
+    modelScene:EnableMouse(true)
+    modelScene:EnableMouseWheel(true)
+    frame:RegisterEvent("UI_MODEL_SCENE_INFO_UPDATED")
+    frame:SetScript("OnEvent", function(self, event)
+        if event ~= "UI_MODEL_SCENE_INFO_UPDATED"
+            or not self.pendingModelRefresh or not self:IsShown()
+            or not achievementTreeFrame
+            or not achievementTreeFrame:IsShown()
+            or not UpdateAchievementRewardPanel
+        then
+            return
+        end
+        self.pendingModelRefresh = nil
+        UpdateAchievementRewardPanel(achievementTreeFrame,
+            self.achievementID)
+    end)
+    frame.ModelScene = modelScene
+
+    local modelControls = CreateFrame("Frame", nil, modelScene,
+        "ModelSceneControlFrameTemplate")
+    modelControls:SetPoint("BOTTOM", frame, "BOTTOM", 0, 18)
+    modelControls:SetFrameLevel(modelScene:GetFrameLevel() + 10)
+    modelControls:SetModelScene(modelScene)
+    modelControls:Show()
+    frame.ModelControls = modelControls
+
+    local function SelectAdjacentReward(self, direction)
+        local rewardFrame = self:GetParent()
+        local entryCount = rewardFrame.entryCount or 0
+        local entryIndex = math.max(1, math.min(entryCount,
+            (rewardFrame.entryIndex or 1) + direction))
+        if entryIndex == rewardFrame.entryIndex or entryCount < 2
+            or not achievementTreeFrame or not UpdateAchievementRewardPanel
+        then
+            return
+        end
+        rewardFrame.entryIndex = entryIndex
+        UpdateAchievementRewardPanel(achievementTreeFrame,
+            rewardFrame.achievementID)
+    end
+
+    local previousButton = CreateFrame("Button", nil, frame)
+    previousButton:SetSize(24, 24)
+    previousButton:SetFrameLevel(modelScene:GetFrameLevel() + 20)
+    previousButton:SetNormalTexture(
+        "Interface\\Buttons\\UI-SpellbookIcon-PrevPage-Up")
+    previousButton:SetPushedTexture(
+        "Interface\\Buttons\\UI-SpellbookIcon-PrevPage-Down")
+    previousButton:SetDisabledTexture(
+        "Interface\\Buttons\\UI-SpellbookIcon-PrevPage-Disabled")
+    previousButton:SetHighlightTexture(
+        "Interface\\Buttons\\UI-Common-MouseHilight", "ADD")
+    previousButton:SetScript("OnClick", function(self)
+        SelectAdjacentReward(self, -1)
+    end)
+    previousButton:Hide()
+    frame.PreviousReward = previousButton
+
+    local nextButton = CreateFrame("Button", nil, frame)
+    nextButton:SetSize(24, 24)
+    nextButton:SetFrameLevel(modelScene:GetFrameLevel() + 20)
+    nextButton:SetNormalTexture(
+        "Interface\\Buttons\\UI-SpellbookIcon-NextPage-Up")
+    nextButton:SetPushedTexture(
+        "Interface\\Buttons\\UI-SpellbookIcon-NextPage-Down")
+    nextButton:SetDisabledTexture(
+        "Interface\\Buttons\\UI-SpellbookIcon-NextPage-Disabled")
+    nextButton:SetHighlightTexture(
+        "Interface\\Buttons\\UI-Common-MouseHilight", "ADD")
+    nextButton:SetScript("OnClick", function(self)
+        SelectAdjacentReward(self, 1)
+    end)
+    nextButton:Hide()
+    frame.NextReward = nextButton
+
+    local entryCounter = frame:CreateFontString(nil, "OVERLAY",
+        "GameFontHighlightSmall")
+    entryCounter:SetPoint("BOTTOM", frame, "BOTTOM", 0, 54)
+    entryCounter:Hide()
+    frame.EntryCounter = entryCounter
+    previousButton:SetPoint("RIGHT", entryCounter, "LEFT", -4, 0)
+    nextButton:SetPoint("LEFT", entryCounter, "RIGHT", 4, 0)
+
+    frame:Hide()
+    achievementRewardFrame = frame
+    return frame
+end
+
+function GetAchievementRewardPanelWidth(hostFrame)
+    if hostFrame:GetWidth() < 860 then
+        hostFrame:SetWidth(860)
+    end
+    return math.max(300, math.min(460, hostFrame:GetWidth() * 0.42))
+end
+
+function ConfigureAchievementRewardFrame(rewardFrame, hostFrame)
+    rewardFrame:ClearAllPoints()
+    rewardFrame:SetParent(hostFrame)
+    rewardFrame:SetFrameStrata(hostFrame:GetFrameStrata())
+    rewardFrame:SetFrameLevel(hostFrame:GetFrameLevel() + 20)
+    rewardFrame:SetWidth(GetAchievementRewardPanelWidth(hostFrame))
+    rewardFrame:SetPoint("TOPRIGHT", hostFrame, "TOPRIGHT", -24, -145)
+    rewardFrame:SetPoint("BOTTOMRIGHT", hostFrame,
+        "BOTTOMRIGHT", -24, 26)
+end
+
+UpdateAchievementRewardPanel = function(frame, achievementID)
+    local reward = GetAchievementRewardData(achievementID)
+    if not frame or not reward or #reward.entries == 0
+    then
+        if achievementRewardFrame then
+            achievementRewardFrame:Hide()
+        end
+        return false
+    end
+
+    local rewardFrame = CreateAchievementRewardFrame()
+    local entries = reward.entries or {}
+    if rewardFrame.achievementID ~= achievementID then
+        rewardFrame.entryIndex = 1
+    end
+    rewardFrame.entryCount = #entries
+    rewardFrame.entryIndex = math.max(1,
+        math.min(#entries, rewardFrame.entryIndex or 1))
+    local primaryEntry = entries[rewardFrame.entryIndex]
+    local previewEntry = primaryEntry
+    local rewardNames = primaryEntry and primaryEntry.name
+        and primaryEntry.name ~= "" and { primaryEntry.name } or {}
+    local rewardDescriptions = primaryEntry and primaryEntry.description
+        and primaryEntry.description ~= "" and {
+            primaryEntry.description,
+        } or {}
+    local rewardItemIDs = {}
+    for _, entry in ipairs(entries) do
+        if entry.itemID then
+            rewardItemIDs[entry.itemID] = true
+        end
+    end
+    rewardFrame.achievementID = achievementID
+    rewardFrame.rewardItemIDs = rewardItemIDs
+    local showToy = primaryEntry ~= nil
+        and primaryEntry.rewardType == "toy"
+    rewardFrame.ItemIcon:SetTexture(nil)
+    if primaryEntry and primaryEntry.iconAtlas then
+        rewardFrame.ItemIcon:SetAtlas(primaryEntry.iconAtlas, false)
+    elseif primaryEntry then
+        rewardFrame.ItemIcon:SetTexture(primaryEntry.icon)
+        rewardFrame.ItemIcon:SetTexCoord(0.06, 0.94, 0.06, 0.94)
+    end
+    rewardFrame.ItemIcon:SetShown(primaryEntry ~= nil
+        and not showToy
+        and (primaryEntry.icon ~= nil or primaryEntry.iconAtlas ~= nil))
+    rewardFrame.ToyButton.itemID = showToy and primaryEntry.itemID or nil
+    rewardFrame.ToyButton.Icon:SetTexture(showToy and primaryEntry.icon
+        or nil)
+    rewardFrame.ToyButton:SetShown(showToy and primaryEntry.icon ~= nil)
+    rewardFrame.ItemName:SetText(table.concat(rewardNames, "  +  "))
+    rewardFrame.ItemName:SetHeight(18)
+    rewardFrame.ItemName:SetShown(#rewardNames > 0)
+    rewardFrame.Description:SetText(table.concat(rewardDescriptions, "\n\n"))
+    rewardFrame.Description:SetShown(#rewardDescriptions > 0)
+    rewardFrame.pendingModelRefresh = nil
+    rewardFrame.ModelScene:ClearScene()
+    local showAppearance = previewEntry
+        and previewEntry.previewType == "appearance"
+        and #(previewEntry.appearanceSourceIDs or {}) > 0
+        and SetupPlayerForModelScene ~= nil
+    local showModel = showAppearance or previewEntry
+        and previewEntry.previewType == "model"
+        and previewEntry.modelSceneID
+        and (previewEntry.displayID or previewEntry.asset)
+    local nameExtraHeight = math.max(0,
+        rewardFrame.ItemName:GetHeight() - 18)
+    local extraHeight = nameExtraHeight
+    local hasMultipleEntries = #entries > 1
+    rewardFrame.PreviousReward:SetShown(hasMultipleEntries)
+    rewardFrame.PreviousReward:SetEnabled(rewardFrame.entryIndex > 1)
+    rewardFrame.NextReward:SetShown(hasMultipleEntries)
+    rewardFrame.NextReward:SetEnabled(rewardFrame.entryIndex < #entries)
+    rewardFrame.EntryCounter:SetShown(hasMultipleEntries)
+    rewardFrame.EntryCounter:SetText(string.format("%d / %d",
+        rewardFrame.entryIndex, #entries))
+    rewardFrame.EntryCounter:ClearAllPoints()
+    rewardFrame.EntryCounter:SetPoint("BOTTOM", rewardFrame, "BOTTOM",
+        0, showModel and 54 or 18)
+    if showModel then
+        rewardFrame:SetSize(460, 540 + extraHeight)
+        rewardFrame.Description:SetHeight(44 + extraHeight)
+        rewardFrame.ModelScene:ClearAllPoints()
+        rewardFrame.ModelScene:SetPoint("TOPLEFT", rewardFrame,
+            "TOPLEFT", 20, -88 - extraHeight)
+        rewardFrame.ModelScene:SetPoint("BOTTOMRIGHT", rewardFrame,
+            "BOTTOMRIGHT", -20, 54)
+        rewardFrame.ModelScene:Show()
+        local modelSceneID = showAppearance
+            and DRESS_UP_FRAME_MODEL_SCENE_ID
+            or previewEntry.modelSceneID
+        if showAppearance then
+            if rewardFrame.ModelScene.SetViewInsets then
+                rewardFrame.ModelScene:SetViewInsets(0, 0, 0, 0)
+            end
+            if rewardFrame.ModelScene.ReleaseAllActors then
+                rewardFrame.ModelScene:ReleaseAllActors()
+            end
+        end
+        if rewardFrame.ModelScene.TransitionToModelSceneID then
+            rewardFrame.ModelScene:TransitionToModelSceneID(
+                modelSceneID,
+                CAMERA_TRANSITION_TYPE_IMMEDIATE or 1,
+                CAMERA_MODIFICATION_TYPE_DISCARD or 1, true)
+        else
+            rewardFrame.ModelScene:SetFromModelSceneID(
+                modelSceneID, true)
+        end
+        if showAppearance then
+            local useNativeForm = true
+            if C_PlayerInfo and C_PlayerInfo.GetAlternateFormInfo then
+                local _, inAlternateForm =
+                    C_PlayerInfo.GetAlternateFormInfo()
+                useNativeForm = not inAlternateForm
+            end
+            SetupPlayerForModelScene(rewardFrame.ModelScene, nil,
+                previewEntry.appearanceSourceIDs, false, true, false,
+                useNativeForm)
+        end
+        local actor
+        if showAppearance then
+            actor = rewardFrame.ModelScene:GetPlayerActor()
+        else
+            actor = rewardFrame.ModelScene:GetActorByTag(
+                previewEntry.rewardType == "decor" and "decor"
+                    or "unwrapped")
+        end
+        if actor then
+            if not showAppearance and actor.SetPreferModelCollisionBounds then
+                actor:SetPreferModelCollisionBounds(
+                    previewEntry.rewardType == "decor")
+            end
+            if showAppearance then
+                actor:Show()
+            elseif previewEntry.rewardType == "decor" then
+                actor:SetModelByFileID(previewEntry.asset)
+            else
+                actor:SetModelByCreatureDisplayID(
+                    previewEntry.displayID, true)
+                if actor.SetAnimationBlendOperation
+                    and Enum and Enum.ModelBlendOperation
+                then
+                    actor:SetAnimationBlendOperation(
+                        previewEntry.isSelfMount
+                            and Enum.ModelBlendOperation.None
+                            or Enum.ModelBlendOperation.Anim)
+                end
+                actor:SetAnimation(previewEntry.isSelfMount and 618 or 0)
+            end
+            if not showAppearance then
+                actor:Show()
+            end
+        else
+            rewardFrame.pendingModelRefresh = true
+        end
+        rewardFrame.ModelControls:Show()
+        rewardFrame.ModelControls:UpdateLayout()
+    else
+        rewardFrame.Description:SetHeight(88 + extraHeight)
+        rewardFrame:SetSize(380, primaryEntry and 250 + extraHeight or 180)
+        rewardFrame.ModelControls:Hide()
+        rewardFrame.ModelScene:Hide()
+    end
+    ConfigureAchievementRewardFrame(rewardFrame, frame)
+    rewardFrame:Show()
+    rewardFrame:Raise()
+    return true
+end
