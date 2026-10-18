@@ -228,14 +228,9 @@ function CreateAchievementRewardFrame()
     return frame
 end
 
-function GetAchievementRewardPanelWidth(hostFrame, showModel)
-    local minimumHostWidth = showModel and 940 or 860
-    if hostFrame:GetWidth() < minimumHostWidth then
-        hostFrame:SetWidth(minimumHostWidth)
-    end
-    if showModel then
-        return math.max(360,
-            math.min(540, hostFrame:GetWidth() * 0.46))
+function GetAchievementRewardPanelWidth(hostFrame)
+    if hostFrame:GetWidth() < 860 then
+        hostFrame:SetWidth(860)
     end
     return math.max(300, math.min(460, hostFrame:GetWidth() * 0.42))
 end
@@ -245,8 +240,7 @@ function ConfigureAchievementRewardFrame(rewardFrame, hostFrame)
     rewardFrame:SetParent(hostFrame)
     rewardFrame:SetFrameStrata(hostFrame:GetFrameStrata())
     rewardFrame:SetFrameLevel(hostFrame:GetFrameLevel() + 20)
-    rewardFrame:SetWidth(GetAchievementRewardPanelWidth(hostFrame,
-        rewardFrame.ModelScene:IsShown()))
+    rewardFrame:SetWidth(GetAchievementRewardPanelWidth(hostFrame))
     rewardFrame:SetPoint("TOPRIGHT", hostFrame, "TOPRIGHT", -24, -145)
     rewardFrame:SetPoint("BOTTOMRIGHT", hostFrame,
         "BOTTOMRIGHT", -24, 26)
@@ -342,11 +336,11 @@ UpdateAchievementRewardPanel = function(frame, achievementID)
         rewardFrame.Description:SetHeight(44 + extraHeight)
         rewardFrame.ModelScene:ClearAllPoints()
         rewardFrame.ModelScene:SetPoint("TOPLEFT", rewardFrame,
-            "TOPLEFT", 8, -118 - extraHeight)
+            "TOPLEFT", -36, -118 - extraHeight)
         local modelBottomOffset = previewEntry.rewardType == "mount"
-            and 240 or 54
+            and 200 or 20
         rewardFrame.ModelScene:SetPoint("BOTTOMRIGHT", rewardFrame,
-            "BOTTOMRIGHT", -8, modelBottomOffset)
+            "BOTTOMRIGHT", 24, modelBottomOffset)
         rewardFrame.ModelScene:Show()
         local modelSceneID = showAppearance
             and DRESS_UP_FRAME_MODEL_SCENE_ID

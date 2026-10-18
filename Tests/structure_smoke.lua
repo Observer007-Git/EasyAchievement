@@ -80,8 +80,8 @@ assert(cardsSource:find("OpenAchievementContextMenu", 1, true),
 local rewardPanelSource = ReadSource("Modules/Achievements/RewardPanel.lua")
 assert(rewardPanelSource:find('previewEntry.rewardType == "mount"', 1,
         true)
-    and rewardPanelSource:find("and 240 or 54", 1, true),
-    "mount model bottom offset is not 240 pixels")
+    and rewardPanelSource:find("and 200 or 20", 1, true),
+    "reward model bottom offsets are not expanded downward")
 assert(rewardPanelSource:find('description:SetJustifyH("CENTER")', 1,
         true)
     and rewardPanelSource:find("local headerLeft = -headerWidth / 2", 1,
@@ -95,12 +95,9 @@ assert(rewardPanelSource:find("collections-itemborder-collected", 1, true)
     and rewardPanelSource:find('rewardType == "decor"', 1, true)
     and rewardPanelSource:find('rewardType == "appearance"', 1, true),
     "collection rewards do not use native icon borders")
-assert(rewardPanelSource:find("minimumHostWidth = showModel and 940", 1,
+assert(rewardPanelSource:find('"TOPLEFT", -36, -118 - extraHeight', 1,
         true)
-    and rewardPanelSource:find("hostFrame:GetWidth() * 0.46", 1, true)
-    and rewardPanelSource:find('"TOPLEFT", 8, -118 - extraHeight', 1,
-        true)
-    and rewardPanelSource:find('"BOTTOMRIGHT", -8, modelBottomOffset', 1,
+    and rewardPanelSource:find('"BOTTOMRIGHT", 24, modelBottomOffset', 1,
         true),
     "3D reward model area is not using the widened layout")
 
