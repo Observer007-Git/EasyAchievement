@@ -43,6 +43,41 @@ function PlayAchievementSound(soundKit)
     end
 end
 
+function GetAchievementATTApp()
+    local app = _G.AllTheThings or _G.ATTC
+    if not app then
+        return nil
+    end
+    if app.CreatePopoutForSearch
+        or app.SearchForObject and app.CreateMiniListForGroup
+    then
+        return app
+    end
+    return nil
+end
+
+function CanOpenAchievementATTGuide()
+    return GetAchievementATTApp() ~= nil
+end
+
+function OpenAchievementATTGuide(achievementID)
+    local app = GetAchievementATTApp()
+    if not app or not IsAchievementValid(achievementID) then
+        return false
+    end
+    if app.CreatePopoutForSearch then
+        app.CreatePopoutForSearch("achievementID:" .. achievementID)
+        return true
+    end
+    local group = app.SearchForObject("achievementID", achievementID, "key")
+        or app.SearchForObject("achievementID", achievementID, "field")
+    if not group then
+        return false
+    end
+    app:CreateMiniListForGroup(group)
+    return true
+end
+
 achievementPopupFrames = {}
 achievementPopupPool = {}
 achievementPopupFrameSerial = 0

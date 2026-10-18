@@ -2,10 +2,18 @@ local settingCallback
 local settingValue = false
 local settingSanitizers = {}
 local menuCount = 0
+local menuActions = {}
 
 local Addon = {
     L = {
+        ACHIEVEMENT_ATT_OPEN = "att",
+        ACHIEVEMENT_CARD_VIEW = "card",
+        ACHIEVEMENT_FAVORITE_ADD = "favorite",
+        ACHIEVEMENT_FAVORITE_REMOVE = "unfavorite",
+        ACHIEVEMENT_POPUP_SHOW = "popup",
+        ACHIEVEMENT_TRACK = "track",
         ACHIEVEMENT_TREE_VIEW = "tree",
+        ACHIEVEMENT_UNTRACK = "untrack",
     },
     Config = {
         Frame = {
@@ -103,10 +111,16 @@ MenuUtil = {
         menuCount = menuCount + 1
         generator(nil, {
             CreateTitle = function() end,
-            CreateButton = function() end,
+            CreateButton = function(_, label, callback)
+                menuActions[label] = callback
+            end,
         })
     end,
 }
+
+function GetAchievementNumCriteria()
+    return 0
+end
 
 local button = {
     scripts = {},
@@ -194,6 +208,28 @@ assert(sanitizedStates["75"] and not sanitizedStates["1"],
 local BuildAchievementTree = Addon.AchievementTreeData.Build
 local AchievementUI = assert(Addon.AchievementUI,
     "achievement UI namespace was not created")
+local openedATTQuery
+AllTheThings = {
+    CreatePopoutForSearch = function(query)
+        openedATTQuery = query
+    end,
+}
+assert(AchievementUI.CanOpenAchievementATTGuide(),
+    "ATT guide availability was not detected")
+assert(AchievementUI.OpenAchievementATTGuide(2468)
+    and openedATTQuery == "achievementID:2468",
+    "ATT guide did not open the requested achievement")
+AchievementUI.OpenAchievementContextMenu(button, 2468)
+assert(type(menuActions.att) == "function",
+    "achievement context menu did not include the ATT guide")
+openedATTQuery = nil
+menuActions.att()
+assert(openedATTQuery == "achievementID:2468",
+    "achievement context menu opened the wrong ATT guide")
+AllTheThings = nil
+assert(not AchievementUI.CanOpenAchievementATTGuide(),
+    "ATT guide remained available after ATT was removed")
+menuCount = 0
 local GetAchievementHistoryEntry = Addon.AchievementData.GetHistoryEntry
 local historyID, historyCardOnly = GetAchievementHistoryEntry({
     achievementID = 2468,

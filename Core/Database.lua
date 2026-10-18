@@ -1,8 +1,6 @@
 local ADDON_NAME, Addon = ...
 
-Addon.name = ADDON_NAME
 Addon.L = Addon.L or {}
-Addon.defaults = Addon.defaults or {}
 
 local eventFrame = CreateFrame("Frame", "EasyAchievementEventFrame")
 local database
@@ -10,7 +8,6 @@ local initialized = false
 local settings = {}
 local settingCallbacks = {}
 local eventHandlers = {}
-local databaseMigrations = {}
 local registeredEvents = {}
 
 local function Clamp(value, minimum, maximum)
@@ -68,7 +65,6 @@ function Addon:RegisterSetting(key, defaultValue, sanitizer, callback)
         defaultValue = defaultValue,
         sanitizer = sanitizer,
     }
-    self.defaults[key] = defaultValue
     if callback then
         self:RegisterSettingCallback(key, callback)
     end
@@ -81,12 +77,6 @@ function Addon:RegisterSettingCallback(key, callback)
         "Invalid EasyAchievement setting callback: " .. tostring(key))
     settingCallbacks[key] = settingCallbacks[key] or {}
     settingCallbacks[key][#settingCallbacks[key] + 1] = callback
-end
-
-function Addon:RegisterDatabaseMigration(callback)
-    assert(type(callback) == "function",
-        "Invalid EasyAchievement database migration")
-    databaseMigrations[#databaseMigrations + 1] = callback
 end
 
 function Addon:GetSetting(key)
@@ -151,10 +141,6 @@ local function InitializeDatabase()
     end
     database = EasyAchievementDB
 
-    for _, migration in ipairs(databaseMigrations) do
-        migration(database)
-    end
-
     for key, definition in pairs(settings) do
         local value = database[key]
         if value == nil then
@@ -187,5 +173,3 @@ eventFrame:SetScript("OnEvent", function(_, event, ...)
         DispatchEvent(event, ...)
     end
 end)
-
-Addon.eventFrame = eventFrame

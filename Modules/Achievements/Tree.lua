@@ -327,11 +327,7 @@ LayoutAchievementTree = function(nodes, edges, root, preserveScroll, stats,
     frame.IncompleteOnly:SetShown(showIncompleteFilter)
     frame.IncompleteOnlyLabel:SetShown(showIncompleteFilter)
     frame.PortraitIcon:SetTexture(titleRoot.icon)
-    local att = _G.AllTheThings or _G.ATTC
-    frame.ATTButton:SetShown(att ~= nil
-        and (att.CreatePopoutForSearch ~= nil
-            or att.SearchForObject ~= nil
-                and att.CreateMiniListForGroup ~= nil))
+    frame.ATTButton:SetShown(CanOpenAchievementATTGuide())
     local completionPercent = stats.total > 0
         and math.floor(stats.completed * 100 / stats.total + 0.5) or 0
     UpdateAchievementHeader(frame,

@@ -886,25 +886,8 @@ function CreateAchievementTreeFrame()
     attButton:SetSize(116, 22)
     attButton:SetText(L.ACHIEVEMENT_ATT_OPEN)
     attButton:SetFrameLevel(borderFrame:GetFrameLevel() + 1)
-    attButton:SetScript("OnClick", function(self)
-        local app = _G.AllTheThings or _G.ATTC
-        local achievementID = frame.sourceAchievementID
-        if not app or not achievementID then
-            return
-        end
-        if app.CreatePopoutForSearch then
-            app.CreatePopoutForSearch("achievementID:" .. achievementID)
-            return
-        end
-        if app.SearchForObject and app.CreateMiniListForGroup then
-            local group = app.SearchForObject("achievementID",
-                achievementID, "key")
-                or app.SearchForObject("achievementID",
-                    achievementID, "field")
-            if group then
-                app:CreateMiniListForGroup(group)
-            end
-        end
+    attButton:SetScript("OnClick", function()
+        OpenAchievementATTGuide(frame.sourceAchievementID)
     end)
     attButton:Hide()
     frame.ATTButton = attButton

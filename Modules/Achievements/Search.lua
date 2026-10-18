@@ -358,6 +358,11 @@ OpenAchievementContextMenu = function(button, achievementID)
         rootDescription:CreateButton(L.ACHIEVEMENT_POPUP_SHOW, function()
             ShowAchievementPopup(achievementID)
         end)
+        if CanOpenAchievementATTGuide() then
+            rootDescription:CreateButton(L.ACHIEVEMENT_ATT_OPEN, function()
+                OpenAchievementATTGuide(achievementID)
+            end)
+        end
     end)
 end
 

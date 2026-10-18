@@ -4,13 +4,11 @@ if type(GetLocale) == "function" and GetLocale() ~= "zhTW" then
 end
 
 local L = Addon.L
-L.ANCHOR_RIGHT_CLICK = "右鍵隱藏%s"
 L.ACHIEVEMENT_FAVORITE_ADD = "收藏成就"
 L.ACHIEVEMENT_FAVORITE_REMOVE = "取消收藏"
 L.ACHIEVEMENT_FAVORITES = "收藏列表"
 L.ACHIEVEMENT_FAVORITES_EMPTY = "尚無收藏成就"
 L.ACHIEVEMENT_FAVORITES_INCOMPLETE = "只看未完成"
-L.ACHIEVEMENT_LAUNCHER_TOOLTIP = "開啟 EasyAchievement"
 L.ACHIEVEMENT_RECENT = "最近查看"
 L.ACHIEVEMENT_RECENT_EMPTY = "尚無最近查看記錄"
 L.ACHIEVEMENT_POPUP_SHOW = "顯示該成就浮動視窗"

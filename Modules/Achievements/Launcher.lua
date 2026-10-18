@@ -25,7 +25,7 @@ function CreateAchievementLauncher()
     button:SetClampedToScreen(true)
     button:SetMovable(true)
     button:EnableMouse(true)
-    button:RegisterForClicks("LeftButtonUp")
+    button:RegisterForClicks("LeftButtonUp", "RightButtonUp")
     button:RegisterForDrag("LeftButton")
     if button.SetDontSavePosition then
         button:SetDontSavePosition(true)
@@ -90,11 +90,24 @@ function CreateAchievementLauncher()
             self.wasDragged = nil
         end)
     end)
-    button:SetScript("OnClick", function(self)
+    button:SetScript("OnClick", function(self, mouseButton)
         if self.wasDragged then
             return
         end
         self.QuickSearch:HideSearch()
+        if mouseButton == "RightButton" then
+            local panel = CreateAchievementFavoritesPanel(self)
+            if panel:IsShown() then
+                panel:Hide()
+            else
+                panel:Show()
+                panel:Raise()
+            end
+            return
+        end
+        if achievementFavoritesPanel then
+            achievementFavoritesPanel:Hide()
+        end
         local achievementID = Addon:GetSetting("achievementLastTreeID")
             or GetAchievementFavorites()[1]
             or GetAchievementRecent()[1]
@@ -156,6 +169,9 @@ function ApplyAchievementEnhancement(enabled)
         end
         if achievementTreeFrame then
             achievementTreeFrame:Hide()
+        end
+        if achievementFavoritesPanel then
+            achievementFavoritesPanel:Hide()
         end
         for _, popup in ipairs(achievementPopupFrames) do
             popup:Hide()
