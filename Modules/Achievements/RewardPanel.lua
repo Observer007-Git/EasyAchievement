@@ -14,6 +14,11 @@ AchievementRewards = assert(Addon.AchievementRewards,
     "EasyAchievement achievement reward service was not loaded")
 GetAchievementRewardData = AchievementRewards.Get
 
+local MODEL_SCENE_LEFT_OFFSET = -200
+local MODEL_SCENE_RIGHT_OFFSET = 24
+local MODEL_SCENE_CENTER_OFFSET =
+    (MODEL_SCENE_LEFT_OFFSET + MODEL_SCENE_RIGHT_OFFSET) / 2
+
 local function FitMountRewardModel(modelScene, actor)
     if not modelScene or not actor or not actor.IsLoaded
         or not actor:IsLoaded() or not actor.GetActiveBoundingBox
@@ -405,6 +410,12 @@ UpdateAchievementRewardPanel = function(frame, achievementID)
         and previewEntry.previewType == "model"
         and previewEntry.modelSceneID
         and (previewEntry.displayID or previewEntry.asset)
+    local contentCenterOffset = showModel and MODEL_SCENE_CENTER_OFFSET or 0
+    rewardFrame.Description:ClearAllPoints()
+    rewardFrame.Description:SetPoint("TOPLEFT", rewardFrame, "TOPLEFT",
+        20 + contentCenterOffset, -65)
+    rewardFrame.Description:SetPoint("TOPRIGHT", rewardFrame, "TOPRIGHT",
+        -20 + contentCenterOffset, -65)
     local nameExtraHeight = math.max(0,
         rewardFrame.ItemName:GetHeight() - 18)
     local extraHeight = nameExtraHeight
@@ -420,7 +431,7 @@ UpdateAchievementRewardPanel = function(frame, achievementID)
     local counterCenterOffset = showModel and -126 - extraHeight
         or -170 - extraHeight
     rewardFrame.EntryCounter:SetPoint("CENTER", rewardFrame, "TOP",
-        0, counterCenterOffset)
+        contentCenterOffset, counterCenterOffset)
     if showModel then
         rewardFrame:SetSize(460, 540 + extraHeight)
         rewardFrame.Description:SetHeight(44 + extraHeight)
@@ -428,9 +439,9 @@ UpdateAchievementRewardPanel = function(frame, achievementID)
         local modelTopOffset = hasMultipleEntries
             and -146 - extraHeight or -118 - extraHeight
         rewardFrame.ModelScene:SetPoint("TOPLEFT", rewardFrame,
-            "TOPLEFT", -200, modelTopOffset)
+            "TOPLEFT", MODEL_SCENE_LEFT_OFFSET, modelTopOffset)
         rewardFrame.ModelScene:SetPoint("BOTTOMRIGHT", rewardFrame,
-            "BOTTOMRIGHT", 24, -20)
+            "BOTTOMRIGHT", MODEL_SCENE_RIGHT_OFFSET, -20)
         rewardFrame.ModelScene:Show()
         local modelSceneID = showAppearance
             and DRESS_UP_FRAME_MODEL_SCENE_ID
@@ -513,6 +524,9 @@ UpdateAchievementRewardPanel = function(frame, achievementID)
             rewardFrame.pendingModelRefresh = true
         end
         rewardFrame.ModelControls:Show()
+        rewardFrame.ModelControls:ClearAllPoints()
+        rewardFrame.ModelControls:SetPoint("BOTTOM", rewardFrame, "BOTTOM",
+            contentCenterOffset, 18)
         rewardFrame.ModelControls:UpdateLayout()
     else
         rewardFrame.Description:SetHeight(88 + extraHeight)
@@ -538,7 +552,7 @@ UpdateAchievementRewardPanel = function(frame, achievementID)
     local rewardNameWidth = hasRewardName
         and math.min(maximumNameWidth, unboundedNameWidth) or 0
     local headerWidth = iconWidth + headerGap + rewardNameWidth
-    local headerLeft = -headerWidth / 2
+    local headerLeft = contentCenterOffset - headerWidth / 2
     rewardFrame.ItemIcon:ClearAllPoints()
     rewardFrame.ItemIcon:SetPoint("TOP", rewardFrame, "TOP",
         headerLeft + iconWidth / 2, -10)
@@ -551,7 +565,8 @@ UpdateAchievementRewardPanel = function(frame, achievementID)
         rewardFrame.ItemName:SetPoint("LEFT", rewardFrame, "TOP",
             headerLeft + iconWidth + headerGap, -34)
     else
-        rewardFrame.ItemName:SetPoint("TOP", rewardFrame, "TOP", 0, -10)
+        rewardFrame.ItemName:SetPoint("TOP", rewardFrame, "TOP",
+            contentCenterOffset, -10)
     end
     rewardFrame:Show()
     rewardFrame:Raise()

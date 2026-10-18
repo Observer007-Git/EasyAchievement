@@ -80,7 +80,10 @@ assert(cardsSource:find("OpenAchievementContextMenu", 1, true),
 local rewardPanelSource = ReadSource("Modules/Achievements/RewardPanel.lua")
 assert(rewardPanelSource:find('description:SetJustifyH("CENTER")', 1,
         true)
-    and rewardPanelSource:find("local headerLeft = -headerWidth / 2", 1,
+    and rewardPanelSource:find("20 + contentCenterOffset", 1, true)
+    and rewardPanelSource:find("-20 + contentCenterOffset", 1, true)
+    and rewardPanelSource:find(
+        "local headerLeft = contentCenterOffset - headerWidth / 2", 1,
         true)
     and rewardPanelSource:find("GetUnboundedStringWidth", 1, true),
     "reward header information is not horizontally centered")
@@ -95,15 +98,31 @@ assert(rewardPanelSource:find(
         "counterCenterOffset = showModel and -126 - extraHeight", 1,
         true)
     and rewardPanelSource:find(
+        "local MODEL_SCENE_LEFT_OFFSET = -200", 1, true)
+    and rewardPanelSource:find(
+        "local MODEL_SCENE_RIGHT_OFFSET = 24", 1, true)
+    and rewardPanelSource:find(
+        "(MODEL_SCENE_LEFT_OFFSET + MODEL_SCENE_RIGHT_OFFSET) / 2",
+        1, true)
+    and rewardPanelSource:find(
         'rewardFrame.EntryCounter:SetPoint("CENTER", rewardFrame, "TOP"',
         1, true)
     and rewardPanelSource:find(
         "local modelTopOffset = hasMultipleEntries", 1, true)
-    and rewardPanelSource:find('"TOPLEFT", -200, modelTopOffset', 1,
+    and rewardPanelSource:find(
+        '"TOPLEFT", MODEL_SCENE_LEFT_OFFSET, modelTopOffset', 1,
         true)
-    and rewardPanelSource:find('"BOTTOMRIGHT", 24, -20)', 1,
+    and rewardPanelSource:find(
+        '"BOTTOMRIGHT", MODEL_SCENE_RIGHT_OFFSET, -20)', 1,
+        true)
+    and rewardPanelSource:find(
+        'contentCenterOffset, counterCenterOffset', 1, true)
+    and rewardPanelSource:find(
+        'contentCenterOffset, 18)', 1, true)
+    and rewardPanelSource:find(
+        'local headerLeft = contentCenterOffset - headerWidth / 2', 1,
         true),
-    "reward navigation is not centered between the information and model")
+    "reward information and controls are not centered on the model viewport")
 assert(rewardPanelSource:find("local function FitMountRewardModel", 1, true)
     and rewardPanelSource:find(
         "pcall(actor.GetActiveBoundingBox, actor)", 1, true)
