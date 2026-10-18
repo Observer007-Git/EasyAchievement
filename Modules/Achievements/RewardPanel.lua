@@ -106,10 +106,10 @@ function CreateAchievementRewardFrame()
 
     local description = frame:CreateFontString(nil, "OVERLAY",
         "GameFontHighlightSmall")
-    description:SetPoint("TOPLEFT", itemName, "BOTTOMLEFT", 0, -5)
-    description:SetPoint("RIGHT", frame, "RIGHT", -28, 0)
+    description:SetPoint("TOPLEFT", frame, "TOPLEFT", 20, -35)
+    description:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -20, -35)
     description:SetHeight(88)
-    description:SetJustifyH("LEFT")
+    description:SetJustifyH("CENTER")
     description:SetJustifyV("TOP")
     description:SetWordWrap(true)
     frame.Description = description
@@ -390,6 +390,29 @@ UpdateAchievementRewardPanel = function(frame, achievementID)
         rewardFrame.ModelScene:Hide()
     end
     ConfigureAchievementRewardFrame(rewardFrame, frame)
+    local hasRewardIcon = rewardFrame.ItemIcon:IsShown()
+        or rewardFrame.ToyButton:IsShown()
+    local hasRewardName = rewardFrame.ItemName:IsShown()
+    local maximumNameWidth = math.max(1, rewardFrame:GetWidth() - 98)
+    local rewardNameWidth = hasRewardName
+        and math.min(maximumNameWidth,
+            rewardFrame.ItemName:GetStringWidth()) or 0
+    local iconWidth = hasRewardIcon and 48 or 0
+    local headerGap = hasRewardIcon and hasRewardName and 10 or 0
+    local headerWidth = iconWidth + headerGap + rewardNameWidth
+    local headerLeft = -headerWidth / 2
+    rewardFrame.ItemIcon:ClearAllPoints()
+    rewardFrame.ItemIcon:SetPoint("TOP", rewardFrame, "TOP",
+        headerLeft + iconWidth / 2, -10)
+    rewardFrame.ItemName:ClearAllPoints()
+    rewardFrame.ItemName:SetWidth(math.max(1, rewardNameWidth))
+    rewardFrame.ItemName:SetJustifyH("CENTER")
+    if hasRewardIcon then
+        rewardFrame.ItemName:SetPoint("TOPLEFT", rewardFrame, "TOP",
+            headerLeft + iconWidth + headerGap, -12)
+    else
+        rewardFrame.ItemName:SetPoint("TOP", rewardFrame, "TOP", 0, -12)
+    end
     rewardFrame:Show()
     rewardFrame:Raise()
     return true
