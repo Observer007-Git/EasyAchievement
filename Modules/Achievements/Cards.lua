@@ -279,11 +279,12 @@ function ShowAchievementCardInTree(frame, achievementID)
             "Interface\\AchievementFrame\\UI-Achievement-IconFrame")
         border:SetTexCoord(0, 0.5625, 0, 0.5625)
         header.Border = border
-        local rewardBorder = header:CreateTexture(nil, "OVERLAY", nil, 7)
-        rewardBorder:SetAllPoints(icon)
-        SetTextureAtlas(rewardBorder, "duit_Arrows_Socketed")
-        rewardBorder:Hide()
-        header.RewardBorder = rewardBorder
+        local rewardMarker = header:CreateTexture(nil, "OVERLAY", nil, 7)
+        rewardMarker:SetPoint("CENTER", icon, "TOPRIGHT")
+        rewardMarker:SetSize(12, 12)
+        SetTextureAtlas(rewardMarker, "SoulBinds_Collection_Charge_Pending")
+        rewardMarker:Hide()
+        header.RewardMarker = rewardMarker
         local label = header:CreateFontString(nil, "OVERLAY",
             "GameFontNormalLarge")
         label:SetPoint("LEFT", icon, "RIGHT", 6, 0)
@@ -384,7 +385,7 @@ function ShowAchievementCardInTree(frame, achievementID)
     header.Icon:SetDesaturated(not data.completed)
     header.Border:SetDesaturated(not data.completed)
     header.Border:SetAlpha(data.completed and 1 or 0.72)
-    header.RewardBorder:SetShown(
+    header.RewardMarker:SetShown(
         Addon.AchievementRewards.Has(data.id, data))
     header.Label:SetText(data.name)
     SetAchievementTextColor(header.Label, data.completed, false, 0.72)

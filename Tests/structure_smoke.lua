@@ -127,24 +127,26 @@ local treeSource = ReadSource("Modules/Achievements/Tree.lua")
 local cardsSource = ReadSource("Modules/Achievements/Cards.lua")
 assert(treeSource:find("OpenAchievementContextMenu", 1, true),
     "achievement nodes do not expose the shared context menu")
-assert(treeSource:find('"ConduitIconFrame-Corners"', 1, true)
+assert(treeSource:find('"SoulBinds_Collection_Charge_Pending"', 1, true)
     and treeSource:find(
-        'CreateTexture(nil, "OVERLAY", nil, 3)', 1, true)
-    and treeSource:find('local inset = 1', 1, true)
+        'CreateTexture(nil, "OVERLAY", nil, 7)', 1, true)
     and treeSource:find(
-        'rewardBorder:SetPoint("TOPLEFT", icon, "TOPLEFT", inset, -inset)',
+        'rewardMarker:SetPoint("CENTER", icon, "TOPRIGHT")',
         1, true)
-    and treeSource:find(
-        'rewardBorder:SetPoint("BOTTOMRIGHT", icon, "BOTTOMRIGHT", -inset, inset)',
+    and treeSource:find("button.RewardMarker:SetSize(markerSize, markerSize)",
+        1, true)
+    and treeSource:find('"RIGHT", button.RewardMarker, "LEFT", 0, 0)',
         1, true)
     and treeSource:find(
         "Addon.AchievementRewards.Has(node.id, node)", 1, true),
-    "rewarded achievement icons do not use a scale-aware atlas border")
+    "rewarded achievement icons do not use a scale-aware corner marker")
 assert(cardsSource:find("OpenAchievementContextMenu", 1, true)
-    and cardsSource:find('"duit_Arrows_Socketed"', 1, true)
+    and cardsSource:find('"SoulBinds_Collection_Charge_Pending"', 1, true)
     and cardsSource:find(
         'CreateTexture(nil, "OVERLAY", nil, 7)', 1, true)
-    and cardsSource:find("rewardBorder:SetAllPoints(icon)", 1, true)
+    and cardsSource:find(
+        'rewardMarker:SetPoint("CENTER", icon, "TOPRIGHT")', 1, true)
+    and cardsSource:find("rewardMarker:SetSize(12, 12)", 1, true)
     and cardsSource:find(
         "Addon.AchievementRewards.Has(data.id, data)", 1, true),
     "achievement cards do not expose the shared context menu")

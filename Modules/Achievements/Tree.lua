@@ -38,14 +38,6 @@ function AcquireNodeButton(frame, index)
     icon:SetTexCoord(0, 1, 0, 1)
     button.Icon = icon
 
-    local rewardBorder = button:CreateTexture(nil, "OVERLAY", nil, 3)
-	local inset = 1
-	rewardBorder:SetPoint("TOPLEFT", icon, "TOPLEFT", inset, -inset)
-	rewardBorder:SetPoint("BOTTOMRIGHT", icon, "BOTTOMRIGHT", -inset, inset)
-    SetTextureAtlas(rewardBorder, "ConduitIconFrame-Corners")
-    rewardBorder:Hide()
-    button.RewardBorder = rewardBorder
-
     local disabledOverlay = button:CreateTexture(nil, "BORDER", nil, 1)
     disabledOverlay:SetPoint("CENTER", 0, 1)
     disabledOverlay:SetSize(NODE_ICON_SIZE, NODE_ICON_SIZE)
@@ -188,6 +180,12 @@ function AcquireNodeButton(frame, index)
     button.FavoriteStar = favoriteStar
     button.FavoriteStarFontPath, button.FavoriteStarFontSize,
         button.FavoriteStarFontFlags = favoriteStar:GetFont()
+
+    local rewardMarker = button:CreateTexture(nil, "OVERLAY", nil, 7)
+    rewardMarker:SetPoint("CENTER", icon, "TOPRIGHT")
+    SetTextureAtlas(rewardMarker, "SoulBinds_Collection_Charge_Pending")
+    rewardMarker:Hide()
+    button.RewardMarker = rewardMarker
 
     local completionGlow = button:CreateTexture(nil, "OVERLAY")
     completionGlow:SetPoint("TOPLEFT", -5, 5)
@@ -450,14 +448,16 @@ LayoutAchievementTree = function(nodes, edges, root, preserveScroll, stats,
         button.RevealStarBurst:SetSize(84 * scale, 84 * scale)
         button.RevealStarBurst:Hide()
         button.RootGlow:SetSize(34 * scale, 34 * scale)
+        local markerSize = math.max(6, math.floor(
+            (button.FavoriteStarFontSize or 10) * scale + 0.5))
         if button.FavoriteStarFontPath then
             button.FavoriteStar:SetFont(button.FavoriteStarFontPath,
-                math.max(6, math.floor(
-                    button.FavoriteStarFontSize * scale + 0.5)),
+                markerSize,
                 button.FavoriteStarFontFlags)
         end
-        button.FavoriteStar:ClearAllPoints()
-        button.FavoriteStar:SetPoint("CENTER", button.Icon, "TOPRIGHT")
+        button.RewardMarker:ClearAllPoints()
+        button.RewardMarker:SetPoint("CENTER", button.Icon, "TOPRIGHT")
+        button.RewardMarker:SetSize(markerSize, markerSize)
         if button.CollapseButton.TextFontPath then
             button.CollapseButton.Text:SetFont(
                 button.CollapseButton.TextFontPath,
@@ -478,14 +478,22 @@ LayoutAchievementTree = function(nodes, edges, root, preserveScroll, stats,
         button.BaseIconAlpha = node.completed and 1 or 0.58
         button.BaseLabelAlpha = 1
         button.Icon:SetAlpha(button.BaseIconAlpha)
-        button.RewardBorder:SetShown(
-            Addon.AchievementRewards.Has(node.id, node))
+        local hasReward = Addon.AchievementRewards.Has(node.id, node)
+        local isFavorite = favoriteSet[node.id] == true
+        button.RewardMarker:SetShown(hasReward)
         button.Label:SetAlpha(button.BaseLabelAlpha)
         button.DisabledOverlay:SetShown(not node.completed)
         button.DisabledOverlay:SetAlpha(node.completed and 0 or 0.45)
         button.Border:SetDesaturated(not node.completed)
         button.Border:SetAlpha(node.completed and 1 or 0.72)
-        button.FavoriteStar:SetShown(favoriteSet[node.id] == true)
+        button.FavoriteStar:ClearAllPoints()
+        if hasReward and isFavorite then
+            button.FavoriteStar:SetPoint(
+                "RIGHT", button.RewardMarker, "LEFT", 0, 0)
+        else
+            button.FavoriteStar:SetPoint("CENTER", button.Icon, "TOPRIGHT")
+        end
+        button.FavoriteStar:SetShown(isFavorite)
         button.Label:SetText(node.name)
         SetAchievementTextColor(button.Label, node.completed, false)
         button.RootGlow:SetShown(node == root)
