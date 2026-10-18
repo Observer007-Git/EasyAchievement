@@ -28,14 +28,13 @@ local REWARD_TYPE_LABEL_KEYS = {
     item = "ACHIEVEMENT_REWARD_TYPE_ITEM",
 }
 
-local function FormatRewardName(entry)
-    if not entry or not entry.name or entry.name == "" then
+local function GetRewardTypeLabel(entry)
+    if not entry then
         return nil
     end
     local labelKey = REWARD_TYPE_LABEL_KEYS[entry.rewardType]
         or "ACHIEVEMENT_REWARD_TYPE_OTHER"
-    return string.format(L.ACHIEVEMENT_REWARD_NAME_WITH_TYPE,
-        entry.name, L[labelKey])
+    return string.format(L.ACHIEVEMENT_REWARD_TYPE_LABEL, L[labelKey])
 end
 
 local function FitMountRewardModel(modelScene, actor)
@@ -224,6 +223,13 @@ function CreateAchievementRewardFrame()
     toyButton:Hide()
     frame.ToyButton = toyButton
 
+    local itemType = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    itemType:SetJustifyH("RIGHT")
+    itemType:SetJustifyV("MIDDLE")
+    itemType:SetWordWrap(false)
+    itemType:SetHeight(48)
+    frame.ItemType = itemType
+
     local itemName = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     itemName:SetPoint("TOPLEFT", itemIcon, "TOPRIGHT", 10, -2)
     itemName:SetPoint("RIGHT", frame, "RIGHT", -28, 0)
@@ -378,9 +384,8 @@ UpdateAchievementRewardPanel = function(frame, achievementID)
         math.min(#entries, rewardFrame.entryIndex or 1))
     local primaryEntry = entries[rewardFrame.entryIndex]
     local previewEntry = primaryEntry
-    local formattedRewardName = FormatRewardName(primaryEntry)
-    local rewardNames = formattedRewardName
-        and { formattedRewardName } or {}
+    local rewardNames = primaryEntry and primaryEntry.name
+        and primaryEntry.name ~= "" and { primaryEntry.name } or {}
     local rewardDescriptions = primaryEntry and primaryEntry.description
         and primaryEntry.description ~= "" and {
             primaryEntry.description,
@@ -415,6 +420,9 @@ UpdateAchievementRewardPanel = function(frame, achievementID)
     rewardFrame.ToyButton.Icon:SetTexture(showToy and primaryEntry.icon
         or nil)
     rewardFrame.ToyButton:SetShown(showToy and primaryEntry.icon ~= nil)
+    local rewardTypeLabel = GetRewardTypeLabel(primaryEntry)
+    rewardFrame.ItemType:SetText(rewardTypeLabel or "")
+    rewardFrame.ItemType:SetShown(rewardTypeLabel ~= nil)
     rewardFrame.ItemName:SetText(table.concat(rewardNames, "  +  "))
     rewardFrame.ItemName:SetHeight(18)
     rewardFrame.ItemName:SetShown(#rewardNames > 0)
@@ -557,33 +565,44 @@ UpdateAchievementRewardPanel = function(frame, achievementID)
     ConfigureAchievementRewardFrame(rewardFrame, frame)
     local hasRewardIcon = rewardFrame.ItemIcon:IsShown()
         or rewardFrame.ToyButton:IsShown()
+    local hasRewardType = rewardFrame.ItemType:IsShown()
     local hasRewardName = rewardFrame.ItemName:IsShown()
     local hasNativeIconBorder = rewardFrame.CollectionBorder:IsShown()
         or rewardFrame.PetBorder:IsShown()
         or rewardFrame.ToyButton:IsShown()
     local iconWidth = hasRewardIcon
         and (hasNativeIconBorder and 56 or 48) or 0
-    local headerGap = hasRewardIcon and hasRewardName and 10 or 0
+    local typeWidth = hasRewardType
+        and math.ceil(rewardFrame.ItemType:GetStringWidth()) or 0
+    local typeGap = hasRewardType and (hasRewardIcon or hasRewardName)
+        and 6 or 0
+    local nameGap = hasRewardIcon and hasRewardName and 10 or 0
     local maximumNameWidth = math.max(1,
-        rewardFrame:GetWidth() - iconWidth - headerGap - 40)
+        rewardFrame:GetWidth() - typeWidth - typeGap - iconWidth
+            - nameGap - 40)
     local unboundedNameWidth = rewardFrame.ItemName.GetUnboundedStringWidth
         and rewardFrame.ItemName:GetUnboundedStringWidth()
         or rewardFrame.ItemName:GetStringWidth()
     local rewardNameWidth = hasRewardName
         and math.min(maximumNameWidth, unboundedNameWidth) or 0
-    local headerWidth = iconWidth + headerGap + rewardNameWidth
+    local headerWidth = typeWidth + typeGap + iconWidth + nameGap
+        + rewardNameWidth
     local headerLeft = contentCenterOffset - headerWidth / 2
+    rewardFrame.ItemType:ClearAllPoints()
+    rewardFrame.ItemType:SetWidth(math.max(1, typeWidth))
+    rewardFrame.ItemType:SetPoint("LEFT", rewardFrame, "TOP",
+        headerLeft, -34)
     rewardFrame.ItemIcon:ClearAllPoints()
     rewardFrame.ItemIcon:SetPoint("TOP", rewardFrame, "TOP",
-        headerLeft + iconWidth / 2, -10)
+        headerLeft + typeWidth + typeGap + iconWidth / 2, -10)
     rewardFrame.ItemName:ClearAllPoints()
     rewardFrame.ItemName:SetWidth(math.max(1, rewardNameWidth))
     rewardFrame.ItemName:SetHeight(48)
     rewardFrame.ItemName:SetJustifyH("CENTER")
     rewardFrame.ItemName:SetJustifyV("MIDDLE")
-    if hasRewardIcon then
+    if hasRewardIcon or hasRewardType then
         rewardFrame.ItemName:SetPoint("LEFT", rewardFrame, "TOP",
-            headerLeft + iconWidth + headerGap, -34)
+            headerLeft + typeWidth + typeGap + iconWidth + nameGap, -34)
     else
         rewardFrame.ItemName:SetPoint("TOP", rewardFrame, "TOP",
             contentCenterOffset, -10)

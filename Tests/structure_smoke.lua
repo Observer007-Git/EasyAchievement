@@ -228,13 +228,16 @@ assert(tooltipSource:find(
     "achievement tooltips do not show the yellow reward description")
 
 local rewardPanelSource = ReadSource("Modules/Achievements/RewardPanel.lua")
-assert(rewardPanelSource:find("local function FormatRewardName(entry)",
+assert(rewardPanelSource:find("local function GetRewardTypeLabel(entry)",
         1, true)
     and rewardPanelSource:find(
-        "L.ACHIEVEMENT_REWARD_NAME_WITH_TYPE", 1, true)
+        "L.ACHIEVEMENT_REWARD_TYPE_LABEL", 1, true)
     and rewardPanelSource:find(
-        "REWARD_TYPE_LABEL_KEYS[entry.rewardType]", 1, true),
-    "reward panel names do not include their localized reward type")
+        "REWARD_TYPE_LABEL_KEYS[entry.rewardType]", 1, true)
+    and rewardPanelSource:find(
+        'rewardFrame.ItemType:SetPoint("LEFT", rewardFrame, "TOP"',
+        1, true),
+    "reward panel does not show its localized type left of the icon")
 assert(rewardPanelSource:find('description:SetJustifyH("CENTER")', 1,
         true)
     and rewardPanelSource:find("20 + contentCenterOffset", 1, true)
