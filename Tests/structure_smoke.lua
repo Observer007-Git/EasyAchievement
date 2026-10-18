@@ -91,14 +91,14 @@ assert(windowSource:find(
         1, true)
     and windowSource:find("local breadcrumbArrowHeight = 34", 1, true)
     and windowSource:find(
-        'backButton:SetPoint("BOTTOMLEFT", frame, "TOPLEFT", 70, -103)',
+        'backButton:SetPoint("BOTTOMLEFT", frame, "TOPLEFT", 70, -112)',
         1, true),
     "main search limit or breadcrumb navigation size changed")
 assert(windowSource:find('"GM-icon-settings-pressed"', 1, true)
     and windowSource:find('"GM-icon-settings-hover"', 1, true)
     and windowSource:find("settingsButton:SetSize(28, 28)", 1, true)
     and windowSource:find(
-        "CreateScaleControls(frame, L.ACHIEVEMENT_TREE_SCALE)",
+        "CreateScaleControls(frame)",
         1, true)
     and windowSource:find(
         'treeScaleControls:SetPoint("RIGHT", fitButton, "LEFT", -8, 0)',
@@ -119,12 +119,16 @@ local cardsSource = ReadSource("Modules/Achievements/Cards.lua")
 assert(treeSource:find("OpenAchievementContextMenu", 1, true),
     "achievement nodes do not expose the shared context menu")
 assert(treeSource:find('"duit_Arrows_Socketed"', 1, true)
+    and treeSource:find(
+        'CreateTexture(nil, "OVERLAY", nil, 7)', 1, true)
     and treeSource:find("rewardBorder:SetAllPoints(icon)", 1, true)
     and treeSource:find(
         "Addon.AchievementRewards.Has(node.id, node)", 1, true),
     "rewarded achievement icons do not use a scale-aware atlas border")
 assert(cardsSource:find("OpenAchievementContextMenu", 1, true)
     and cardsSource:find('"duit_Arrows_Socketed"', 1, true)
+    and cardsSource:find(
+        'CreateTexture(nil, "OVERLAY", nil, 7)', 1, true)
     and cardsSource:find("rewardBorder:SetAllPoints(icon)", 1, true)
     and cardsSource:find(
         "Addon.AchievementRewards.Has(data.id, data)", 1, true),

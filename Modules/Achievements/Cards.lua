@@ -279,7 +279,7 @@ function ShowAchievementCardInTree(frame, achievementID)
             "Interface\\AchievementFrame\\UI-Achievement-IconFrame")
         border:SetTexCoord(0, 0.5625, 0, 0.5625)
         header.Border = border
-        local rewardBorder = header:CreateTexture(nil, "OVERLAY", nil, 1)
+        local rewardBorder = header:CreateTexture(nil, "OVERLAY", nil, 7)
         rewardBorder:SetAllPoints(icon)
         SetTextureAtlas(rewardBorder, "duit_Arrows_Socketed")
         rewardBorder:Hide()

@@ -294,13 +294,19 @@ function CreateAchievementTreeFrame()
     local function CreateScaleControls(parent, labelText)
         local controls = CreateFrame("Frame", nil, parent)
         controls:SetHeight(22)
-        local label = controls:CreateFontString(nil, "OVERLAY",
-            "GameFontNormalSmall")
-        label:SetPoint("LEFT")
-        label:SetText(labelText)
         local minus = CreateFrame("Button", nil, controls,
             "UIPanelButtonTemplate")
-        minus:SetPoint("LEFT", label, "RIGHT", 5, 0)
+        local labelWidth = 0
+        if labelText and labelText ~= "" then
+            local label = controls:CreateFontString(nil, "OVERLAY",
+                "GameFontNormalSmall")
+            label:SetPoint("LEFT")
+            label:SetText(labelText)
+            labelWidth = math.ceil(label:GetStringWidth()) + 5
+            minus:SetPoint("LEFT", label, "RIGHT", 5, 0)
+        else
+            minus:SetPoint("LEFT")
+        end
         minus:SetSize(20, 20)
         minus:SetText("-")
         local value = controls:CreateFontString(nil, "OVERLAY",
@@ -313,14 +319,14 @@ function CreateAchievementTreeFrame()
         plus:SetPoint("LEFT", value, "RIGHT", 5, 0)
         plus:SetSize(20, 20)
         plus:SetText("+")
-        controls:SetWidth(math.ceil(label:GetStringWidth()) + 93)
+        controls:SetWidth(labelWidth + 88)
         return controls, minus, value, plus
     end
 
     local breadcrumbArrowHeight = 34
     local breadcrumbArrowWidth = breadcrumbArrowHeight * 48 / 67
     local backButton = CreateFrame("Button", nil, frame)
-    backButton:SetPoint("BOTTOMLEFT", frame, "TOPLEFT", 70, -103)
+    backButton:SetPoint("BOTTOMLEFT", frame, "TOPLEFT", 70, -112)
     backButton:SetSize(breadcrumbArrowWidth, breadcrumbArrowHeight)
     backButton:SetNormalAtlas(
         "CovenantSanctum-Renown-DoubleArrow", false)
@@ -362,7 +368,7 @@ function CreateAchievementTreeFrame()
     frame.IncompleteOnlyLabel = incompleteOnlyLabel
 
     local treeScaleControls, scaleMinus, scaleValue, scalePlus =
-        CreateScaleControls(frame, L.ACHIEVEMENT_TREE_SCALE)
+        CreateScaleControls(frame)
     treeScaleControls:Hide()
     frame.TreeScaleControls = treeScaleControls
     frame.TreeScaleMinus = scaleMinus

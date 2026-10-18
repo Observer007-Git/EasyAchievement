@@ -38,7 +38,7 @@ function AcquireNodeButton(frame, index)
     icon:SetTexCoord(0, 1, 0, 1)
     button.Icon = icon
 
-    local rewardBorder = button:CreateTexture(nil, "OVERLAY", nil, 3)
+    local rewardBorder = button:CreateTexture(nil, "OVERLAY", nil, 7)
     rewardBorder:SetAllPoints(icon)
     SetTextureAtlas(rewardBorder, "duit_Arrows_Socketed")
     rewardBorder:Hide()
