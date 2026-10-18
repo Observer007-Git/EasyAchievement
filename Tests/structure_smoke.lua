@@ -99,7 +99,7 @@ assert(rewardPanelSource:find(
         1, true)
     and rewardPanelSource:find(
         "local modelTopOffset = hasMultipleEntries", 1, true)
-    and rewardPanelSource:find('"TOPLEFT", -36, modelTopOffset', 1,
+    and rewardPanelSource:find('"TOPLEFT", -60, modelTopOffset', 1,
         true)
     and rewardPanelSource:find('"BOTTOMRIGHT", 24, -20)', 1,
         true),

@@ -427,7 +427,7 @@ UpdateAchievementRewardPanel = function(frame, achievementID)
         local modelTopOffset = hasMultipleEntries
             and -146 - extraHeight or -118 - extraHeight
         rewardFrame.ModelScene:SetPoint("TOPLEFT", rewardFrame,
-            "TOPLEFT", -36, modelTopOffset)
+            "TOPLEFT", -60, modelTopOffset)
         rewardFrame.ModelScene:SetPoint("BOTTOMRIGHT", rewardFrame,
             "BOTTOMRIGHT", 24, -20)
         rewardFrame.ModelScene:Show()
