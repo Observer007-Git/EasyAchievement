@@ -368,8 +368,10 @@ end
 
 function CreateAchievementLauncherSearch(anchor)
     local panel = CreateFrame("Frame", nil, UIParent)
-    local collapsedHeight = math.max(1, anchor:GetHeight() or 42)
+    local anchorHeight = math.max(1, anchor:GetHeight() or 42)
+    local collapsedHeight = 35
     local searchHeight = collapsedHeight
+    local anchorOffsetY = (collapsedHeight - anchorHeight) / 2
     local searchTopInset = 0
     local resultsGap = 3
     local resultsBottomPadding = 4
@@ -564,7 +566,8 @@ function CreateAchievementLauncherSearch(anchor)
 
     function panel:ShowAnimated()
         self:ClearAllPoints()
-        self:SetPoint("TOPLEFT", anchor, "TOPRIGHT", 3, 0)
+        self:SetPoint("TOPLEFT", anchor, "TOPRIGHT", 3,
+            anchorOffsetY)
         self.animationStartedAt = GetTime()
         self:SetAlpha(0)
         self:Show()
@@ -574,7 +577,7 @@ function CreateAchievementLauncherSearch(anchor)
             searchPanel:SetAlpha(progress)
             searchPanel:ClearAllPoints()
             searchPanel:SetPoint("TOPLEFT", anchor, "TOPRIGHT",
-                3 - (1 - progress) * 8, 0)
+                3 - (1 - progress) * 8, anchorOffsetY)
             if progress >= 1 then
                 searchPanel:SetScript("OnUpdate", nil)
                 search:SetFocus()
