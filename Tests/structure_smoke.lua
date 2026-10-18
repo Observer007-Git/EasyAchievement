@@ -140,6 +140,7 @@ assert(windowSource:find('"friends-icon-menu"', 1, true)
 
 local treeSource = ReadSource("Modules/Achievements/Tree.lua")
 local cardsSource = ReadSource("Modules/Achievements/Cards.lua")
+local tooltipSource = ReadSource("Modules/Achievements/Tooltip.lua")
 local rewardCategoriesSource = ReadSource(
     "Modules/Achievements/RewardCategories.lua")
 assert(treeSource:find("OpenAchievementContextMenu", 1, true),
@@ -177,11 +178,21 @@ end
 assert(rewardCategoriesSource:find(
         "Addon.AchievementRewardDatabase", 1, true)
     and rewardCategoriesSource:find(
+        "AchievementData.AppendHistory", 1, true)
+    and rewardCategoriesSource:find(
+        "{ rewardCategory = category }", 1, true)
+    and rewardCategoriesSource:find(
         "LayoutAchievementTree(nodes, {}, root", 1, true)
     and treeSource:find("local categoryMode = frame.rewardCategoryMode",
         1, true)
     and treeSource:find("availableHeight = availableTreeHeight", 1, true),
     "reward categories do not use the dynamic draggable tree grid")
+assert(tooltipSource:find(
+        "local reward = Addon.AchievementRewards.Get(node.id)", 1, true)
+    and tooltipSource:find(
+        "GameTooltip:AddLine(rewardDescription, 1, 0.82, 0, true)",
+        1, true),
+    "achievement tooltips do not show the yellow reward description")
 
 local rewardPanelSource = ReadSource("Modules/Achievements/RewardPanel.lua")
 assert(rewardPanelSource:find('description:SetJustifyH("CENTER")', 1,

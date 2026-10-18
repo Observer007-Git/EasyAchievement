@@ -109,9 +109,14 @@ function NavigateAchievementHistory(frame, offset)
         return
     end
     frame.historyIndex = targetIndex
-    local achievementID, showCardOnly = GetAchievementHistoryEntry(
+    local achievementID, showCardOnly, rewardCategory =
+        GetAchievementHistoryEntry(
         frame.history[targetIndex])
-    ShowAchievementTree(achievementID, "history", nil, showCardOnly)
+    if rewardCategory and ShowAchievementRewardCategory then
+        ShowAchievementRewardCategory(rewardCategory, "history")
+    else
+        ShowAchievementTree(achievementID, "history", nil, showCardOnly)
+    end
 end
 
 

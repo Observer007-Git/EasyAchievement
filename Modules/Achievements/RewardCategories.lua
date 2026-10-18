@@ -189,7 +189,7 @@ local function RenderRewardCategory(frame, definition, achievementIDs)
         GetAchievementTreeStats(nodes), root)
 end
 
-ShowAchievementRewardCategory = function(category)
+ShowAchievementRewardCategory = function(category, navigationMode)
     local definition = GetCategoryDefinition(category)
     if not definition then
         return
@@ -197,6 +197,18 @@ ShowAchievementRewardCategory = function(category)
     local frame = CreateAchievementTreeFrame()
     if frame.sourceAchievementID then
         SaveAchievementTreeState(frame)
+    end
+    frame.history = frame.history or {}
+    if navigationMode ~= "history" then
+        local _, _, currentCategory = GetAchievementHistoryEntry(
+            frame.history[frame.historyIndex or 0])
+        if currentCategory ~= category then
+            for index = #frame.history, (frame.historyIndex or 0) + 1, -1 do
+                table.remove(frame.history, index)
+            end
+            frame.historyIndex = AchievementData.AppendHistory(
+                frame.history, { rewardCategory = category })
+        end
     end
     frame.sourceAchievementID = nil
     frame.cardOnlyAchievementID = nil

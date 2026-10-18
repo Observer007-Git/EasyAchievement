@@ -11,9 +11,10 @@ local MAX_HISTORY_ENTRIES = Config.State.MaxHistoryEntries
 
 function Data.GetHistoryEntry(entry)
     if type(entry) == "table" then
-        return entry.achievementID, entry.showCardOnly == true
+        return entry.achievementID, entry.showCardOnly == true,
+            entry.rewardCategory
     end
-    return entry, false
+    return entry, false, nil
 end
 
 function Data.AppendHistory(history, entry)

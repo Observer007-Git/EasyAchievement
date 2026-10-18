@@ -356,8 +356,8 @@ LayoutAchievementTree = function(nodes, edges, root, preserveScroll, stats,
     local canGoBack = (frame.historyIndex or 1) > 1
     local canGoForward = (frame.historyIndex or 0)
         < #(frame.history or {})
-    frame.BackButton:SetShown(not categoryMode)
-    frame.ForwardButton:SetShown(not categoryMode)
+    frame.BackButton:SetShown(not categoryMode or canGoBack)
+    frame.ForwardButton:SetShown(not categoryMode or canGoForward)
     frame.BackButton:SetEnabled(canGoBack)
     frame.BackButton:SetAlpha(canGoBack and 1 or 0.35)
     frame.ForwardButton:SetEnabled(canGoForward)

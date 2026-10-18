@@ -256,13 +256,20 @@ assert(not AchievementUI.CanOpenAchievementATTGuide(),
     "ATT guide remained available after ATT was removed")
 menuCount = 0
 local GetAchievementHistoryEntry = Addon.AchievementData.GetHistoryEntry
-local historyID, historyCardOnly = GetAchievementHistoryEntry({
+local historyID, historyCardOnly, historyCategory = GetAchievementHistoryEntry({
     achievementID = 2468,
     showCardOnly = true,
 })
-assert(historyID == 2468 and historyCardOnly == true,
+assert(historyID == 2468 and historyCardOnly == true
+    and historyCategory == nil,
     "achievement card view was not preserved in history")
-historyID, historyCardOnly = GetAchievementHistoryEntry(1357)
+historyID, historyCardOnly, historyCategory = GetAchievementHistoryEntry({
+    rewardCategory = "mount",
+})
+assert(historyID == nil and historyCardOnly == false
+    and historyCategory == "mount",
+    "reward category was not preserved in history")
+historyID, historyCardOnly, historyCategory = GetAchievementHistoryEntry(1357)
 assert(historyID == 1357 and historyCardOnly == false,
     "legacy achievement history was not preserved")
 local cappedHistory = {}
@@ -298,6 +305,24 @@ assert(navigatedID == 111 and navigatedCardOnly == true,
 NavigateAchievementHistory(historyFrame, 1)
 assert(navigatedID == 222 and navigatedCardOnly == false,
     "forward navigation did not restore the previous achievement tree")
+local originalHistoryShowRewardCategory =
+    AchievementUI.ShowAchievementRewardCategory
+local navigatedCategory
+AchievementUI.ShowAchievementRewardCategory = function(category, mode)
+    navigatedCategory = category
+    assert(mode == "history",
+        "reward-category history used the wrong navigation mode")
+end
+historyFrame.historyIndex = 2
+historyFrame.history = {
+    { rewardCategory = "mount" },
+    { achievementID = 333, showCardOnly = true },
+}
+NavigateAchievementHistory(historyFrame, -1)
+assert(navigatedCategory == "mount",
+    "back navigation did not restore the reward category")
+AchievementUI.ShowAchievementRewardCategory =
+    originalHistoryShowRewardCategory
 AchievementUI.ShowAchievementTree = originalHistoryShowAchievementTree
 local FilterIncompleteTree = Addon.AchievementTreeData.FilterIncomplete
 CRITERIA_TYPE_ACHIEVEMENT = 8

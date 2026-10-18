@@ -164,6 +164,28 @@ function ShowAchievementTooltip(button)
             GameTooltip:AddLine(progress, 0.35, 0.82, 1, true)
         end
     end
+    local reward = Addon.AchievementRewards.Get(node.id)
+    local rewardDescription = reward and reward.text or ""
+    if reward and rewardDescription == "" then
+        local names = {}
+        local seenNames = {}
+        for _, entry in ipairs(reward.entries or {}) do
+            if entry.name and entry.name ~= "" and not seenNames[entry.name]
+            then
+                seenNames[entry.name] = true
+                names[#names + 1] = entry.name
+            end
+        end
+        if #names > 0 then
+            rewardDescription = string.format(
+                L.ACHIEVEMENT_TOOLTIP_REWARD,
+                table.concat(names, L.ACHIEVEMENT_TOOLTIP_REWARD_SEPARATOR))
+        end
+    end
+    if rewardDescription ~= "" then
+        GameTooltip:AddLine(" ")
+        GameTooltip:AddLine(rewardDescription, 1, 0.82, 0, true)
+    end
     GameTooltip:Show()
 end
 
