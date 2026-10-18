@@ -182,6 +182,14 @@ assert(rewardCategoriesSource:find(
     and rewardCategoriesSource:find(
         "{ rewardCategory = category }", 1, true)
     and rewardCategoriesSource:find(
+        'Addon:GetSetting("achievementRewardCategoryStates")', 1, true)
+    and rewardCategoriesSource:find(
+        "frame.pendingHorizontalScroll = state and state.horizontal or 0",
+        1, true)
+    and rewardCategoriesSource:find(
+        "frame.pendingVerticalScroll = state and state.vertical or 0",
+        1, true)
+    and rewardCategoriesSource:find(
         "LayoutAchievementTree(nodes, {}, root", 1, true)
     and treeSource:find("local categoryMode = frame.rewardCategoryMode",
         1, true)

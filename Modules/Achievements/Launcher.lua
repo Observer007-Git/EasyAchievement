@@ -290,6 +290,8 @@ Addon:RegisterSetting("achievementFavorites", {},
 Addon:RegisterSetting("achievementRecent", {}, SanitizeAchievementFavorites)
 Addon:RegisterSetting("achievementTreeStates", {},
     SanitizeAchievementTreeStates)
+Addon:RegisterSetting("achievementRewardCategoryStates", {},
+    SanitizeAchievementRewardCategoryStates)
 Addon:RegisterEvent("ACHIEVEMENT_EARNED", OnAchievementEarned)
 Addon:RegisterEvent("CRITERIA_UPDATE", OnCriteriaUpdate)
 Addon:RegisterEvent("GET_ITEM_INFO_RECEIVED", OnRewardItemInfoReceived)

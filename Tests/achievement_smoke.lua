@@ -187,6 +187,8 @@ end
 assert(settingCallback)
 assert(settingSanitizers.achievementTreeStates,
     "tree-state sanitizer was not registered")
+assert(settingSanitizers.achievementRewardCategoryStates,
+    "reward-category state sanitizer was not registered")
 
 local oversizedStates = {}
 for id = 1, 75 do
@@ -207,6 +209,16 @@ assert(sanitizedStateCount == 50,
     "tree-state sanitizer did not cap automatic saved state")
 assert(sanitizedStates["75"] and not sanitizedStates["1"],
     "tree-state sanitizer did not retain the most recent state")
+local categoryStates = settingSanitizers.achievementRewardCategoryStates({
+    mount = { scale = 9, horizontal = 320, vertical = 45 },
+    invalid = { scale = 1, horizontal = 1, vertical = 1 },
+})
+assert(categoryStates.mount
+    and categoryStates.mount.scale == Addon.Config.Tree.MaxScale
+    and categoryStates.mount.horizontal == 320
+    and categoryStates.mount.vertical == 45
+    and categoryStates.invalid == nil,
+    "reward-category view state was not sanitized")
 
 local BuildAchievementTree = Addon.AchievementTreeData.Build
 local AchievementUI = assert(Addon.AchievementUI,

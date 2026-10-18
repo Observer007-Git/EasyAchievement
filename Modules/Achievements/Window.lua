@@ -75,9 +75,15 @@ UpdateAchievementRewardHeader = function(frame, achievementID)
 end
 
 SaveAchievementTreeState = function(frame)
-    if not frame or frame.restoringTreeState or frame.deferTreeStateSave
-        or not frame.sourceAchievementID
-    then
+    if not frame or frame.restoringTreeState or frame.deferTreeStateSave then
+        return
+    end
+    if frame.rewardCategoryMode then
+        if SaveAchievementRewardCategoryState then
+            SaveAchievementRewardCategoryState(frame)
+        end
+        return
+    elseif not frame.sourceAchievementID then
         return
     end
     local states = {}

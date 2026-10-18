@@ -25,6 +25,59 @@ local categoryIndex
 local categoryIndexState
 local categoryIndexCallbacks = {}
 
+local VALID_CATEGORIES = {}
+for _, definition in ipairs(CATEGORY_DEFINITIONS) do
+    VALID_CATEGORIES[definition.key] = true
+end
+
+function SanitizeAchievementRewardCategoryStates(value)
+    local states = {}
+    if type(value) ~= "table" then
+        return states
+    end
+    for category, state in pairs(value) do
+        if VALID_CATEGORIES[category] and type(state) == "table" then
+            states[category] = {
+                scale = math.max(MIN_TREE_SCALE, math.min(MAX_TREE_SCALE,
+                    tonumber(state.scale) or 1)),
+                horizontal = math.max(0, tonumber(state.horizontal) or 0),
+                vertical = math.max(0, tonumber(state.vertical) or 0),
+            }
+        end
+    end
+    return states
+end
+
+SaveAchievementRewardCategoryState = function(frame)
+    local mode = frame and frame.rewardCategoryMode
+    if not mode or not VALID_CATEGORIES[mode.key] then
+        return
+    end
+    local states = {}
+    for category, state in pairs(
+        Addon:GetSetting("achievementRewardCategoryStates") or {})
+    do
+        states[category] = state
+    end
+    states[mode.key] = {
+        scale = frame.treeScale or 1,
+        horizontal = frame.ScrollFrame:GetHorizontalScroll(),
+        vertical = frame.ScrollFrame:GetVerticalScroll(),
+    }
+    Addon:SetSetting("achievementRewardCategoryStates", states)
+end
+
+local function RestoreCategoryState(frame, category)
+    local states = Addon:GetSetting("achievementRewardCategoryStates") or {}
+    local state = states[category]
+    frame.restoringTreeState = true
+    frame.treeScale = state and state.scale or 1
+    frame.pendingHorizontalScroll = state and state.horizontal or 0
+    frame.pendingVerticalScroll = state and state.vertical or 0
+    frame.ScaleSlider:SetValue(frame.treeScale)
+    frame.restoringTreeState = false
+end
+
 local function IsTitleRewardText(text)
     if type(text) ~= "string" or text == "" then
         return false
@@ -195,7 +248,9 @@ ShowAchievementRewardCategory = function(category, navigationMode)
         return
     end
     local frame = CreateAchievementTreeFrame()
-    if frame.sourceAchievementID then
+    if frame.rewardCategoryMode then
+        SaveAchievementRewardCategoryState(frame)
+    elseif frame.sourceAchievementID then
         SaveAchievementTreeState(frame)
     end
     frame.history = frame.history or {}
@@ -218,18 +273,26 @@ ShowAchievementRewardCategory = function(category, navigationMode)
         label = L[definition.labelKey],
         icon = 134400,
     }
-    frame.EmptyText:SetText(L.ACHIEVEMENT_REWARD_CATEGORY_LOADING)
-    local placeholder = {
-        id = 0,
-        name = L[definition.labelKey],
-        icon = 134400,
-        depth = 1,
-    }
-    LayoutAchievementTree({}, {}, placeholder, false,
-        GetAchievementTreeStats({}), placeholder)
-    GetCategoryIndex(function(index)
-        RenderRewardCategory(frame, definition, index[category])
-    end)
+    if categoryIndexState == "ready" then
+        RestoreCategoryState(frame, category)
+        RenderRewardCategory(frame, definition, categoryIndex[category])
+    else
+        frame.EmptyText:SetText(L.ACHIEVEMENT_REWARD_CATEGORY_LOADING)
+        local placeholder = {
+            id = 0,
+            name = L[definition.labelKey],
+            icon = 134400,
+            depth = 1,
+        }
+        LayoutAchievementTree({}, {}, placeholder, false,
+            GetAchievementTreeStats({}), placeholder)
+        GetCategoryIndex(function(index)
+            if frame.pendingRewardCategory == category and frame:IsShown() then
+                RestoreCategoryState(frame, category)
+                RenderRewardCategory(frame, definition, index[category])
+            end
+        end)
+    end
 end
 
 OpenAchievementRewardCategoryMenu = function(owner)
