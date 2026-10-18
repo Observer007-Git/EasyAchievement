@@ -91,13 +91,18 @@ assert(rewardPanelSource:find("collections-itemborder-collected", 1, true)
     and rewardPanelSource:find('rewardType == "decor"', 1, true)
     and rewardPanelSource:find('rewardType == "appearance"', 1, true),
     "collection rewards do not use native icon borders")
-assert(rewardPanelSource:find('"TOPLEFT", -36, -118 - extraHeight', 1,
+assert(rewardPanelSource:find(
+        "counterCenterOffset = showModel and -126 - extraHeight", 1,
         true)
     and rewardPanelSource:find(
-        "modelBottomOffset = hasMultipleEntries and 74 or -20", 1, true)
+        'rewardFrame.EntryCounter:SetPoint("CENTER", rewardFrame, "TOP"',
+        1, true)
     and rewardPanelSource:find(
-        '"BOTTOMRIGHT", 24, modelBottomOffset', 1,
+        "local modelTopOffset = hasMultipleEntries", 1, true)
+    and rewardPanelSource:find('"TOPLEFT", -36, modelTopOffset', 1,
+        true)
+    and rewardPanelSource:find('"BOTTOMRIGHT", 24, -20)', 1,
         true),
-    "3D reward model area is not using the widened layout")
+    "reward navigation is not centered between the information and model")
 
 print("achievement UI module structure: ok")

@@ -329,17 +329,20 @@ UpdateAchievementRewardPanel = function(frame, achievementID)
     rewardFrame.EntryCounter:SetText(string.format("%d / %d",
         rewardFrame.entryIndex, #entries))
     rewardFrame.EntryCounter:ClearAllPoints()
-    rewardFrame.EntryCounter:SetPoint("BOTTOM", rewardFrame, "BOTTOM",
-        0, showModel and 54 or 18)
+    local counterCenterOffset = showModel and -126 - extraHeight
+        or -170 - extraHeight
+    rewardFrame.EntryCounter:SetPoint("CENTER", rewardFrame, "TOP",
+        0, counterCenterOffset)
     if showModel then
         rewardFrame:SetSize(460, 540 + extraHeight)
         rewardFrame.Description:SetHeight(44 + extraHeight)
         rewardFrame.ModelScene:ClearAllPoints()
+        local modelTopOffset = hasMultipleEntries
+            and -146 - extraHeight or -118 - extraHeight
         rewardFrame.ModelScene:SetPoint("TOPLEFT", rewardFrame,
-            "TOPLEFT", -36, -118 - extraHeight)
-        local modelBottomOffset = hasMultipleEntries and 74 or -20
+            "TOPLEFT", -36, modelTopOffset)
         rewardFrame.ModelScene:SetPoint("BOTTOMRIGHT", rewardFrame,
-            "BOTTOMRIGHT", 24, modelBottomOffset)
+            "BOTTOMRIGHT", 24, -20)
         rewardFrame.ModelScene:Show()
         local modelSceneID = showAppearance
             and DRESS_UP_FRAME_MODEL_SCENE_ID
