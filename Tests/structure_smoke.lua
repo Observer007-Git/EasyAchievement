@@ -93,7 +93,10 @@ assert(rewardPanelSource:find("collections-itemborder-collected", 1, true)
     "collection rewards do not use native icon borders")
 assert(rewardPanelSource:find('"TOPLEFT", -36, -118 - extraHeight', 1,
         true)
-    and rewardPanelSource:find('"BOTTOMRIGHT", 24, -20)', 1,
+    and rewardPanelSource:find(
+        "modelBottomOffset = hasMultipleEntries and 74 or -20", 1, true)
+    and rewardPanelSource:find(
+        '"BOTTOMRIGHT", 24, modelBottomOffset', 1,
         true),
     "3D reward model area is not using the widened layout")
 
