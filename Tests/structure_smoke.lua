@@ -72,6 +72,15 @@ assert(searchSource:find("local collapsedHeight = 32", 1, true)
         "panel:SetWidth(GetAchievementSearchBoxWidth(search) + 8)", 1,
         true),
     "launcher search dimensions or input limit changed")
+assert(searchSource:find(
+        'local resultsBackground = panel:CreateTexture(nil, "BACKGROUND")',
+        1, true)
+    and searchSource:find(
+        "resultsBackground:SetColorTexture(0.025, 0.025, 0.025, 0.96)",
+        1, true)
+    and searchSource:find("resultsBackground:Show()", 1, true)
+    and searchSource:find("resultsBackground:Hide()", 1, true),
+    "launcher search results do not have a managed background")
 
 local coreSource = ReadSource("Modules/Achievements/Core.lua")
 assert(coreSource:find("MAX_ACHIEVEMENT_SEARCH_CHARACTERS = 12", 1, true)

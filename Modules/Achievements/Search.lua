@@ -393,6 +393,13 @@ function CreateAchievementLauncherSearch(anchor)
         search:SetInstructions(L.ACHIEVEMENT_TREE_SEARCH)
     end
 
+    local resultsBackground = panel:CreateTexture(nil, "BACKGROUND")
+    resultsBackground:SetPoint("TOPLEFT", search, "BOTTOMLEFT", 0,
+        -resultsGap)
+    resultsBackground:SetPoint("BOTTOMRIGHT", panel, "BOTTOMRIGHT", -4, 0)
+    resultsBackground:SetColorTexture(0.025, 0.025, 0.025, 0.96)
+    resultsBackground:Hide()
+
     local rows = {}
     local resultIDs = {}
     local function HidePanel()
@@ -485,6 +492,7 @@ function CreateAchievementLauncherSearch(anchor)
         end
         message:SetShown(shown == 0)
         message:SetText(L.ACHIEVEMENT_SEARCH_NO_RESULTS)
+        resultsBackground:Show()
         panel:SetHeight(shown > 0 and searchTopInset + searchHeight
             + resultsGap + shown * 28 + resultsBottomPadding
             or collapsedHeight + 24)
@@ -525,6 +533,7 @@ function CreateAchievementLauncherSearch(anchor)
                 row:Hide()
             end
             message:Hide()
+            resultsBackground:Hide()
             panel:SetHeight(collapsedHeight)
             return
         end
@@ -535,6 +544,7 @@ function CreateAchievementLauncherSearch(anchor)
         else
             message:SetText(L.ACHIEVEMENT_SEARCHING)
             message:Show()
+            resultsBackground:Show()
             panel:SetHeight(collapsedHeight + 24)
         end
     end)
