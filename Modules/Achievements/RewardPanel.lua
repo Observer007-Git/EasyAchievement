@@ -14,6 +14,88 @@ AchievementRewards = assert(Addon.AchievementRewards,
     "EasyAchievement achievement reward service was not loaded")
 GetAchievementRewardData = AchievementRewards.Get
 
+local function FitMountRewardModel(modelScene, actor)
+    if not modelScene or not actor or not actor.IsLoaded
+        or not actor:IsLoaded() or not actor.GetActiveBoundingBox
+    then
+        return false
+    end
+
+    if actor.UpdateScale then
+        actor:UpdateScale()
+    end
+    if actor.SetUseCenterForOrigin then
+        actor:SetUseCenterForOrigin(true, true, true)
+    end
+    if actor.SetPosition then
+        actor:SetPosition(0, 0, 0)
+    end
+
+    local ok, bottomX, bottomY, bottomZ, topX, topY, topZ =
+        pcall(actor.GetActiveBoundingBox, actor)
+    if not ok or type(bottomX) ~= "number"
+        or type(bottomY) ~= "number" or type(bottomZ) ~= "number"
+        or type(topX) ~= "number" or type(topY) ~= "number"
+        or type(topZ) ~= "number"
+    then
+        return false
+    end
+
+    local width = topX - bottomX
+    local depth = topY - bottomY
+    local height = topZ - bottomZ
+    local scale = actor.GetScale and actor:GetScale() or 1
+    local radius = math.sqrt(width * width + depth * depth
+        + height * height) * math.abs(scale) / 2
+    if radius <= 0 then
+        return false
+    end
+
+    local camera = modelScene.GetActiveCamera
+        and modelScene:GetActiveCamera()
+    if not camera or not camera.SetTarget
+        or not camera.SetZoomDistance
+    then
+        return false
+    end
+
+    local fieldOfView = modelScene.GetCameraFieldOfView
+        and modelScene:GetCameraFieldOfView() or 0.65
+    if type(fieldOfView) ~= "number" or fieldOfView <= 0 then
+        fieldOfView = 0.65
+    end
+    local fitDistance = radius
+        / math.sin(math.min(fieldOfView / 2, math.pi * 0.45)) * 1.08
+    local minimumDistance = camera.GetMinZoomDistance
+        and camera:GetMinZoomDistance() or 0
+    fitDistance = math.max(minimumDistance, fitDistance)
+    local maximumDistance = camera.GetMaxZoomDistance
+        and camera:GetMaxZoomDistance() or 0
+    maximumDistance = math.max(maximumDistance, fitDistance * 1.2)
+
+    if modelScene.SetViewTranslation then
+        modelScene:SetViewTranslation(0, 0)
+    end
+    camera:SetTarget(0, 0, 0)
+    if camera.SetTargetSpline then
+        camera:SetTargetSpline(nil)
+    end
+    if camera.SetZoomSpline then
+        camera:SetZoomSpline(nil)
+    end
+    if camera.SetMaxZoomDistance then
+        camera:SetMaxZoomDistance(maximumDistance)
+    end
+    camera:SetZoomDistance(fitDistance)
+    if camera.SnapAllInterpolatedValues then
+        camera:SnapAllInterpolatedValues()
+    end
+    if camera.SynchronizeCamera then
+        camera:SynchronizeCamera()
+    end
+    return true
+end
+
 AchievementRewards.SetIndexReadyCallback(function()
     local frame = achievementTreeFrame
     if not frame or not frame:IsShown() or not frame.sourceAchievementID
@@ -142,6 +224,11 @@ function CreateAchievementRewardFrame()
     modelScene:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -20, 54)
     modelScene:EnableMouse(true)
     modelScene:EnableMouseWheel(true)
+    modelScene:SetResetCallback(function(scene)
+        if scene.rewardType == "mount" then
+            FitMountRewardModel(scene, scene:GetActorByTag("unwrapped"))
+        end
+    end)
     frame:RegisterEvent("UI_MODEL_SCENE_INFO_UPDATED")
     frame:SetScript("OnEvent", function(self, event)
         if event ~= "UI_MODEL_SCENE_INFO_UPDATED"
@@ -384,6 +471,16 @@ UpdateAchievementRewardPanel = function(frame, achievementID)
                     or "unwrapped")
         end
         if actor then
+            local isMount = previewEntry.rewardType == "mount"
+            rewardFrame.ModelScene.rewardType = previewEntry.rewardType
+            if actor.SetOnModelLoadedCallback then
+                actor:SetOnModelLoadedCallback(isMount and function(loadedActor)
+                    if rewardFrame.ModelScene.rewardType == "mount" then
+                        FitMountRewardModel(rewardFrame.ModelScene,
+                            loadedActor)
+                    end
+                end or nil)
+            end
             if not showAppearance and actor.SetPreferModelCollisionBounds then
                 actor:SetPreferModelCollisionBounds(
                     previewEntry.rewardType == "decor")
@@ -407,6 +504,9 @@ UpdateAchievementRewardPanel = function(frame, achievementID)
             end
             if not showAppearance then
                 actor:Show()
+            end
+            if isMount then
+                FitMountRewardModel(rewardFrame.ModelScene, actor)
             end
         else
             rewardFrame.pendingModelRefresh = true
