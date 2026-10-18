@@ -275,7 +275,14 @@ function AcquireNodeButton(frame, index)
             local achievementID = self.node.id
             C_Timer.After(0.24, function()
                 if self.clickSerial == serial then
-                    ShowAchievementTree(achievementID, nil, nil, true)
+                    if frame.rewardCategoryMode
+                        and OpenAchievementRewardCategoryCard
+                    then
+                        OpenAchievementRewardCategoryCard(frame,
+                            achievementID)
+                    else
+                        ShowAchievementTree(achievementID, nil, nil, true)
+                    end
                 end
             end)
         end
@@ -317,6 +324,8 @@ LayoutAchievementTree = function(nodes, edges, root, preserveScroll, stats,
         frame.AchievementCardTreeButton:Hide()
         frame.AchievementCardBackButton:Hide()
         frame.AchievementCardForwardButton:Hide()
+        frame.AchievementCardCategoryPosition:Hide()
+        frame.AchievementCardCategoryReturnButton:Hide()
     end
     frame.CardScaleControls:Show()
     frame.TreeScaleControls:Show()

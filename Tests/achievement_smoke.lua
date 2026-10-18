@@ -14,6 +14,8 @@ local Addon = {
         ACHIEVEMENT_TRACK = "track",
         ACHIEVEMENT_TREE_VIEW = "tree",
         ACHIEVEMENT_UNTRACK = "untrack",
+        ACHIEVEMENT_REWARD_CATEGORY_POSITION = "%d / %d",
+        ACHIEVEMENT_REWARD_CATEGORY_RETURN = "Back to %s list",
     },
     Config = {
         Frame = {
@@ -336,6 +338,54 @@ assert(navigatedCategory == "mount",
 AchievementUI.ShowAchievementRewardCategory =
     originalHistoryShowRewardCategory
 AchievementUI.ShowAchievementTree = originalHistoryShowAchievementTree
+
+local originalCategoryShowAchievementTree = AchievementUI.ShowAchievementTree
+local categoryNavigation
+AchievementUI.ShowAchievementTree = function(id, mode, _, showCardOnly,
+    context)
+    categoryNavigation = {
+        id = id,
+        mode = mode,
+        showCardOnly = showCardOnly,
+        context = context,
+    }
+end
+local categoryFrame = {
+    rewardCategoryMode = {
+        key = "mount",
+        label = "Mounts",
+        achievementIDs = { 101, 202, 303 },
+    },
+}
+AchievementUI.OpenAchievementRewardCategoryCard(categoryFrame, 202)
+assert(categoryNavigation.id == 202
+    and categoryNavigation.mode == "category"
+    and categoryNavigation.showCardOnly == true
+    and categoryNavigation.context.index == 2,
+    "category card did not preserve its displayed grid position")
+categoryFrame.rewardCategoryCardContext = categoryNavigation.context
+AchievementUI.NavigateAchievementRewardCategoryCard(categoryFrame, -1)
+assert(categoryNavigation.id == 101
+    and categoryNavigation.context.index == 1,
+    "category card previous navigation used the wrong achievement")
+AchievementUI.NavigateAchievementRewardCategoryCard(categoryFrame, 1)
+assert(categoryNavigation.id == 202
+    and categoryNavigation.context.index == 2,
+    "category card next navigation used the wrong achievement")
+AchievementUI.ShowAchievementTree = originalCategoryShowAchievementTree
+
+local originalCategoryReturn = AchievementUI.ShowAchievementRewardCategory
+local returnedCategory
+local returnMode
+AchievementUI.ShowAchievementRewardCategory = function(category, mode)
+    returnedCategory = category
+    returnMode = mode
+end
+AchievementUI.ReturnToAchievementRewardCategory(categoryFrame)
+assert(returnedCategory == "mount" and returnMode == "return",
+    "category card return did not reopen the saved category list")
+AchievementUI.ShowAchievementRewardCategory = originalCategoryReturn
+
 local FilterIncompleteTree = Addon.AchievementTreeData.FilterIncomplete
 CRITERIA_TYPE_ACHIEVEMENT = 8
 local childMap = { [1] = { 2, 3 }, [2] = { 4 } }

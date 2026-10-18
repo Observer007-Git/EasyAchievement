@@ -144,17 +144,18 @@ function RevealAchievementNode(frame, achievementID)
 end
 
 ShowAchievementTree = function(achievementID, navigationMode, breadcrumbIDs,
-    showCardOnly)
+    showCardOnly, rewardCategoryCardContext)
     local frameWasShown = achievementTreeFrame
         and achievementTreeFrame:IsShown() or false
     local nodes, edges, root = BuildAchievementTree(achievementID)
     if nodes then
         local frame = CreateAchievementTreeFrame()
         if frame.rewardCategoryMode then
-            SaveAchievementTreeState(frame)
+            SaveAchievementRewardCategoryState(frame)
         end
         frame.rewardCategoryMode = nil
         frame.pendingRewardCategory = nil
+        frame.rewardCategoryCardContext = rewardCategoryCardContext
         local rootChanged = frame.sourceAchievementID ~= achievementID
         if frame.sourceAchievementID and rootChanged then
             SaveAchievementTreeState(frame)
@@ -171,7 +172,9 @@ ShowAchievementTree = function(achievementID, navigationMode, breadcrumbIDs,
         RefreshAchievementFavoritesBar(frame)
         frame.history = frame.history or {}
         frame.collapsedNodes = frame.collapsedNodes or {}
-        if navigationMode ~= "refresh" and navigationMode ~= "history" then
+        if navigationMode ~= "refresh" and navigationMode ~= "history"
+            and navigationMode ~= "category"
+        then
             local currentID, currentShowCardOnly =
                 GetAchievementHistoryEntry(
                     frame.history[frame.historyIndex or 0])
@@ -190,6 +193,9 @@ ShowAchievementTree = function(achievementID, navigationMode, breadcrumbIDs,
             frame.breadcrumbIDs = breadcrumbIDs or { achievementID }
             RecordRecentAchievement(achievementID)
         elseif navigationMode == "history" then
+            frame.breadcrumbIDs = { achievementID }
+            RecordRecentAchievement(achievementID)
+        elseif navigationMode == "category" then
             frame.breadcrumbIDs = { achievementID }
             RecordRecentAchievement(achievementID)
         end

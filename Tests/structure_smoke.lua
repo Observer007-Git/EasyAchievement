@@ -65,6 +65,11 @@ assert(launcherSource:find(
 local searchSource = ReadSource("Modules/Achievements/Search.lua")
 assert(searchSource:find("OpenAchievementATTGuide(achievementID)", 1, true),
     "achievement context menu is not connected to the ATT guide")
+assert(searchSource:find("SaveAchievementRewardCategoryState(frame)",
+        1, true)
+    and searchSource:find(
+        'and navigationMode ~= "category"', 1, true),
+    "category card navigation does not preserve its separate list history")
 assert(searchSource:find("local collapsedHeight = 32", 1, true)
     and searchSource:find(
         "search:SetMaxLetters(MAX_ACHIEVEMENT_SEARCH_CHARACTERS)", 1,
@@ -191,10 +196,30 @@ assert(rewardCategoriesSource:find(
         1, true)
     and rewardCategoriesSource:find(
         "LayoutAchievementTree(nodes, {}, root", 1, true)
+    and rewardCategoriesSource:find(
+        "achievementIDs = orderedAchievementIDs", 1, true)
+    and rewardCategoriesSource:find(
+        "OpenAchievementRewardCategoryCard = function", 1, true)
+    and rewardCategoriesSource:find(
+        "NavigateAchievementRewardCategoryCard = function", 1, true)
+    and rewardCategoriesSource:find(
+        "ReturnToAchievementRewardCategory = function", 1, true)
     and treeSource:find("local categoryMode = frame.rewardCategoryMode",
         1, true)
     and treeSource:find("availableHeight = availableTreeHeight", 1, true),
     "reward categories do not use the dynamic draggable tree grid")
+assert(cardsSource:find("frame.rewardCategoryCardContext", 1, true)
+    and cardsSource:find(
+        "NavigateAchievementRewardCategoryCard(frame, -1)", 1, true)
+    and cardsSource:find(
+        "NavigateAchievementRewardCategoryCard(frame, 1)", 1, true)
+    and cardsSource:find(
+        "L.ACHIEVEMENT_REWARD_CATEGORY_POSITION", 1, true)
+    and cardsSource:find(
+        "L.ACHIEVEMENT_REWARD_CATEGORY_RETURN", 1, true)
+    and cardsSource:find(
+        "ReturnToAchievementRewardCategory(frame)", 1, true),
+    "category cards do not use their displayed order and return control")
 assert(tooltipSource:find(
         "local reward = Addon.AchievementRewards.Get(node.id)", 1, true)
     and tooltipSource:find(

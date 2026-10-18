@@ -217,12 +217,14 @@ local function RenderRewardCategory(frame, definition, achievementIDs)
         return
     end
     local nodes = {}
+    local orderedAchievementIDs = {}
     for _, achievementID in ipairs(achievementIDs or {}) do
         local node = GetAchievementData(achievementID)
         if node then
             node.depth = 1
             node.hasChildren = false
             nodes[#nodes + 1] = node
+            orderedAchievementIDs[#orderedAchievementIDs + 1] = achievementID
         end
     end
     local label = L[definition.labelKey]
@@ -236,6 +238,7 @@ local function RenderRewardCategory(frame, definition, achievementIDs)
         key = definition.key,
         label = label,
         icon = 134400,
+        achievementIDs = orderedAchievementIDs,
     }
     frame.EmptyText:SetText(L.ACHIEVEMENT_REWARD_CATEGORY_EMPTY)
     LayoutAchievementTree(nodes, {}, root, false,
@@ -254,7 +257,7 @@ ShowAchievementRewardCategory = function(category, navigationMode)
         SaveAchievementTreeState(frame)
     end
     frame.history = frame.history or {}
-    if navigationMode ~= "history" then
+    if navigationMode ~= "history" and navigationMode ~= "return" then
         local _, _, currentCategory = GetAchievementHistoryEntry(
             frame.history[frame.historyIndex or 0])
         if currentCategory ~= category then
@@ -267,6 +270,7 @@ ShowAchievementRewardCategory = function(category, navigationMode)
     end
     frame.sourceAchievementID = nil
     frame.cardOnlyAchievementID = nil
+    frame.rewardCategoryCardContext = nil
     frame.pendingRewardCategory = category
     frame.rewardCategoryMode = {
         key = category,
@@ -292,6 +296,51 @@ ShowAchievementRewardCategory = function(category, navigationMode)
                 RenderRewardCategory(frame, definition, index[category])
             end
         end)
+    end
+end
+
+OpenAchievementRewardCategoryCard = function(frame, achievementID)
+    local mode = frame and frame.rewardCategoryMode
+    if not mode or type(mode.achievementIDs) ~= "table" then
+        return
+    end
+    local selectedIndex
+    for index, categoryAchievementID in ipairs(mode.achievementIDs) do
+        if categoryAchievementID == achievementID then
+            selectedIndex = index
+            break
+        end
+    end
+    if not selectedIndex then
+        return
+    end
+    local context = {
+        key = mode.key,
+        label = mode.label,
+        achievementIDs = mode.achievementIDs,
+        index = selectedIndex,
+    }
+    ShowAchievementTree(achievementID, "category", nil, true, context)
+end
+
+NavigateAchievementRewardCategoryCard = function(frame, offset)
+    local context = frame and frame.rewardCategoryCardContext
+    if not context then
+        return
+    end
+    local targetIndex = context.index + offset
+    local achievementID = context.achievementIDs[targetIndex]
+    if not achievementID then
+        return
+    end
+    context.index = targetIndex
+    ShowAchievementTree(achievementID, "category", nil, true, context)
+end
+
+ReturnToAchievementRewardCategory = function(frame)
+    local context = frame and frame.rewardCategoryCardContext
+    if context then
+        ShowAchievementRewardCategory(context.key, "return")
     end
 end
 

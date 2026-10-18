@@ -327,6 +327,21 @@ function ShowAchievementCardInTree(frame, achievementID)
         treeButton:Hide()
         frame.AchievementCardTreeButton = treeButton
 
+        local categoryPosition = frame:CreateFontString(nil, "OVERLAY",
+            "GameFontHighlight")
+        categoryPosition:Hide()
+        frame.AchievementCardCategoryPosition = categoryPosition
+
+        local categoryReturnButton = CreateFrame("Button", nil, frame,
+            "UIPanelButtonTemplate")
+        categoryReturnButton:SetSize(160, 22)
+        categoryReturnButton:SetFrameLevel(card:GetFrameLevel() + 2)
+        categoryReturnButton:SetScript("OnClick", function()
+            ReturnToAchievementRewardCategory(frame)
+        end)
+        categoryReturnButton:Hide()
+        frame.AchievementCardCategoryReturnButton = categoryReturnButton
+
         local backButton = CreateFrame("Button", nil, frame)
         backButton:SetSize(48, 67)
         backButton:SetFrameLevel(card:GetFrameLevel() + 2)
@@ -335,7 +350,11 @@ function ShowAchievementCardInTree(frame, achievementID)
         backButton:SetPushedAtlas(
             "CovenantSanctum-Renown-DoubleArrow-Depressed", true)
         backButton:SetScript("OnClick", function()
-            NavigateAchievementHistory(frame, -1)
+            if frame.rewardCategoryCardContext then
+                NavigateAchievementRewardCategoryCard(frame, -1)
+            else
+                NavigateAchievementHistory(frame, -1)
+            end
         end)
         backButton:Hide()
         frame.AchievementCardBackButton = backButton
@@ -350,7 +369,11 @@ function ShowAchievementCardInTree(frame, achievementID)
             "CovenantSanctum-Renown-DoubleArrow-Depressed", true)
         forwardButton:GetPushedTexture():SetRotation(math.pi)
         forwardButton:SetScript("OnClick", function()
-            NavigateAchievementHistory(frame, 1)
+            if frame.rewardCategoryCardContext then
+                NavigateAchievementRewardCategoryCard(frame, 1)
+            else
+                NavigateAchievementHistory(frame, 1)
+            end
         end)
         forwardButton:Hide()
         frame.AchievementCardForwardButton = forwardButton
@@ -368,9 +391,18 @@ function ShowAchievementCardInTree(frame, achievementID)
     card:SetPoint("CENTER", frame, "CENTER", cardOffsetX, -45)
     ApplyAchievementCardScale(GetAchievementCardScale())
     card:Show()
-    local canGoBack = (frame.historyIndex or 1) > 1
-    local canGoForward = (frame.historyIndex or 0)
-        < #(frame.history or {})
+    local categoryContext = frame.rewardCategoryCardContext
+    local canGoBack
+    local canGoForward
+    if categoryContext then
+        canGoBack = categoryContext.index > 1
+        canGoForward = categoryContext.index
+            < #categoryContext.achievementIDs
+    else
+        canGoBack = (frame.historyIndex or 1) > 1
+        canGoForward = (frame.historyIndex or 0)
+            < #(frame.history or {})
+    end
     local cardBackButton = frame.AchievementCardBackButton
     cardBackButton:ClearAllPoints()
     cardBackButton:SetPoint("RIGHT", card, "LEFT", -2, 0)
@@ -397,7 +429,27 @@ function ShowAchievementCardInTree(frame, achievementID)
     treeButton.achievementID = data.id
     treeButton:ClearAllPoints()
     treeButton:SetPoint("TOP", card, "BOTTOM", 0, -8)
-    treeButton:SetShown(#GetChildAchievementIDs(data.id) > 0)
+    treeButton:SetShown(not categoryContext
+        and #GetChildAchievementIDs(data.id) > 0)
+    local categoryPosition = frame.AchievementCardCategoryPosition
+    local categoryReturnButton = frame.AchievementCardCategoryReturnButton
+    if categoryContext then
+        categoryPosition:SetText(string.format(
+            L.ACHIEVEMENT_REWARD_CATEGORY_POSITION,
+            categoryContext.index, #categoryContext.achievementIDs))
+        categoryPosition:ClearAllPoints()
+        categoryPosition:SetPoint("TOP", card, "BOTTOM", 0, -8)
+        categoryPosition:Show()
+        categoryReturnButton:SetText(string.format(
+            L.ACHIEVEMENT_REWARD_CATEGORY_RETURN, categoryContext.label))
+        categoryReturnButton:ClearAllPoints()
+        categoryReturnButton:SetPoint("TOP", categoryPosition,
+            "BOTTOM", 0, -6)
+        categoryReturnButton:Show()
+    else
+        categoryPosition:Hide()
+        categoryReturnButton:Hide()
+    end
     frame.Stats:SetText("")
     frame.Stats:Hide()
     frame.Legend:Hide()
