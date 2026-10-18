@@ -74,6 +74,11 @@ local treeSource = ReadSource("Modules/Achievements/Tree.lua")
 local cardsSource = ReadSource("Modules/Achievements/Cards.lua")
 assert(treeSource:find("OpenAchievementContextMenu", 1, true),
     "achievement nodes do not expose the shared context menu")
+assert(treeSource:find('"LootToast-Azerite-Border"', 1, true)
+    and treeSource:find("rewardBorder:SetAllPoints(icon)", 1, true)
+    and treeSource:find(
+        "Addon.AchievementRewards.Has(node.id, node)", 1, true),
+    "rewarded achievement icons do not use a scale-aware atlas border")
 assert(cardsSource:find("OpenAchievementContextMenu", 1, true),
     "achievement cards do not expose the shared context menu")
 

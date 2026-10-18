@@ -381,6 +381,7 @@ assert(calculatedLayout.contentWidth == 300
     "tree layout did not preserve the viewport minimum size")
 
 local GetAchievementRewardData = Addon.AchievementRewards.Get
+local HasAchievementReward = Addon.AchievementRewards.Has
 local generatedReward = Addon.AchievementRewardDatabase.records[63633]
 assert(generatedReward and generatedReward[1]
     and generatedReward[1].achievementID == 63633
@@ -392,6 +393,32 @@ assert(combinedReward and #combinedReward == 2
     and combinedReward[1].rewardItemID == 217612
     and combinedReward[2].inferredRewardItemID == 248125,
     "generated reward database lost a direct plus decor reward")
+
+local originalGetAchievementInfo = GetAchievementInfo
+local originalGetRewardItemID = C_AchievementInfo.GetRewardItemID
+GetAchievementInfo = function(id)
+    local rewardText = id == 700002 and "Reward" or ""
+    return id, "Achievement " .. id, 10, false, nil, nil, nil,
+        "Description", 0, 123, rewardText, false
+end
+C_AchievementInfo.GetRewardItemID = function(id)
+    return id == 700003 and 99003 or nil
+end
+Addon.AchievementRewardDatabase.records[700001] = {
+    { achievementID = 700001, rewardItemID = 0,
+        inferredRewardItemID = 0 },
+}
+assert(HasAchievementReward(700001),
+    "database reward was not detected")
+assert(HasAchievementReward(700002),
+    "reward text was not detected")
+assert(HasAchievementReward(700003),
+    "runtime reward item was not detected")
+assert(not HasAchievementReward(700004),
+    "achievement without a reward was detected")
+Addon.AchievementRewardDatabase.records[700001] = nil
+C_AchievementInfo.GetRewardItemID = originalGetRewardItemID
+GetAchievementInfo = originalGetAchievementInfo
 
 local ConfigureAchievementCardChildLinks =
     AchievementUI.ConfigureAchievementCardChildLinks

@@ -534,6 +534,27 @@ local function AddDatabaseRewardEntries(reward, achievementID, seen)
     return foundItemID
 end
 
+function Rewards.Has(achievementID, achievement)
+    achievement = achievement or Data.Get(achievementID)
+    if not achievement then
+        return false
+    end
+    if achievement.rewardText and achievement.rewardText ~= "" then
+        return true
+    end
+    local database = Addon.AchievementRewardDatabase
+    local records = database and database.records
+        and database.records[achievement.id]
+    if records and #records > 0 then
+        return true
+    end
+    if C_AchievementInfo and C_AchievementInfo.GetRewardItemID then
+        local itemID = C_AchievementInfo.GetRewardItemID(achievement.id)
+        return type(itemID) == "number" and itemID > 0
+    end
+    return false
+end
+
 function Rewards.Get(achievementID)
     local achievement = Data.Get(achievementID)
     if not achievement then

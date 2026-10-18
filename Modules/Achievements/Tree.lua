@@ -38,6 +38,12 @@ function AcquireNodeButton(frame, index)
     icon:SetTexCoord(0, 1, 0, 1)
     button.Icon = icon
 
+    local rewardBorder = button:CreateTexture(nil, "OVERLAY", nil, 3)
+    rewardBorder:SetAllPoints(icon)
+    SetTextureAtlas(rewardBorder, "LootToast-Azerite-Border")
+    rewardBorder:Hide()
+    button.RewardBorder = rewardBorder
+
     local disabledOverlay = button:CreateTexture(nil, "BORDER", nil, 1)
     disabledOverlay:SetPoint("CENTER", 0, 1)
     disabledOverlay:SetSize(NODE_ICON_SIZE, NODE_ICON_SIZE)
@@ -469,6 +475,8 @@ LayoutAchievementTree = function(nodes, edges, root, preserveScroll, stats,
         button.BaseIconAlpha = node.completed and 1 or 0.58
         button.BaseLabelAlpha = 1
         button.Icon:SetAlpha(button.BaseIconAlpha)
+        button.RewardBorder:SetShown(
+            Addon.AchievementRewards.Has(node.id, node))
         button.Label:SetAlpha(button.BaseLabelAlpha)
         button.DisabledOverlay:SetShown(not node.completed)
         button.DisabledOverlay:SetAlpha(node.completed and 0 or 0.45)
