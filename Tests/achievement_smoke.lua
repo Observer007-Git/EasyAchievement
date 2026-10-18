@@ -157,6 +157,8 @@ AchievementFrameAchievements = {
 
 assert(loadfile("EasyAchievement/Core/AchievementData.lua"))(
     "EasyAchievement", Addon)
+assert(loadfile("EasyAchievement/Data/AchievementRewardDatabase.lua"))(
+    "EasyAchievement", Addon)
 assert(loadfile("EasyAchievement/Modules/AchievementTreeData.lua"))(
     "EasyAchievement", Addon)
 assert(loadfile("EasyAchievement/Modules/AchievementRewards.lua"))(
@@ -379,6 +381,12 @@ assert(calculatedLayout.contentWidth == 300
     "tree layout did not preserve the viewport minimum size")
 
 local GetAchievementRewardData = Addon.AchievementRewards.Get
+local generatedReward = Addon.AchievementRewardDatabase.records[63633]
+assert(generatedReward and generatedReward[1]
+    and generatedReward[1].achievementID == 63633
+    and generatedReward[1].rewardItemID == 0
+    and generatedReward[1].inferredRewardItemID == 279921,
+    "generated reward database is missing Kiklak")
 
 local ConfigureAchievementCardChildLinks =
     AchievementUI.ConfigureAchievementCardChildLinks
@@ -407,6 +415,27 @@ childButton.scripts.OnClick(childButton, "LeftButton")
 assert(openedChildID == 4321,
     "achievement child did not open its achievement card")
 AchievementUI.ShowAchievementTree = originalShowAchievementTree
+
+Addon.AchievementRewardDatabase.records[1] = {
+    { achievementID = 1, rewardItemID = 0,
+        inferredRewardItemID = 9101 },
+    { achievementID = 1, rewardItemID = 0,
+        inferredRewardItemID = 9102 },
+}
+C_AchievementInfo.GetRewardItemID = function()
+    error("runtime reward API should not run after a database hit")
+end
+C_Item = {
+    GetItemNameByID = function() return "Database Reward" end,
+    GetItemIconByID = function() return 321 end,
+    RequestLoadItemDataByID = function() end,
+}
+local databaseReward = GetAchievementRewardData(1)
+assert(databaseReward and #databaseReward.entries == 2
+    and databaseReward.entries[1].itemID == 9101
+    and databaseReward.entries[2].itemID == 9102,
+    "generated reward database was not used before runtime fallback")
+Addon.AchievementRewardDatabase.records[1] = nil
 
 C_AchievementInfo.GetRewardItemID = function()
     return 9001

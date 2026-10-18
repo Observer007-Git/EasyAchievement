@@ -511,6 +511,29 @@ local function AddRewardEntry(reward, entry, seen)
     end
 end
 
+local function AddDatabaseRewardEntries(reward, achievementID, seen)
+    local database = Addon.AchievementRewardDatabase
+    local records = database and database.records
+        and database.records[achievementID]
+    if not records then
+        return false
+    end
+    local foundItemID = false
+    for _, record in ipairs(records) do
+        if record.achievementID == achievementID then
+            local itemID = record.rewardItemID
+            if not itemID or itemID == 0 then
+                itemID = record.inferredRewardItemID
+            end
+            if itemID and itemID > 0 then
+                foundItemID = true
+                AddRewardEntry(reward, BuildItemRewardEntry(itemID), seen)
+            end
+        end
+    end
+    return foundItemID
+end
+
 function Rewards.Get(achievementID)
     local achievement = Data.Get(achievementID)
     if not achievement then
@@ -522,7 +545,11 @@ function Rewards.Get(achievementID)
         entries = {},
     }
     local seen = { keys = {}, items = {} }
-    if C_AchievementInfo and C_AchievementInfo.GetRewardItemID then
+    local foundDatabaseItem = AddDatabaseRewardEntries(reward,
+        achievement.id, seen)
+    if not foundDatabaseItem and C_AchievementInfo
+        and C_AchievementInfo.GetRewardItemID
+    then
         local itemID = C_AchievementInfo.GetRewardItemID(achievement.id)
         if itemID then
             AddRewardEntry(reward, BuildItemRewardEntry(itemID), seen)

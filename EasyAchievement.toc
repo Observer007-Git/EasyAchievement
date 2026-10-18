@@ -12,6 +12,7 @@
 ## IconAtlas: UI-Achievement-Shield-NoPoints
 
 Core/Database.lua
+Data/AchievementRewardDatabase.lua
 Config/Defaults.lua
 Core/AchievementData.lua
 Locales/enUS.lua

@@ -16,6 +16,15 @@ local toc = assert(io.open("EasyAchievement/EasyAchievement.toc", "r"))
 local tocSource = toc:read("*a")
 toc:close()
 
+local rewardDatabasePosition = assert(tocSource:find(
+    "Data/AchievementRewardDatabase.lua", 1, true),
+    "generated achievement reward database is missing from the TOC")
+local rewardModulePosition = assert(tocSource:find(
+    "Modules/AchievementRewards.lua", 1, true),
+    "achievement reward module is missing from the TOC")
+assert(rewardDatabasePosition < rewardModulePosition,
+    "achievement reward database must load before the reward module")
+
 assert(not tocSource:find("Modules/Achievements%.lua"),
     "legacy monolithic achievement module is still loaded")
 assert(io.open("EasyAchievement/Modules/Achievements.lua", "r") == nil,

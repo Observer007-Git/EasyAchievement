@@ -35,6 +35,8 @@ LiteTools 中仍保留原成就模块作为回退。安装本插件后，建议�
 ```text
 EasyAchievement/
 ├── EasyAchievement.toc       # 加载顺序、版本和插件元数据
+├── Data/
+│   └── AchievementRewardDatabase.lua # 由 wago.tools DB2 表生成的奖励 ID
 ├── Config/
 │   └── Defaults.lua             # 框体、树、卡片和搜索常量
 ├── Core/
@@ -63,6 +65,29 @@ EasyAchievement/
         └── Launcher.lua         # 启动图标、事件和设置注册
 ```
 
+## 更新奖励数据库
+
+插件优先读取 `Data/AchievementRewardDatabase.lua`。每个奖励记录都包含
+`achievementID`、`rewardItemID` 和 `inferredRewardItemID`；同一成就的多个奖励
+会保存为多条记录。数据库没有可用物品 ID 时，插件才使用游戏 API 和现有的
+奖励文本识别作为降级处理。
+
+在插件目录运行以下命令，会自动选取 wago.tools 最新正式服 `wow` 构建，下载
+英文与简体中文 DB2 表并重新生成数据库：
+
+```bash
+./Tools/update_reward_database.sh
+```
+
+也可以指定构建以便复现结果：
+
+```bash
+./Tools/update_reward_database.sh 12.1.5.70448
+```
+
+脚本只依赖 `zsh`、`curl` 和 Python 3。下载缓存及未解析报告位于
+`Tools/.cache/<build>/`，不会打包进插件或提交到 Git。
+
 ## 国际化扩展
 
 `Locales/enUS.lua` 始终最先加载，它是所有语言的默认回退。英文和简体中文
@@ -86,6 +111,7 @@ EasyAchievement/
 - 启动图标与事件：`Modules/Achievements/Launcher.lua`
 - 成就关系与过滤：`Modules/AchievementTreeData.lua`
 - 奖励识别：`Modules/AchievementRewards.lua`
+- 奖励数据库生成：`Tools/update_reward_database.sh`
 - 树坐标计算：`Modules/AchievementTreeLayout.lua`
 - 数据清洗与容量：`Core/AchievementData.lua`
 - 界面尺寸、缩放范围：`Config/Defaults.lua`
