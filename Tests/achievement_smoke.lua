@@ -623,6 +623,29 @@ assert(rewardEntry and rewardEntry.itemID == 9001
     and rewardEntry.previewType == "model"
     and rewardEntry.rewardType == "mount",
     "mount reward was not resolved")
+
+local originalMountInfo = C_MountJournal.GetMountInfoByID
+local originalMountExtra = C_MountJournal.GetMountInfoExtraByID
+C_MountJournal.GetMountFromItem = function() return nil end
+C_MountJournal.GetMountInfoByID = function(mountID)
+    assert(mountID == 1733, "wrong database mount ID")
+    return "升温岩翼蝠", nil, 5140837
+end
+C_MountJournal.GetMountInfoExtraByID = function()
+    return 123456, "Mount details", nil, false, nil, 4
+end
+local originalItemName = C_Item.GetItemNameByID
+C_Item.GetItemNameByID = function() return nil end
+local calescentReward = GetAchievementRewardData(17785)
+assert(#calescentReward.entries == 1
+    and calescentReward.entries[1].mountID == 1733
+    and calescentReward.entries[1].itemID == 205206
+    and calescentReward.entries[1].rewardType == "mount"
+    and calescentReward.entries[1].previewType == "model",
+    "Calescent Shalewing model depends on the runtime item cache")
+C_Item.GetItemNameByID = originalItemName
+C_MountJournal.GetMountInfoByID = originalMountInfo
+C_MountJournal.GetMountInfoExtraByID = originalMountExtra
 C_MountJournal.GetMountFromItem = function() return nil end
 C_PetJournal = {
     GetPetInfoByItemID = function()
@@ -684,6 +707,12 @@ function GetAchievementInfo(id)
     return id, "Achievement " .. id, 10, false, nil, nil, nil,
         "Description", 0, 123, "Mount: Direct Reward Mount", false
 end
+local readyMountIDs = C_MountJournal.GetMountIDs
+C_MountJournal.GetMountIDs = function() return {} end
+reward = GetAchievementRewardData(1)
+assert(#reward.entries == 0,
+    "empty mount journal unexpectedly returned a mount")
+C_MountJournal.GetMountIDs = readyMountIDs
 reward = GetAchievementRewardData(1)
 rewardEntry = reward.entries[1]
 assert(rewardEntry and rewardEntry.mountID == 1614

@@ -308,7 +308,12 @@ local function FindMountRewardByText(rewardText)
         end
     end
     local entry = BuildMountRewardEntry(matchedMountID, nil, matchedName)
-    mountRewardTextCache[rewardText] = entry or false
+    if entry and entry.previewType == "model" then
+        mountRewardTextCache[rewardText] = entry
+    else
+        -- The mount journal can still be loading on the first lookup.
+        mountRewardIndex = nil
+    end
     return entry
 end
 
@@ -381,6 +386,13 @@ local function FindTransmogSetRewardByText(rewardText)
 end
 
 local function BuildItemRewardEntry(itemID)
+    local databaseMountID = RewardDatabase.GetMountID(itemID)
+    if databaseMountID then
+        local mountEntry = BuildMountRewardEntry(databaseMountID, itemID)
+        if mountEntry then
+            return mountEntry
+        end
+    end
     local entry = {
         itemID = itemID,
         uniqueKey = "item:" .. tostring(itemID),

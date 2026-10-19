@@ -365,7 +365,25 @@ def compact_reward_values(reward_rows, reward_categories):
     return [category_mask, *encoded_rewards]
 
 
-def write_lua(output, build, records, categories, factions):
+def build_mount_items(input_dir, records):
+    effect_spells = {integer(row["ID"]): integer(row["SpellID"])
+        for row in read_rows(load_common(input_dir, "ItemEffect"))}
+    spell_mounts = {integer(row["SourceSpellID"]): integer(row["ID"])
+        for row in read_rows(load_localized(input_dir, "Mount", "enUS"))
+        if integer(row.get("SourceTypeEnum")) == 5}
+    reward_items = {direct or inferred for rows in records.values()
+        for direct, inferred in rows if direct or inferred}
+    mount_items = {}
+    for row in read_rows(load_common(input_dir, "ItemXItemEffect")):
+        item_id = integer(row["ItemID"])
+        mount_id = spell_mounts.get(
+            effect_spells.get(integer(row["ItemEffectID"])))
+        if item_id in reward_items and mount_id:
+            mount_items[item_id] = mount_id
+    return mount_items
+
+
+def write_lua(output, build, records, categories, factions, mount_items=None):
     output.parent.mkdir(parents=True, exist_ok=True)
     with output.open("w", encoding="utf-8", newline="\n") as handle:
         handle.write("local _, Addon = ...\n\n")
@@ -379,6 +397,10 @@ def write_lua(output, build, records, categories, factions):
                 for value in compact_reward_values(reward_rows,
                     categories[achievement_id]))
             handle.write(f"[{achievement_id}]={{{values}}},\n")
+        handle.write("},\n")
+        handle.write("mountItems={\n")
+        for item_id, mount_id in sorted((mount_items or {}).items()):
+            handle.write(f"[{item_id}]={mount_id},\n")
         handle.write("},\n")
         handle.write("factions={\n")
         for achievement_id in sorted(factions):
@@ -405,7 +427,9 @@ def main():
 
     records, categories, unresolved, inferred_count, factions = \
         build_database(args.input)
-    write_lua(args.output, args.build, records, categories, factions)
+    mount_items = build_mount_items(args.input, records)
+    write_lua(args.output, args.build, records, categories, factions,
+        mount_items)
     write_unresolved(args.unresolved, unresolved)
     direct_count = sum(rows[0][0] > 0 for rows in records.values())
     print(f"build={args.build}")

@@ -58,8 +58,10 @@ class RewardDatabaseBuilderTests(unittest.TestCase):
                   "SourceText_lang": "Achievement: Pet Prize",
                   "CreatureID": 20},))
             write_csv(self.input_dir / locale / "Mount.csv",
-                ("SourceSpellID", "SourceText_lang", "Name_lang"),
+                ("ID", "SourceTypeEnum", "SourceSpellID",
+                 "SourceText_lang", "Name_lang"),
                 ({"SourceSpellID": 1000,
+                  "ID": 1733, "SourceTypeEnum": 5,
                   "SourceText_lang": "Achievement: Mount Direct",
                   "Name_lang": "Sky Steed"},))
             write_csv(self.input_dir / locale / "Toy.csv",
@@ -143,6 +145,21 @@ class RewardDatabaseBuilderTests(unittest.TestCase):
         self.assertIn("[3]={9,100,-300},", source)
         self.assertIn("factions={", source)
         self.assertIn("[1]=0,", source)
+
+    def test_mount_ids_are_joined_through_item_effects(self):
+        records, categories, _, _, factions = BUILDER.build_database(
+            self.input_dir)
+        mount_items = BUILDER.build_mount_items(self.input_dir, records)
+        self.assertEqual(mount_items, {100: 1733})
+        output = self.input_dir / "database.lua"
+        BUILDER.write_lua(output, "test", records, categories, factions,
+            mount_items)
+        self.assertIn("mountItems={\n[100]=1733,",
+            output.read_text(encoding="utf-8"))
+        write_csv(self.input_dir / "enUS" / "Mount.csv",
+            ("ID", "SourceTypeEnum", "SourceSpellID"),
+            ({"ID": 1733, "SourceTypeEnum": 2, "SourceSpellID": 1000},))
+        self.assertEqual(BUILDER.build_mount_items(self.input_dir, records), {})
 
     def test_workbook_export_rows_keep_source_fields_and_all_rewards(self):
         payload = EXPORTER.build_payload(self.input_dir, "test-build")

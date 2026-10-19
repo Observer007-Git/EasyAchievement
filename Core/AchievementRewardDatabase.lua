@@ -25,6 +25,10 @@ function Database.GetBuild()
     return raw.build
 end
 
+function Database.GetMountID(itemID)
+    return raw.mountItems and raw.mountItems[itemID]
+end
+
 function Database.HasReward(achievementID)
     return raw.rewards[achievementID] ~= nil
 end
