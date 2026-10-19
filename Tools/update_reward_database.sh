@@ -63,6 +63,8 @@ done
     --output "${ADDON_DIR}/Data/AchievementRewardDatabase.lua" \
     --unresolved "${BUILD_DIR}/unresolved-model-rewards.csv" \
     --build "${BUILD}"
+"${SCRIPT_DIR}/update_reward_workbook.sh" "${BUILD}"
 
 echo "Generated Data/AchievementRewardDatabase.lua"
+echo "Generated Exports/EasyAchievement_奖励成就.xlsx"
 echo "Review unresolved candidates at ${BUILD_DIR}/unresolved-model-rewards.csv"

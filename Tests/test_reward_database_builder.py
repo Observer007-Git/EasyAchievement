@@ -10,6 +10,11 @@ SPEC = importlib.util.spec_from_file_location(
     "reward_builder", ROOT / "Tools" / "build_reward_database.py")
 BUILDER = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(BUILDER)
+EXPORT_SPEC = importlib.util.spec_from_file_location(
+    "reward_workbook_exporter",
+    ROOT / "Tools" / "export_reward_workbook_data.py")
+EXPORTER = importlib.util.module_from_spec(EXPORT_SPEC)
+EXPORT_SPEC.loader.exec_module(EXPORTER)
 
 
 def write_csv(path, fieldnames, rows):
@@ -127,6 +132,20 @@ class RewardDatabaseBuilderTests(unittest.TestCase):
         source = output.read_text(encoding="utf-8")
         self.assertIn("categories = {", source)
         self.assertIn('[3] = { "mount", "decor" },', source)
+
+    def test_workbook_export_rows_keep_source_fields_and_all_rewards(self):
+        payload = EXPORTER.build_payload(self.input_dir, "test-build")
+        rows = payload["rows"]
+        achievement_three = [row for row in rows if row[0] == 3]
+
+        self.assertEqual(payload["achievementCount"], 10)
+        self.assertEqual(payload["rewardRowCount"], len(rows))
+        self.assertEqual(len(achievement_three), 2)
+        self.assertEqual(achievement_three[0][4], "坐骑、装饰")
+        self.assertEqual(achievement_three[0][5], "mount,decor")
+        self.assertEqual({row[6] for row in achievement_three}, {100, 300})
+        self.assertIn("IconFileID", payload["headers"])
+        self.assertIn("LegacyAfterTimeEvent", payload["headers"])
 
 
 if __name__ == "__main__":

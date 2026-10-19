@@ -97,6 +97,19 @@ RetroactiveDecorReward 表的物品、法术、来源及名称关联；明确的
 生成逻辑回归测试可运行
 `python3 -m unittest Tests/test_reward_database_builder.py`。
 
+奖励数据库更新完成后，还会生成
+`Exports/EasyAchievement_奖励成就.xlsx`。工作簿包含中文成就名称、描述、奖励
+描述、直接与推导奖励 ID、奖励分类，以及 zhCN Achievement 表的其余字段。
+如果已经有下载缓存，也可以只重新生成 Excel：
+
+```bash
+./Tools/update_reward_workbook.sh 12.1.5.70448
+```
+
+Excel 生成器使用 Node.js 和 `@oai/artifact-tool`。如果依赖不在 Codex 默认运行
+目录，可通过 `ARTIFACT_NODE_MODULES` 指定包含 `@oai/artifact-tool` 的
+`node_modules` 目录。
+
 ## 国际化扩展
 
 `Locales/enUS.lua` 始终最先加载，它是所有语言的默认回退。英文和简体中文
