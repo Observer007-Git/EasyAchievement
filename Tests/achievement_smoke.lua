@@ -418,6 +418,13 @@ end
 local recursiveNodes = BuildAchievementTree(1)
 assert(#recursiveNodes == 4, "tree recursion stopped before grandchildren")
 
+local cardOnlyStats = Addon.AchievementTreeData.GetStats({
+    { id = 19458, completed = false },
+})
+assert(cardOnlyStats.levels == 1 and cardOnlyStats.total == 1
+    and cardOnlyStats.completed == 0 and cardOnlyStats.incomplete == 1,
+    "card-only achievement stats require a precomputed tree depth")
+
 local GetTopmostAchievementIDs = Addon.AchievementTreeData.GetTopmostIDs
 childMap = { [100] = { 50 }, [200] = { 50 } }
 BuildAchievementTree(100)

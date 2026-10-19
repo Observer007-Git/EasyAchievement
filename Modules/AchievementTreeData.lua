@@ -264,7 +264,7 @@ function TreeData.GetStats(nodes)
     local maxDepth = 0
     local completedCount = 0
     for _, node in ipairs(nodes) do
-        maxDepth = math.max(maxDepth, node.depth)
+        maxDepth = math.max(maxDepth, node.depth or 1)
         if node.completed then
             completedCount = completedCount + 1
         end
