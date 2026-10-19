@@ -178,9 +178,9 @@ assert(windowSource:find('"GM-icon-settings-pressed"', 1, true)
     "compact settings layout changed")
 assert(windowSource:find('"friends-icon-menu"', 1, true)
     and windowSource:find("categoryButton:SetSize(40, 40)", 1, true)
-    and windowSource:find("categoryNormal:SetSize(20, 20)", 1, true)
-    and windowSource:find("categoryPushed:SetSize(20, 20)", 1, true)
-    and windowSource:find("categoryHighlight:SetSize(20, 20)", 1, true)
+    and windowSource:find("categoryNormal:SetSize(14, 14)", 1, true)
+    and windowSource:find("categoryPushed:SetSize(15, 15)", 1, true)
+    and windowSource:find("categoryHighlight:SetSize(15, 15)", 1, true)
     and windowSource:find(
         'categoryButton:SetPoint("RIGHT", settingsButton, "LEFT", -1, 0)',
         1, true)
