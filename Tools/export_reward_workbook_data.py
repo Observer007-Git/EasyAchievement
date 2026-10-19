@@ -55,7 +55,7 @@ def number(value):
 
 def build_payload(input_dir, build):
     builder = load_builder(Path(__file__).resolve().parent)
-    records, categories, unresolved, _ = builder.build_database(input_dir)
+    records, categories, unresolved, _, _ = builder.build_database(input_dir)
 
     achievements = {}
     achievement_path = input_dir / "zhCN" / "Achievement.csv"

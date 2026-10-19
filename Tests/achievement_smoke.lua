@@ -192,6 +192,20 @@ assert(settingSanitizers.achievementTreeStates,
 assert(settingSanitizers.achievementRewardCategoryStates,
     "reward-category state sanitizer was not registered")
 
+local factionMetadata = Addon.AchievementRewardDatabase.factions
+assert(factionMetadata[10355] == 0 and factionMetadata[10356] == 1,
+    "generated faction metadata is missing the Horde/Alliance Reins Lord pair")
+local originalUnitFactionGroup = UnitFactionGroup
+UnitFactionGroup = function() return "Horde" end
+assert(Addon.AchievementData.Get(10355)
+    and not Addon.AchievementData.Get(10356),
+    "Horde characters did not filter the Alliance Reins Lord achievement")
+UnitFactionGroup = function() return "Alliance" end
+assert(not Addon.AchievementData.Get(10355)
+    and Addon.AchievementData.Get(10356),
+    "Alliance characters did not filter the Horde Reins Lord achievement")
+UnitFactionGroup = originalUnitFactionGroup
+
 local oversizedStates = {}
 for id = 1, 75 do
     oversizedStates[tostring(id)] = {

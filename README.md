@@ -76,8 +76,9 @@ EasyAchievement/
 BattlePetSpecies、Toy、HouseDecor、ItemSparse、ItemEffect、
 ItemXItemEffect、ItemModifiedAppearance、TransmogSet、TransmogSetItem 和
 RetroactiveDecorReward 表的物品、法术、来源及名称关联；明确的本地化奖励类型
-文本用于补足类别和头衔。数据库没有可用物品 ID 时，插件才使用游戏 API 和
-现有的奖励文本识别作为降级处理。
+文本用于补足类别和头衔。数据库同时保存阵营限定成就的 `Faction`，插件按当前
+角色阵营过滤联盟、部落的同名对应成就。数据库没有可用物品 ID 时，插件才使用
+游戏 API 和现有的奖励文本识别作为降级处理。
 
 在插件目录运行以下命令，会自动选取 wago.tools 最新正式服 `wow` 构建，下载
 英文与简体中文 DB2 表并重新生成数据库：

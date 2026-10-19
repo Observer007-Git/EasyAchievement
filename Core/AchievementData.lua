@@ -8,6 +8,21 @@ local MIN_TREE_SCALE = Config.Tree.MinScale
 local MAX_TREE_SCALE = Config.Tree.MaxScale
 local MAX_TREE_STATES = Config.State.MaxTreeStates
 local MAX_HISTORY_ENTRIES = Config.State.MaxHistoryEntries
+local FACTION_IDS = { Horde = 0, Alliance = 1 }
+
+function Data.IsFactionAvailable(achievementID, factionGroup)
+    local database = Addon.AchievementRewardDatabase
+    local requiredFaction = database and database.factions
+        and database.factions[achievementID]
+    if requiredFaction ~= 0 and requiredFaction ~= 1 then
+        return true
+    end
+    if not factionGroup and UnitFactionGroup then
+        factionGroup = UnitFactionGroup("player")
+    end
+    local playerFaction = FACTION_IDS[factionGroup]
+    return playerFaction == nil or playerFaction == requiredFaction
+end
 
 function Data.GetHistoryEntry(entry)
     if type(entry) == "table" then
@@ -121,7 +136,9 @@ function Data.SanitizeTreeStates(value)
 end
 
 function Data.Get(achievementID)
-    if not Data.IsValid(achievementID) then
+    if not Data.IsValid(achievementID)
+        or not Data.IsFactionAvailable(achievementID)
+    then
         return nil
     end
 

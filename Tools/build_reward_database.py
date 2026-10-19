@@ -118,6 +118,7 @@ def build_database(input_dir):
             achievement_id = integer(row["ID"])
             entry = achievements.setdefault(achievement_id, {
                 "reward_item_id": integer(row["RewardItemID"]),
+                "faction": integer(row.get("Faction", "-1")),
                 "titles": {},
                 "rewards": {},
             })
@@ -261,6 +262,11 @@ def build_database(input_dir):
         for reward_type, index in name_indexes.items()
     }
 
+    factions = {
+        achievement_id: achievement["faction"]
+        for achievement_id, achievement in achievements.items()
+        if achievement["faction"] in (0, 1)
+    }
     records = {}
     categories = {}
     unresolved = []
@@ -344,10 +350,10 @@ def build_database(input_dir):
                     achievement["rewards"].get("zhCN", ""),
                     ",".join(sorted(detected_types))))
 
-    return records, categories, unresolved, inferred_count
+    return records, categories, unresolved, inferred_count, factions
 
 
-def write_lua(output, build, records, categories):
+def write_lua(output, build, records, categories, factions):
     output.parent.mkdir(parents=True, exist_ok=True)
     with output.open("w", encoding="utf-8", newline="\n") as handle:
         handle.write("local _, Addon = ...\n\n")
@@ -373,6 +379,10 @@ def write_lua(output, build, records, categories):
                 for category in reward_categories)
             handle.write(f"        [{achievement_id}] = {{ {values} }},\n")
         handle.write("    },\n")
+        handle.write("    factions = {\n")
+        for achievement_id in sorted(factions):
+            handle.write(f"        [{achievement_id}] = {factions[achievement_id]},\n")
+        handle.write("    },\n")
         handle.write("}\n")
 
 
@@ -392,9 +402,9 @@ def main():
     parser.add_argument("--build", required=True)
     args = parser.parse_args()
 
-    records, categories, unresolved, inferred_count = build_database(
-        args.input)
-    write_lua(args.output, args.build, records, categories)
+    records, categories, unresolved, inferred_count, factions = \
+        build_database(args.input)
+    write_lua(args.output, args.build, records, categories, factions)
     write_unresolved(args.unresolved, unresolved)
     direct_count = sum(rows[0][0] > 0 for rows in records.values())
     print(f"build={args.build}")

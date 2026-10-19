@@ -30,22 +30,24 @@ class RewardDatabaseBuilderTests(unittest.TestCase):
         self.temporary = tempfile.TemporaryDirectory()
         self.input_dir = Path(self.temporary.name)
         achievements = [
-            (1, 100, "Mount Direct", "Mount: Sky Steed"),
-            (2, 0, "Pet Prize", "Pet: Tiny Friend"),
-            (3, 100, "Two Rewards", "Mount: Sky Steed\nDecor: Cozy Chair"),
-            (4, 0, "Title Prize", "Title: Keeper"),
-            (5, 0, "Missing Mount", "Mount: Missing"),
-            (6, 0, "Currency Prize", "Currency: Token"),
-            (7, 0, "Toy Prize", "Toy: Fun Box"),
-            (8, 0, "Appearance Prize", "Appearance: Hero Set"),
-            (9, 0, "Decor Prize", "Decor: Retro Chair"),
-            (10, 999, "Item Prize", "Reward: Token"),
+            (1, 100, "Mount Direct", "Mount: Sky Steed", 0),
+            (2, 0, "Pet Prize", "Pet: Tiny Friend", 1),
+            (3, 100, "Two Rewards", "Mount: Sky Steed\nDecor: Cozy Chair", -1),
+            (4, 0, "Title Prize", "Title: Keeper", -1),
+            (5, 0, "Missing Mount", "Mount: Missing", -1),
+            (6, 0, "Currency Prize", "Currency: Token", -1),
+            (7, 0, "Toy Prize", "Toy: Fun Box", -1),
+            (8, 0, "Appearance Prize", "Appearance: Hero Set", -1),
+            (9, 0, "Decor Prize", "Decor: Retro Chair", -1),
+            (10, 999, "Item Prize", "Reward: Token", -1),
         ]
         for locale in BUILDER.LOCALES:
             write_csv(self.input_dir / locale / "Achievement.csv",
-                ("ID", "RewardItemID", "Title_lang", "Reward_lang"),
+                ("ID", "RewardItemID", "Title_lang", "Reward_lang",
+                 "Faction"),
                 ({"ID": row[0], "RewardItemID": row[1],
-                  "Title_lang": row[2], "Reward_lang": row[3]}
+                  "Title_lang": row[2], "Reward_lang": row[3],
+                  "Faction": row[4]}
                  for row in achievements))
             write_csv(self.input_dir / locale / "Creature.csv",
                 ("ID", "Name_lang"),
@@ -104,7 +106,7 @@ class RewardDatabaseBuilderTests(unittest.TestCase):
         self.temporary.cleanup()
 
     def test_categories_combine_structured_tables_and_reward_text(self):
-        records, categories, unresolved, inferred_count = \
+        records, categories, unresolved, inferred_count, factions = \
             BUILDER.build_database(self.input_dir)
 
         self.assertEqual(categories[1], ["mount"])
@@ -124,14 +126,18 @@ class RewardDatabaseBuilderTests(unittest.TestCase):
         self.assertIn((0, 300), records[9])
         self.assertGreaterEqual(inferred_count, 5)
         self.assertTrue(any(row[0] == 5 for row in unresolved))
+        self.assertEqual(factions, {1: 0, 2: 1})
 
     def test_lua_output_contains_generated_categories(self):
-        records, categories, _, _ = BUILDER.build_database(self.input_dir)
+        records, categories, _, _, factions = BUILDER.build_database(
+            self.input_dir)
         output = self.input_dir / "database.lua"
-        BUILDER.write_lua(output, "test", records, categories)
+        BUILDER.write_lua(output, "test", records, categories, factions)
         source = output.read_text(encoding="utf-8")
         self.assertIn("categories = {", source)
         self.assertIn('[3] = { "mount", "decor" },', source)
+        self.assertIn("factions = {", source)
+        self.assertIn("[1] = 0,", source)
 
     def test_workbook_export_rows_keep_source_fields_and_all_rewards(self):
         payload = EXPORTER.build_payload(self.input_dir, "test-build")

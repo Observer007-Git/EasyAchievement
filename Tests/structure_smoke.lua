@@ -59,6 +59,8 @@ local rewardDatabaseSource = ReadSource(
     "Data/AchievementRewardDatabase.lua")
 assert(rewardDatabaseSource:find("categories = {", 1, true),
     "generated achievement reward categories are missing")
+assert(rewardDatabaseSource:find("factions = {", 1, true),
+    "generated achievement faction metadata is missing")
 
 local launcherSource = ReadSource("Modules/Achievements/Launcher.lua")
 assert(launcherSource:find(
