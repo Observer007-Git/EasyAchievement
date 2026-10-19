@@ -228,7 +228,7 @@ local function CreateAchievementMinimapButton()
         icon:SetTexCoord(0, 0.5, 0, 0.5)
     end
     local border = button:CreateTexture(nil, "OVERLAY")
-    border:SetPoint("CENTER", 0, 0)
+    border:SetPoint("TOPLEFT")
     border:SetSize(54, 54)
     border:SetTexture("Interface\\Minimap\\MiniMap-TrackingBorder")
     button:SetHighlightTexture(

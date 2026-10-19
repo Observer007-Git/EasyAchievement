@@ -87,6 +87,7 @@ assert(launcherSource:find(
     and launcherSource:find('_G.SLASH_EASYACHIEVEMENT1 = "/eat"', 1,
         true)
     and launcherSource:find("CreateAchievementMinimapButton()", 1, true)
+    and launcherSource:find('border:SetPoint("TOPLEFT")', 1, true)
     and not launcherSource:find("CreateAchievementFavoritesPanel(self)", 1,
         true),
     "launcher settings, slash command, or minimap entry is not configured")
@@ -177,6 +178,9 @@ assert(windowSource:find('"GM-icon-settings-pressed"', 1, true)
     "compact settings layout changed")
 assert(windowSource:find('"friends-icon-menu"', 1, true)
     and windowSource:find("categoryButton:SetSize(40, 40)", 1, true)
+    and windowSource:find("categoryNormal:SetSize(20, 20)", 1, true)
+    and windowSource:find("categoryPushed:SetSize(20, 20)", 1, true)
+    and windowSource:find("categoryHighlight:SetSize(20, 20)", 1, true)
     and windowSource:find(
         'categoryButton:SetPoint("RIGHT", settingsButton, "LEFT", -1, 0)',
         1, true)
