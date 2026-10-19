@@ -182,7 +182,7 @@ assert(windowSource:find('"friends-icon-menu"', 1, true)
     and windowSource:find("categoryPushed:SetSize(15, 15)", 1, true)
     and windowSource:find("categoryHighlight:SetSize(15, 15)", 1, true)
     and windowSource:find(
-        'categoryButton:SetPoint("RIGHT", settingsButton, "LEFT", -1, 0)',
+        'categoryButton:SetPoint("RIGHT", settingsButton, "LEFT", 12, 0)',
         1, true)
     and windowSource:find("OpenAchievementRewardCategoryMenu(self)",
         1, true),

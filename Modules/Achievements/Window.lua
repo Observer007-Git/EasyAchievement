@@ -970,7 +970,7 @@ function CreateAchievementTreeFrame()
     frame.SettingsButton = settingsButton
 
     local categoryButton = CreateFrame("Button", nil, frame)
-    categoryButton:SetPoint("RIGHT", settingsButton, "LEFT", -1, 0)
+    categoryButton:SetPoint("RIGHT", settingsButton, "LEFT", 12, 0)
     categoryButton:SetSize(40, 40)
     categoryButton:SetFrameLevel(borderFrame:GetFrameLevel() + 1)
     local categoryNormal = categoryButton:CreateTexture(nil, "ARTWORK")
