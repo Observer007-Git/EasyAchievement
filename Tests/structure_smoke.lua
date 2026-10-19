@@ -79,9 +79,17 @@ assert(rewardDatabaseAPISource:find("function Database.GetReward", 1, true)
 local launcherSource = ReadSource("Modules/Achievements/Launcher.lua")
 assert(launcherSource:find(
     'RegisterForClicks("LeftButtonUp", "RightButtonUp")', 1, true)
-    and launcherSource:find("CreateAchievementFavoritesPanel(self)", 1,
+    and launcherSource:find("CreateAchievementLauncherSettings(self)", 1,
+        true)
+    and launcherSource:find('"achievementLauncherScale"', 1, true)
+    and launcherSource:find('"achievementLauncherHidden"', 1, true)
+    and launcherSource:find('"achievementShowMinimapIcon"', 1, true)
+    and launcherSource:find('_G.SLASH_EASYACHIEVEMENT1 = "/eat"', 1,
+        true)
+    and launcherSource:find("CreateAchievementMinimapButton()", 1, true)
+    and not launcherSource:find("CreateAchievementFavoritesPanel(self)", 1,
         true),
-    "launcher right click is not connected to favorites management")
+    "launcher settings, slash command, or minimap entry is not configured")
 
 local searchSource = ReadSource("Modules/Achievements/Search.lua")
 assert(searchSource:find("OpenAchievementATTGuide(achievementID)", 1, true),
@@ -157,6 +165,9 @@ assert(windowSource:find('"GM-icon-settings-pressed"', 1, true)
     and windowSource:find("popupAlphaPlus = CreateScaleControls(", 1,
         true)
     and windowSource:find("L.ACHIEVEMENT_POPUP_ALPHA", 1, true)
+    and windowSource:find("L.ACHIEVEMENT_LAUNCHER_SHOW", 1, true)
+    and windowSource:find(
+        "RefreshAchievementLauncherSettingsPanel = function()", 1, true)
     and not windowSource:find("frame.StatsDivider", 1, true)
     and not windowSource:find("frame.ControlsDivider", 1, true)
     and windowSource:find("frame.TreeDivider = CreateGoldDivider(-80)",

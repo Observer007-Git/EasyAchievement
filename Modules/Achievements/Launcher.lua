@@ -10,6 +10,292 @@ else
     _ENV = UI
 end
 
+local MIN_LAUNCHER_SCALE = 0
+local MAX_LAUNCHER_SCALE = 1
+local LAUNCHER_SCALE_STEP = 0.05
+local DEFAULT_MINIMAP_ANGLE = 225
+local achievementLauncherSettings
+local achievementMinimapButton
+
+local function GetAchievementLauncherScale()
+    return math.max(MIN_LAUNCHER_SCALE,
+        math.min(MAX_LAUNCHER_SCALE,
+            tonumber(Addon:GetSetting("achievementLauncherScale")) or 1))
+end
+
+local function ShouldShowAchievementLauncher()
+    return Addon:GetSetting("enableAchievementEnhancement")
+        and not Addon:GetSetting("achievementLauncherHidden")
+        and GetAchievementLauncherScale() > 0
+end
+
+function OpenAchievementPanel()
+    if achievementFavoritesPanel then
+        achievementFavoritesPanel:Hide()
+    end
+    local achievementID = Addon:GetSetting("achievementLastTreeID")
+        or GetAchievementFavorites()[1]
+        or GetAchievementRecent()[1]
+    if IsAchievementValid(achievementID) then
+        ShowAchievementTree(achievementID)
+        return
+    end
+
+    local frame = CreateAchievementTreeFrame()
+    frame.sourceAchievementID = nil
+    frame.rewardCategoryMode = nil
+    frame.pendingRewardCategory = nil
+    for _, nodeButton in ipairs(frame.nodeButtons) do
+        nodeButton:Hide()
+    end
+    for _, line in ipairs(frame.lines) do
+        line:Hide()
+    end
+    UpdateAchievementHeader(frame, L.ACHIEVEMENT_ENHANCEMENT, "")
+    UpdateAchievementRewardHeader(frame, nil)
+    frame.ATTButton:Hide()
+    frame.IncompleteOnly:Hide()
+    frame.IncompleteOnlyLabel:Hide()
+    frame.TreeScaleControls:Hide()
+    frame.EmptyText:SetText(L.ACHIEVEMENT_LAUNCHER_EMPTY)
+    frame.EmptyText:Show()
+    if achievementRewardFrame then
+        achievementRewardFrame:Hide()
+    end
+    frame:Show()
+    frame:Raise()
+end
+
+local function RefreshLauncherSettings()
+    if achievementLauncherSettings then
+        local scale = GetAchievementLauncherScale()
+        achievementLauncherSettings.ScaleValue:SetText(string.format("%d%%",
+            math.floor(scale * 100 + 0.5)))
+        achievementLauncherSettings.ScaleMinus:SetEnabled(
+            scale > MIN_LAUNCHER_SCALE)
+        achievementLauncherSettings.ScalePlus:SetEnabled(
+            scale < MAX_LAUNCHER_SCALE)
+        achievementLauncherSettings.HideLauncher:SetChecked(
+            Addon:GetSetting("achievementLauncherHidden"))
+        achievementLauncherSettings.ShowMinimap:SetChecked(
+            Addon:GetSetting("achievementShowMinimapIcon"))
+    end
+    if RefreshAchievementLauncherSettingsPanel then
+        RefreshAchievementLauncherSettingsPanel()
+    end
+end
+
+local function CreateLauncherCheckButton(parent, labelText, anchor)
+    local checkButton = CreateFrame("CheckButton", nil, parent,
+        "UICheckButtonTemplate")
+    checkButton:SetSize(22, 22)
+    checkButton:SetPoint("TOPLEFT", 10, anchor)
+    local label = checkButton:CreateFontString(nil, "OVERLAY",
+        "GameFontHighlightSmall")
+    label:SetPoint("LEFT", checkButton, "RIGHT", 2, 0)
+    label:SetText(labelText)
+    checkButton.Label = label
+    return checkButton
+end
+
+local function CreateAchievementLauncherSettings(owner)
+    if achievementLauncherSettings then
+        achievementLauncherSettings:ClearAllPoints()
+        achievementLauncherSettings:SetPoint("TOPLEFT", owner, "TOPRIGHT",
+            4, 0)
+        return achievementLauncherSettings
+    end
+
+    local panel = CreateFrame("Frame", "EasyAchievementLauncherSettings",
+        UIParent)
+    panel:SetSize(220, 100)
+    panel:SetFrameStrata("DIALOG")
+    panel:SetClampedToScreen(true)
+    panel:EnableMouse(true)
+    panel:SetPoint("TOPLEFT", owner, "TOPRIGHT", 4, 0)
+    local background = panel:CreateTexture(nil, "BACKGROUND")
+    background:SetAllPoints()
+    background:SetColorTexture(0.035, 0.035, 0.035, 0.98)
+    local border = panel:CreateTexture(nil, "BORDER")
+    border:SetPoint("TOPLEFT")
+    border:SetPoint("BOTTOMRIGHT")
+    border:SetColorTexture(0.72, 0.52, 0.14, 0.95)
+    local inset = panel:CreateTexture(nil, "ARTWORK")
+    inset:SetPoint("TOPLEFT", 1, -1)
+    inset:SetPoint("BOTTOMRIGHT", -1, 1)
+    inset:SetColorTexture(0.035, 0.035, 0.035, 1)
+
+    local scaleLabel = panel:CreateFontString(nil, "OVERLAY",
+        "GameFontNormalSmall")
+    scaleLabel:SetPoint("TOPLEFT", 12, -12)
+    scaleLabel:SetText(L.ACHIEVEMENT_LAUNCHER_SCALE)
+    local minus = CreateFrame("Button", nil, panel,
+        "UIPanelButtonTemplate")
+    minus:SetPoint("LEFT", scaleLabel, "RIGHT", 8, 0)
+    minus:SetSize(20, 20)
+    minus:SetText("-")
+    local value = panel:CreateFontString(nil, "OVERLAY",
+        "GameFontHighlightSmall")
+    value:SetPoint("LEFT", minus, "RIGHT", 5, 0)
+    value:SetWidth(38)
+    value:SetJustifyH("CENTER")
+    local plus = CreateFrame("Button", nil, panel,
+        "UIPanelButtonTemplate")
+    plus:SetPoint("LEFT", value, "RIGHT", 5, 0)
+    plus:SetSize(20, 20)
+    plus:SetText("+")
+    minus:SetScript("OnClick", function()
+        Addon:SetSetting("achievementLauncherScale",
+            GetAchievementLauncherScale() - LAUNCHER_SCALE_STEP)
+    end)
+    plus:SetScript("OnClick", function()
+        Addon:SetSetting("achievementLauncherScale",
+            GetAchievementLauncherScale() + LAUNCHER_SCALE_STEP)
+    end)
+    panel.ScaleMinus = minus
+    panel.ScaleValue = value
+    panel.ScalePlus = plus
+
+    local hideLauncher = CreateLauncherCheckButton(panel,
+        L.ACHIEVEMENT_LAUNCHER_HIDE, -38)
+    hideLauncher:SetScript("OnClick", function(self)
+        Addon:SetSetting("achievementLauncherHidden",
+            self:GetChecked() == true)
+    end)
+    panel.HideLauncher = hideLauncher
+
+    local showMinimap = CreateLauncherCheckButton(panel,
+        L.ACHIEVEMENT_MINIMAP_SHOW, -66)
+    showMinimap:SetScript("OnClick", function(self)
+        Addon:SetSetting("achievementShowMinimapIcon",
+            self:GetChecked() == true)
+    end)
+    panel.ShowMinimap = showMinimap
+    panel:Hide()
+    table.insert(UISpecialFrames, panel:GetName())
+    achievementLauncherSettings = panel
+    RefreshLauncherSettings()
+    return panel
+end
+
+local function PositionMinimapButton(button, angle)
+    angle = math.rad(tonumber(angle) or DEFAULT_MINIMAP_ANGLE)
+    local radius = (Minimap:GetWidth() or 140) / 2 + 5
+    button:ClearAllPoints()
+    button:SetPoint("CENTER", Minimap, "CENTER",
+        math.cos(angle) * radius, math.sin(angle) * radius)
+end
+
+local function GetCursorMinimapAngle()
+    local cursorX, cursorY = GetCursorPosition()
+    local scale = Minimap:GetEffectiveScale()
+    local centerX, centerY = Minimap:GetCenter()
+    local offsetY = cursorY / scale - centerY
+    local offsetX = cursorX / scale - centerX
+    local radians
+    if math.atan2 then
+        radians = math.atan2(offsetY, offsetX)
+    elseif offsetX > 0 then
+        radians = math.atan(offsetY / offsetX)
+    elseif offsetX < 0 then
+        radians = math.atan(offsetY / offsetX)
+            + (offsetY >= 0 and math.pi or -math.pi)
+    else
+        radians = offsetY >= 0 and math.pi / 2 or -math.pi / 2
+    end
+    return (math.deg(radians) + 360) % 360
+end
+
+local function CreateAchievementMinimapButton()
+    if achievementMinimapButton then
+        return achievementMinimapButton
+    end
+    if not Minimap then
+        return nil
+    end
+
+    local button = CreateFrame("Button", "EasyAchievementMinimapButton",
+        Minimap)
+    button:SetSize(32, 32)
+    button:SetFrameStrata("MEDIUM")
+    button:RegisterForClicks("LeftButtonUp")
+    button:RegisterForDrag("LeftButton")
+    local icon = button:CreateTexture(nil, "ARTWORK")
+    icon:SetPoint("CENTER")
+    icon:SetSize(20, 20)
+    if not SetTextureAtlas(icon, "UI-Achievement-Shield-NoPoints") then
+        icon:SetTexture("Interface\\AchievementFrame\\UI-Achievement-Shields")
+        icon:SetTexCoord(0, 0.5, 0, 0.5)
+    end
+    local border = button:CreateTexture(nil, "OVERLAY")
+    border:SetPoint("CENTER", 0, 0)
+    border:SetSize(54, 54)
+    border:SetTexture("Interface\\Minimap\\MiniMap-TrackingBorder")
+    button:SetHighlightTexture(
+        "Interface\\Minimap\\UI-Minimap-ZoomButton-Highlight")
+    button:SetScript("OnClick", function(self)
+        if not self.wasDragged then
+            OpenAchievementPanel()
+        end
+    end)
+    button:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_LEFT")
+        GameTooltip:SetText(L.ACHIEVEMENT_ENHANCEMENT)
+        GameTooltip:AddLine(L.ACHIEVEMENT_MINIMAP_OPEN, 1, 1, 1)
+        GameTooltip:Show()
+    end)
+    button:SetScript("OnLeave", function()
+        GameTooltip:Hide()
+    end)
+    button:SetScript("OnDragStart", function(self)
+        self.wasDragged = true
+        self:SetScript("OnUpdate", function(dragButton)
+            PositionMinimapButton(dragButton, GetCursorMinimapAngle())
+        end)
+    end)
+    button:SetScript("OnDragStop", function(self)
+        self:SetScript("OnUpdate", nil)
+        Addon:SetSetting("achievementMinimapAngle",
+            GetCursorMinimapAngle())
+        C_Timer.After(0, function()
+            self.wasDragged = nil
+        end)
+    end)
+    PositionMinimapButton(button,
+        Addon:GetSetting("achievementMinimapAngle"))
+    button:Hide()
+    achievementMinimapButton = button
+    return button
+end
+
+function UpdateAchievementLauncherVisibility()
+    if achievementLauncher then
+        achievementLauncher:SetShown(ShouldShowAchievementLauncher())
+        if not achievementLauncher:IsShown() then
+            achievementLauncher.QuickSearch:HideSearch()
+            if achievementLauncherSettings then
+                achievementLauncherSettings:Hide()
+            end
+        end
+    end
+    if achievementMinimapButton then
+        achievementMinimapButton:SetShown(
+            Addon:GetSetting("enableAchievementEnhancement")
+                and Addon:GetSetting("achievementShowMinimapIcon"))
+    end
+    RefreshLauncherSettings()
+end
+
+function ApplyAchievementLauncherScale(value)
+    local scale = math.max(MIN_LAUNCHER_SCALE,
+        math.min(MAX_LAUNCHER_SCALE, tonumber(value) or 1))
+    if achievementLauncher and scale > 0 then
+        achievementLauncher:SetScale(scale)
+        achievementLauncher.QuickSearch:SetScale(scale)
+    end
+    UpdateAchievementLauncherVisibility()
+end
+
 function CreateAchievementLauncher()
     if achievementLauncher then
         return achievementLauncher
@@ -96,7 +382,7 @@ function CreateAchievementLauncher()
         end
         self.QuickSearch:HideSearch()
         if mouseButton == "RightButton" then
-            local panel = CreateAchievementFavoritesPanel(self)
+            local panel = CreateAchievementLauncherSettings(self)
             if panel:IsShown() then
                 panel:Hide()
             else
@@ -105,39 +391,7 @@ function CreateAchievementLauncher()
             end
             return
         end
-        if achievementFavoritesPanel then
-            achievementFavoritesPanel:Hide()
-        end
-        local achievementID = Addon:GetSetting("achievementLastTreeID")
-            or GetAchievementFavorites()[1]
-            or GetAchievementRecent()[1]
-        if IsAchievementValid(achievementID) then
-            ShowAchievementTree(achievementID)
-        else
-            local frame = CreateAchievementTreeFrame()
-            frame.sourceAchievementID = nil
-            frame.rewardCategoryMode = nil
-            frame.pendingRewardCategory = nil
-            for _, nodeButton in ipairs(frame.nodeButtons) do
-                nodeButton:Hide()
-            end
-            for _, line in ipairs(frame.lines) do
-                line:Hide()
-            end
-            UpdateAchievementHeader(frame, L.ACHIEVEMENT_ENHANCEMENT, "")
-            UpdateAchievementRewardHeader(frame, nil)
-            frame.ATTButton:Hide()
-            frame.IncompleteOnly:Hide()
-            frame.IncompleteOnlyLabel:Hide()
-            frame.TreeScaleControls:Hide()
-            frame.EmptyText:SetText(L.ACHIEVEMENT_LAUNCHER_EMPTY)
-            frame.EmptyText:Show()
-            if achievementRewardFrame then
-                achievementRewardFrame:Hide()
-            end
-            frame:Show()
-            frame:Raise()
-        end
+        OpenAchievementPanel()
     end)
     button:SetScript("OnEnter", function(self)
         self.HoverIcon:Show()
@@ -149,16 +403,19 @@ function CreateAchievementLauncher()
         self.HoverIcon:Hide()
         self.QuickSearch:ScheduleHide()
     end)
-    button:Hide()
     achievementLauncher = button
+    ApplyAchievementLauncherScale(
+        Addon:GetSetting("achievementLauncherScale"))
     return button
 end
 
 function ApplyAchievementEnhancement(enabled)
     if enabled then
         local launcher = CreateAchievementLauncher()
+        CreateAchievementMinimapButton()
         if launcher then
-            launcher:Show()
+            ApplyAchievementLauncherScale(
+                Addon:GetSetting("achievementLauncherScale"))
         end
         for _, popupID in ipairs(
             Addon:GetSetting("achievementPopupIDs") or {})
@@ -169,6 +426,12 @@ function ApplyAchievementEnhancement(enabled)
         if achievementLauncher then
             achievementLauncher:Hide()
             achievementLauncher.QuickSearch:HideSearch()
+        end
+        if achievementLauncherSettings then
+            achievementLauncherSettings:Hide()
+        end
+        if achievementMinimapButton then
+            achievementMinimapButton:Hide()
         end
         if achievementTreeFrame then
             achievementTreeFrame:Hide()
@@ -285,6 +548,19 @@ Addon:RegisterSetting("achievementPopupPosition", nil, Addon.PositionSetting)
 Addon:RegisterSetting("achievementLastTreeID", nil, SanitizeAchievementID)
 Addon:RegisterSetting("achievementLauncherPosition", nil,
     Addon.PositionSetting)
+Addon:RegisterSetting("achievementLauncherScale", 1,
+    Addon.NumberSetting(MIN_LAUNCHER_SCALE, MAX_LAUNCHER_SCALE,
+        LAUNCHER_SCALE_STEP), ApplyAchievementLauncherScale)
+Addon:RegisterSetting("achievementLauncherHidden", false,
+    Addon.BooleanSetting, UpdateAchievementLauncherVisibility)
+Addon:RegisterSetting("achievementShowMinimapIcon", false,
+    Addon.BooleanSetting, UpdateAchievementLauncherVisibility)
+Addon:RegisterSetting("achievementMinimapAngle", DEFAULT_MINIMAP_ANGLE,
+    Addon.NumberSetting(0, 360, 1), function(value)
+        if achievementMinimapButton then
+            PositionMinimapButton(achievementMinimapButton, value)
+        end
+    end)
 Addon:RegisterSetting("achievementFavorites", {},
     SanitizeAchievementFavorites)
 Addon:RegisterSetting("achievementRecent", {}, SanitizeAchievementFavorites)
@@ -299,3 +575,9 @@ Addon:RegisterEvent("PLAYER_LOGIN", function()
     ApplyAchievementEnhancement(
         Addon:GetSetting("enableAchievementEnhancement"))
 end)
+
+_G.SLASH_EASYACHIEVEMENT1 = "/eat"
+_G.SlashCmdList = _G.SlashCmdList or {}
+_G.SlashCmdList.EASYACHIEVEMENT = function()
+    OpenAchievementPanel()
+end

@@ -808,7 +808,7 @@ function CreateAchievementTreeFrame()
 
     local cardScaleControls, cardScaleMinus, cardScaleValue, cardScalePlus =
         CreateScaleControls(settingsPanel, L.ACHIEVEMENT_CARD_SCALE)
-    cardScaleControls:SetPoint("LEFT", settingsPanel, "LEFT", 10, 0)
+    cardScaleControls:SetPoint("TOPLEFT", settingsPanel, "TOPLEFT", 10, -7)
     cardScaleMinus:SetScript("OnClick", function()
         Addon:SetSetting("achievementCardScale",
             GetAchievementCardScale() - ACHIEVEMENT_CARD_SCALE_STEP)
@@ -879,6 +879,45 @@ function CreateAchievementTreeFrame()
     settingsPanel:SetWidth(40 + cardScaleControls:GetWidth()
         + popupScaleControls:GetWidth()
         + popupAlphaControls:GetWidth())
+    local compactSettingsWidth = settingsPanel:GetWidth()
+
+    local showLauncher = CreateFrame("CheckButton", nil, settingsPanel,
+        "UICheckButtonTemplate")
+    showLauncher:SetSize(22, 22)
+    showLauncher:SetPoint("TOPLEFT", settingsPanel, "TOPLEFT", 10, -35)
+    local showLauncherLabel = showLauncher:CreateFontString(nil, "OVERLAY",
+        "GameFontHighlightSmall")
+    showLauncherLabel:SetPoint("LEFT", showLauncher, "RIGHT", 2, 0)
+    showLauncherLabel:SetText(L.ACHIEVEMENT_LAUNCHER_SHOW)
+    showLauncher:SetScript("OnClick", function(self)
+        if self:GetChecked() then
+            if (tonumber(Addon:GetSetting("achievementLauncherScale")) or 1)
+                <= 0
+            then
+                Addon:SetSetting("achievementLauncherScale", 1)
+            end
+            Addon:SetSetting("achievementLauncherHidden", false)
+        end
+    end)
+    showLauncher:Hide()
+    frame.ShowLauncher = showLauncher
+
+    RefreshAchievementLauncherSettingsPanel = function()
+        if not achievementTreeFrame or not achievementTreeFrame.ShowLauncher
+        then
+            return
+        end
+        local hidden = Addon:GetSetting("achievementLauncherHidden")
+            or (tonumber(Addon:GetSetting("achievementLauncherScale")) or 1)
+                <= 0
+        achievementTreeFrame.ShowLauncher:SetChecked(false)
+        achievementTreeFrame.ShowLauncher:SetShown(hidden)
+        achievementTreeFrame.SettingsPanel:SetHeight(hidden and 64 or 36)
+        local restoreWidth = math.ceil(showLauncherLabel:GetStringWidth()) + 44
+        achievementTreeFrame.SettingsPanel:SetWidth(math.max(
+            compactSettingsWidth, hidden and restoreWidth or 0))
+    end
+    RefreshAchievementLauncherSettingsPanel()
 
     local closeButton = CreateFrame("Button", nil, frame)
     closeButton:SetPoint("TOPRIGHT", 1, -1)
@@ -925,6 +964,7 @@ function CreateAchievementTreeFrame()
     settingsButton:SetHighlightTexture(settingsHighlight)
     settingsPanel:SetPoint("TOPRIGHT", settingsButton, "BOTTOMRIGHT", 0, -2)
     settingsButton:SetScript("OnClick", function()
+        RefreshAchievementLauncherSettingsPanel()
         settingsPanel:SetShown(not settingsPanel:IsShown())
     end)
     frame.SettingsButton = settingsButton
