@@ -506,6 +506,11 @@ assert(combinedReward and #combinedReward == 2
     and combinedReward[1].rewardItemID == 217612
     and combinedReward[2].inferredRewardItemID == 248125,
     "generated reward database lost a direct plus decor reward")
+local generatedCategories = Addon.AchievementRewardDatabase.categories
+assert(generatedCategories
+    and table.concat(generatedCategories[20501], ",") == "mount,decor"
+    and table.concat(generatedCategories[63633], ",") == "pet",
+    "generated reward categories lost multi-reward or pet evidence")
 
 local originalGetAchievementInfo = GetAchievementInfo
 local originalGetRewardItemID = C_AchievementInfo.GetRewardItemID
@@ -646,6 +651,10 @@ C_AchievementInfo.GetRewardItemID = function() return nil end
 reward = GetAchievementRewardData(1)
 assert(reward and #reward.entries == 0,
     "title-only reward unexpectedly created a preview")
+C_AchievementInfo.GetRewardItemID = function() return 0 end
+reward = GetAchievementRewardData(1)
+assert(reward and #reward.entries == 0,
+    "zero runtime reward item ID created a preview")
 
 C_MountJournal.GetMountIDs = function() return { 1614, 1690 } end
 C_MountJournal.GetMountInfoByID = function(mountID)

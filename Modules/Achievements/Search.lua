@@ -147,7 +147,19 @@ ShowAchievementTree = function(achievementID, navigationMode, breadcrumbIDs,
     showCardOnly, rewardCategoryCardContext)
     local frameWasShown = achievementTreeFrame
         and achievementTreeFrame:IsShown() or false
-    local nodes, edges, root = BuildAchievementTree(achievementID)
+    local cardOnlyAchievementID = showCardOnly and achievementID or nil
+    if navigationMode == "refresh" and achievementTreeFrame then
+        cardOnlyAchievementID = achievementTreeFrame.cardOnlyAchievementID
+    end
+    local nodes, edges, root
+    if cardOnlyAchievementID == achievementID then
+        root = GetAchievementData(achievementID)
+        if root then
+            nodes, edges = { root }, {}
+        end
+    else
+        nodes, edges, root = BuildAchievementTree(achievementID)
+    end
     if nodes then
         local frame = CreateAchievementTreeFrame()
         if frame.rewardCategoryMode then
@@ -414,6 +426,7 @@ function CreateAchievementLauncherSearch(anchor)
     local rows = {}
     local resultIDs = {}
     local function HidePanel()
+        ReleaseAchievementSearch(panel)
         search:ClearFocus()
         panel:Hide()
     end
@@ -539,6 +552,7 @@ function CreateAchievementLauncherSearch(anchor)
     search:HookScript("OnTextChanged", function(self)
         local query = self:GetText() or ""
         if #query < (MIN_CHARACTER_SEARCH or 3) then
+            ReleaseAchievementSearch(panel)
             resultIDs = {}
             for _, row in ipairs(rows) do
                 row:Hide()
@@ -548,8 +562,7 @@ function CreateAchievementLauncherSearch(anchor)
             panel:SetHeight(collapsedHeight)
             return
         end
-        achievementSearchOwner = panel
-        local finished = SetAchievementSearchString(query)
+        local finished = SetOwnedAchievementSearch(panel, query)
         if finished then
             RefreshResults()
         else
@@ -579,7 +592,7 @@ function CreateAchievementLauncherSearch(anchor)
             if panel:IsShown() and not panel:IsMouseOver()
                 and not anchor:IsMouseOver()
             then
-                panel:Hide()
+                HidePanel()
             end
         end)
     end

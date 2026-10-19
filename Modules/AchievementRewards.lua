@@ -577,7 +577,7 @@ function Rewards.Get(achievementID)
         and C_AchievementInfo.GetRewardItemID
     then
         local itemID = C_AchievementInfo.GetRewardItemID(achievement.id)
-        if itemID then
+        if type(itemID) == "number" and itemID > 0 then
             AddRewardEntry(reward, BuildItemRewardEntry(itemID), seen)
         end
     end

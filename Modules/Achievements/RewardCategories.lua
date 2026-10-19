@@ -78,22 +78,6 @@ local function RestoreCategoryState(frame, category)
     frame.restoringTreeState = false
 end
 
-local function IsTitleRewardText(text)
-    if type(text) ~= "string" or text == "" then
-        return false
-    end
-    local titleFormat = _G.TITLE_REWARD
-    if type(titleFormat) == "string" and titleFormat ~= "" then
-        local prefix = titleFormat:match("^(.-)%%s") or titleFormat
-        if prefix ~= "" and text:find(prefix, 1, true) then
-            return true
-        end
-    end
-    local hint = L.ACHIEVEMENT_REWARD_CATEGORY_TITLE_HINT
-    return type(hint) == "string" and hint ~= ""
-        and text:lower():find(hint:lower(), 1, true) ~= nil
-end
-
 local function AddCategoryAchievement(index, seen, category, achievementID)
     if seen[category][achievementID] then
         return
@@ -113,7 +97,8 @@ local function BuildCategoryIndex()
 
     local achievementIDs = {}
     local database = Addon.AchievementRewardDatabase
-    for achievementID in pairs(database and database.records or {}) do
+    local generatedCategories = database and database.categories or {}
+    for achievementID in pairs(generatedCategories) do
         achievementIDs[#achievementIDs + 1] = achievementID
     end
     table.sort(achievementIDs)
@@ -156,29 +141,13 @@ local function BuildCategoryIndex()
             local achievement = GetAchievementData(achievementID)
             if achievement then
                 names[achievementID] = achievement.name
-                local reward = Addon.AchievementRewards.Get(achievementID)
-                local matched = {}
-                if reward then
-                    for _, entry in ipairs(reward.entries or {}) do
-                        local category = entry.rewardType
-                        if category ~= "mount" and category ~= "pet"
-                            and category ~= "toy" and category ~= "decor"
-                            and category ~= "appearance"
-                        then
-                            category = "other"
-                        end
-                        matched[category] = true
+                for _, category in ipairs(
+                    generatedCategories[achievementID] or {})
+                do
+                    if VALID_CATEGORIES[category] then
+                        AddCategoryAchievement(categoryIndex, seen, category,
+                            achievementID)
                     end
-                    if IsTitleRewardText(reward.text) then
-                        matched.title = true
-                    end
-                end
-                if not next(matched) then
-                    matched.other = true
-                end
-                for category in pairs(matched) do
-                    AddCategoryAchievement(categoryIndex, seen, category,
-                        achievementID)
                 end
             end
         end

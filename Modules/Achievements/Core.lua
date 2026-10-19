@@ -58,6 +58,21 @@ function GetAchievementSearchBoxWidth(editBox)
     return math.ceil(ruler:GetStringWidth()) + 44
 end
 
+function SetOwnedAchievementSearch(owner, query)
+    achievementSearchOwner = owner
+    return SetAchievementSearchString(query)
+end
+
+function ReleaseAchievementSearch(owner)
+    if achievementSearchOwner ~= owner then
+        return
+    end
+    achievementSearchOwner = nil
+    if SetAchievementSearchString then
+        SetAchievementSearchString("")
+    end
+end
+
 function PlayAchievementSound(soundKit)
     if PlaySound and soundKit then
         PlaySound(soundKit)

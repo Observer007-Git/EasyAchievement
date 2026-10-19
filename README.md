@@ -71,8 +71,13 @@ EasyAchievement/
 
 插件优先读取 `Data/AchievementRewardDatabase.lua`。每个奖励记录都包含
 `achievementID`、`rewardItemID` 和 `inferredRewardItemID`；同一成就的多个奖励
-会保存为多条记录。数据库没有可用物品 ID 时，插件才使用游戏 API 和现有的
-奖励文本识别作为降级处理。
+会保存为多条记录。数据库还为每个成就生成可多选的 `categories`，分类页直接
+读取该字段，不再在游戏中重新解析全部奖励。类别综合 Achievement、Mount、
+BattlePetSpecies、Toy、HouseDecor、ItemSparse、ItemEffect、
+ItemXItemEffect、ItemModifiedAppearance、TransmogSet、TransmogSetItem 和
+RetroactiveDecorReward 表的物品、法术、来源及名称关联；明确的本地化奖励类型
+文本用于补足类别和头衔。数据库没有可用物品 ID 时，插件才使用游戏 API 和
+现有的奖励文本识别作为降级处理。
 
 在插件目录运行以下命令，会自动选取 wago.tools 最新正式服 `wow` 构建，下载
 英文与简体中文 DB2 表并重新生成数据库：
@@ -89,6 +94,8 @@ EasyAchievement/
 
 脚本只依赖 `zsh`、`curl` 和 Python 3。下载缓存及未解析报告位于
 `Tools/.cache/<build>/`，不会打包进插件或提交到 Git。
+生成逻辑回归测试可运行
+`python3 -m unittest Tests/test_reward_database_builder.py`。
 
 ## 国际化扩展
 

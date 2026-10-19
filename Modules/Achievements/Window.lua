@@ -705,12 +705,12 @@ function CreateAchievementTreeFrame()
         end
         local minimumLength = MIN_CHARACTER_SEARCH or 3
         if #frame.searchText < minimumLength then
+            ReleaseAchievementSearch(frame)
             searchResults:Hide()
             return
         end
         frame.searchResultOffset = 0
-        achievementSearchOwner = frame
-        local finished = SetAchievementSearchString(frame.searchText)
+        local finished = SetOwnedAchievementSearch(frame, frame.searchText)
         if finished then
             RefreshSearchResults()
         else
@@ -725,6 +725,7 @@ function CreateAchievementTreeFrame()
         end
     end)
     searchBox:SetScript("OnEscapePressed", function(self)
+        ReleaseAchievementSearch(frame)
         searchResults:Hide()
         self:ClearFocus()
     end)
@@ -748,6 +749,7 @@ function CreateAchievementTreeFrame()
         if C_Timer then
             C_Timer.After(0, function()
                 if not searchResults:IsMouseOver() then
+                    ReleaseAchievementSearch(frame)
                     searchResults:Hide()
                 end
             end)
@@ -1190,6 +1192,7 @@ function CreateAchievementTreeFrame()
         PlayAchievementSound(SOUNDKIT and SOUNDKIT.ACHIEVEMENT_MENU_OPEN)
     end)
     frame:SetScript("OnHide", function()
+        ReleaseAchievementSearch(frame)
         PlayAchievementSound(SOUNDKIT and SOUNDKIT.ACHIEVEMENT_MENU_CLOSE)
         SaveAchievementTreeState(frame)
         if achievementRewardFrame then

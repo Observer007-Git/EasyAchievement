@@ -41,6 +41,10 @@ TYPE_MARKERS = {
         "transmog reward:", "arsenal:", "illusion:", "外观：", "外观:",
         "幻化奖励：", "幻化奖励:", "军械：", "军械:", "幻象：", "幻象:"),
 }
+TITLE_MARKERS = ("title:", "title reward:", "头衔：", "头衔:",
+    "称号：", "称号:")
+CATEGORY_ORDER = ("mount", "pet", "toy", "decor", "title",
+    "appearance", "other")
 
 
 def integer(value):
@@ -258,6 +262,7 @@ def build_database(input_dir):
     }
 
     records = {}
+    categories = {}
     unresolved = []
     inferred_count = 0
     for achievement_id in sorted(achievements):
@@ -293,11 +298,17 @@ def build_database(input_dir):
                         inferred_by_type[reward_type].update(
                             name_indexes[reward_type][item_name])
 
+        category_types = set(detected_types)
+        if any(any(marker in text for marker in TITLE_MARKERS)
+            for text in normalized_rewards):
+            category_types.add("title")
+
         if direct_item_id:
             direct_types = {
                 reward_type for reward_type, item_ids
                 in named_item_types.items() if direct_item_id in item_ids
             }
+            category_types.update(direct_types)
             if len(detected_types) <= 1:
                 for reward_type in inferred_by_type:
                     if (reward_type != "decor"
@@ -306,6 +317,14 @@ def build_database(input_dir):
             else:
                 for reward_type in direct_types.intersection(detected_types):
                     inferred_by_type[reward_type].clear()
+
+        category_types.update(reward_type
+            for reward_type, item_ids in inferred_by_type.items()
+            if item_ids)
+        if not category_types:
+            category_types.add("other")
+        categories[achievement_id] = [category
+            for category in CATEGORY_ORDER if category in category_types]
 
         inferred = set().union(*inferred_by_type.values())
         inferred.discard(0)
@@ -325,10 +344,10 @@ def build_database(input_dir):
                     achievement["rewards"].get("zhCN", ""),
                     ",".join(sorted(detected_types))))
 
-    return records, unresolved, inferred_count
+    return records, categories, unresolved, inferred_count
 
 
-def write_lua(output, build, records):
+def write_lua(output, build, records, categories):
     output.parent.mkdir(parents=True, exist_ok=True)
     with output.open("w", encoding="utf-8", newline="\n") as handle:
         handle.write("local _, Addon = ...\n\n")
@@ -347,6 +366,12 @@ def write_lua(output, build, records):
                 handle.write(str(inferred_item_id))
                 handle.write(" },\n")
             handle.write("        },\n")
+        handle.write("    },\n")
+        handle.write("    categories = {\n")
+        for achievement_id, reward_categories in categories.items():
+            values = ", ".join(f'"{category}"'
+                for category in reward_categories)
+            handle.write(f"        [{achievement_id}] = {{ {values} }},\n")
         handle.write("    },\n")
         handle.write("}\n")
 
@@ -367,8 +392,9 @@ def main():
     parser.add_argument("--build", required=True)
     args = parser.parse_args()
 
-    records, unresolved, inferred_count = build_database(args.input)
-    write_lua(args.output, args.build, records)
+    records, categories, unresolved, inferred_count = build_database(
+        args.input)
+    write_lua(args.output, args.build, records, categories)
     write_unresolved(args.unresolved, unresolved)
     direct_count = sum(rows[0][0] > 0 for rows in records.values())
     print(f"build={args.build}")

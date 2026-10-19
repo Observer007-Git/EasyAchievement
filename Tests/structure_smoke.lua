@@ -55,6 +55,11 @@ local function ReadSource(relativePath)
     return source
 end
 
+local rewardDatabaseSource = ReadSource(
+    "Data/AchievementRewardDatabase.lua")
+assert(rewardDatabaseSource:find("categories = {", 1, true),
+    "generated achievement reward categories are missing")
+
 local launcherSource = ReadSource("Modules/Achievements/Launcher.lua")
 assert(launcherSource:find(
     'RegisterForClicks("LeftButtonUp", "RightButtonUp")', 1, true)
@@ -65,6 +70,10 @@ assert(launcherSource:find(
 local searchSource = ReadSource("Modules/Achievements/Search.lua")
 assert(searchSource:find("OpenAchievementATTGuide(achievementID)", 1, true),
     "achievement context menu is not connected to the ATT guide")
+assert(searchSource:find(
+        "if cardOnlyAchievementID == achievementID then", 1, true)
+    and searchSource:find("nodes, edges = { root }, {}", 1, true),
+    "card-only navigation still builds the full achievement tree")
 assert(searchSource:find("SaveAchievementRewardCategoryState(frame)",
         1, true)
     and searchSource:find(
@@ -93,11 +102,16 @@ assert(coreSource:find("MAX_ACHIEVEMENT_SEARCH_CHARACTERS = 12", 1, true)
     and coreSource:find(
         'string.rep("汉", MAX_ACHIEVEMENT_SEARCH_CHARACTERS)', 1, true),
     "search width is not based on 12 Chinese characters")
+assert(coreSource:find("function ReleaseAchievementSearch(owner)", 1, true)
+    and searchSource:find("ReleaseAchievementSearch(panel)", 1, true),
+    "launcher search does not release the native search state")
 
 local windowSource = ReadSource("Modules/Achievements/Window.lua")
 assert(windowSource:find("OpenAchievementATTGuide(frame.sourceAchievementID)",
         1, true),
     "top-right ATT guide button is not connected")
+assert(windowSource:find("ReleaseAchievementSearch(frame)", 1, true),
+    "main search does not release the native search state")
 assert(windowSource:find(
         "searchBox:SetMaxLetters(MAX_ACHIEVEMENT_SEARCH_CHARACTERS)", 1,
         true)
@@ -183,6 +197,10 @@ end
 assert(rewardCategoriesSource:find(
         "Addon.AchievementRewardDatabase", 1, true)
     and rewardCategoriesSource:find(
+        "database and database.categories", 1, true)
+    and not rewardCategoriesSource:find(
+        "Addon.AchievementRewards.Get(achievementID)", 1, true)
+    and rewardCategoriesSource:find(
         "AchievementData.AppendHistory", 1, true)
     and rewardCategoriesSource:find(
         "{ rewardCategory = category }", 1, true)
@@ -217,6 +235,7 @@ assert(cardsSource:find("frame.rewardCategoryCardContext", 1, true)
         "L.ACHIEVEMENT_REWARD_CATEGORY_POSITION", 1, true)
     and cardsSource:find(
         "L.ACHIEVEMENT_REWARD_CATEGORY_RETURN", 1, true)
+    and cardsSource:find("GetCurrentKeyBoardFocus", 1, true)
     and cardsSource:find(
         "ReturnToAchievementRewardCategory(frame)", 1, true),
     "category cards do not use their displayed order and return control")

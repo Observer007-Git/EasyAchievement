@@ -381,10 +381,14 @@ function ShowAchievementCardInTree(frame, achievementID)
         frame:EnableKeyboard(true)
         frame:SetPropagateKeyboardInput(true)
         frame:SetScript("OnKeyDown", function(self, key)
-            local searchHasFocus = self.SearchBox
-                and self.SearchBox:HasFocus()
+            local inputHasFocus = GetCurrentKeyBoardFocus
+                and GetCurrentKeyBoardFocus() ~= nil
+            if not GetCurrentKeyBoardFocus then
+                inputHasFocus = self.SearchBox
+                    and self.SearchBox:HasFocus()
+            end
             local navigationButton
-            if not searchHasFocus and card:IsShown() then
+            if not inputHasFocus and card:IsShown() then
                 if key == "LEFT" then
                     navigationButton = self.AchievementCardBackButton
                 elseif key == "RIGHT" then
