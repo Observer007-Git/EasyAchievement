@@ -17,6 +17,7 @@ local housingRewardNameIndex = {}
 local housingRewardTextCache = {}
 local housingRewardIndexState
 local housingRewardSearcher
+local housingRewardIndexGeneration = 0
 local mountRewardIndex
 local mountRewardTextCache = {}
 local transmogSetRewardIndex
@@ -27,6 +28,13 @@ function Rewards.SetIndexReadyCallback(callback)
     assert(callback == nil or type(callback) == "function",
         "Invalid achievement reward-index callback")
     indexReadyCallback = callback
+end
+
+function Rewards.InvalidateCollectionIndexes()
+    mountRewardIndex = nil
+    mountRewardTextCache = {}
+    transmogSetRewardIndex = nil
+    transmogSetRewardTextCache = {}
 end
 
 local HOUSING_ACHIEVEMENT_LABELS = {
@@ -83,12 +91,18 @@ local function StartHousingRewardIndex()
             Enum.HouseEditorMode.BasicDecor)
     end
     housingRewardSearcher:SetResultsUpdatedCallback(function()
-        if housingRewardIndexState ~= "loading" then
-            return
-        end
+        housingRewardIndexGeneration = housingRewardIndexGeneration + 1
+        local generation = housingRewardIndexGeneration
+        housingRewardIndexState = "processing"
+        housingRewardIndex = {}
+        housingRewardNameIndex = {}
+        housingRewardTextCache = {}
         local entries = housingRewardSearcher:GetCatalogSearchResults() or {}
         local index = 1
         local function ProcessChunk()
+            if generation ~= housingRewardIndexGeneration then
+                return
+            end
             local startedAt = debugprofilestop and debugprofilestop() or nil
             local processed = 0
             local function HasBudget()
@@ -132,7 +146,6 @@ local function StartHousingRewardIndex()
                 C_Timer.After(0, ProcessChunk)
             else
                 housingRewardIndexState = "ready"
-                housingRewardSearcher = nil
                 if indexReadyCallback then
                     indexReadyCallback()
                 end
@@ -381,6 +394,8 @@ local function FindTransmogSetRewardByText(rewardText)
     local entry = BuildTransmogSetRewardEntry(matchedSetInfo)
     if entry then
         transmogSetRewardTextCache[rewardText] = entry
+    else
+        transmogSetRewardIndex = nil
     end
     return entry
 end
@@ -413,16 +428,34 @@ local function BuildItemRewardEntry(itemID)
             entry.isMountItem = classID == Enum.ItemClass.Miscellaneous
                 and subclassID == Enum.ItemMiscellaneousSubclass.Mount
         end
-        if C_Item.IsDecorItem and C_Item.IsDecorItem(itemID)
-            and C_HousingCatalog
+    end
+
+    local decorID, decorAsset, decorSceneID =
+        RewardDatabase.GetDecorInfo(itemID)
+    if decorID or C_Item and C_Item.IsDecorItem
+        and C_Item.IsDecorItem(itemID)
+    then
+        local decorInfo = C_HousingCatalog
             and C_HousingCatalog.GetCatalogEntryInfoByItem
-        then
-            local decorInfo = C_HousingCatalog.GetCatalogEntryInfoByItem(
-                itemID, true)
-            local decorEntry = BuildDecorRewardEntry(decorInfo, itemID)
-            if decorEntry then
-                return decorEntry
+            and C_HousingCatalog.GetCatalogEntryInfoByItem(itemID, true)
+        if decorID then
+            -- Keep catalog data intact; fill missing fields from the DB2 tables.
+            local info = {}
+            for key, value in pairs(decorInfo or {}) do
+                info[key] = value
             end
+            info.recordID = info.recordID or decorID
+            info.name = info.name or entry.name
+            info.iconTexture = info.iconTexture or entry.icon
+            info.asset = info.asset or decorAsset > 0 and decorAsset or nil
+            info.uiModelSceneID = info.uiModelSceneID
+                or decorSceneID > 0 and decorSceneID or nil
+            decorInfo = info
+        end
+        local decorEntry = BuildDecorRewardEntry(decorInfo, itemID)
+        if decorEntry then
+            decorEntry.pendingInfo = not (decorInfo.name and decorInfo.asset)
+            return decorEntry
         end
     end
 
@@ -433,36 +466,60 @@ local function BuildItemRewardEntry(itemID)
             entry.icon) or entry
     end
 
-    if C_PetJournal and C_PetJournal.GetPetInfoByItemID then
-        local name, icon, _, creatureID, _, description, _, _, _, _, _,
-            displayID, speciesID = C_PetJournal.GetPetInfoByItemID(itemID)
-        if name then
-            entry.name = name
+    local databaseSpeciesID, databaseDisplayID, databaseSceneID,
+        databaseIcon = RewardDatabase.GetPetInfo(itemID)
+    if databaseSpeciesID or C_PetJournal and C_PetJournal.GetPetInfoByItemID
+    then
+        local name, icon, creatureID, description, displayID, speciesID
+        if C_PetJournal and C_PetJournal.GetPetInfoByItemID then
+            name, icon, _, creatureID, _, description, _, _, _, _, _,
+                displayID, speciesID = C_PetJournal.GetPetInfoByItemID(itemID)
+        end
+        speciesID = speciesID or databaseSpeciesID
+        if not name and speciesID and C_PetJournal
+            and C_PetJournal.GetPetInfoBySpeciesID
+        then
+            name, icon = C_PetJournal.GetPetInfoBySpeciesID(speciesID)
+        end
+        if name or databaseSpeciesID then
+            entry.name = name or entry.name
             entry.icon = icon or entry.icon
+                or databaseIcon and databaseIcon > 0 and databaseIcon or nil
             entry.description = description
             entry.creatureID = creatureID
+            displayID = displayID or databaseDisplayID
+                and databaseDisplayID > 0 and databaseDisplayID or nil
             entry.displayID = displayID
             entry.speciesID = speciesID
             entry.rewardType = "pet"
-            if speciesID and C_PetJournal.GetPetModelSceneInfoBySpeciesID then
+            if speciesID and C_PetJournal
+                and C_PetJournal.GetPetModelSceneInfoBySpeciesID then
                 entry.modelSceneID =
                     C_PetJournal.GetPetModelSceneInfoBySpeciesID(speciesID)
             end
+            entry.modelSceneID = entry.modelSceneID or databaseSceneID
+                and databaseSceneID > 0 and databaseSceneID or nil
+            entry.pendingInfo = not (entry.name and displayID
+                and entry.modelSceneID)
             entry.previewType = displayID and entry.modelSceneID
                 and "model" or "icon"
             return entry
         end
     end
 
-    if C_ToyBox and C_ToyBox.GetToyInfo then
-        local toyItemID, toyName, toyIcon = C_ToyBox.GetToyInfo(itemID)
-        if toyItemID then
+    if RewardDatabase.IsToy(itemID) or C_ToyBox and C_ToyBox.GetToyInfo then
+        local toyItemID, toyName, toyIcon
+        if C_ToyBox and C_ToyBox.GetToyInfo then
+            toyItemID, toyName, toyIcon = C_ToyBox.GetToyInfo(itemID)
+        end
+        if toyItemID or RewardDatabase.IsToy(itemID) then
             entry.name = toyName or entry.name
             entry.icon = toyIcon or entry.icon
             entry.description = GetRewardTooltipText(itemID, true,
                 entry.name)
             entry.rewardType = "toy"
             entry.previewType = "icon"
+            entry.pendingInfo = not entry.name
             return entry
         end
     end
@@ -485,11 +542,18 @@ local function BuildItemRewardEntry(itemID)
             appearanceSourceIDs[1] = itemModifiedAppearanceID
         end
     end
+    if #appearanceSourceIDs == 0 then
+        local sourceID = RewardDatabase.GetAppearanceSourceID(itemID)
+        if sourceID then
+            appearanceSourceIDs[1] = sourceID
+        end
+    end
     if #appearanceSourceIDs > 0 then
         entry.description = GetRewardTooltipText(itemID, false, entry.name)
         entry.rewardType = "appearance"
         entry.previewType = "appearance"
         entry.appearanceSourceIDs = appearanceSourceIDs
+        entry.pendingInfo = not entry.name
         entry.transmogSetID = transmogSetID
         if transmogSetID then
             entry.uniqueKey = "appearance-set:" .. tostring(transmogSetID)
@@ -503,6 +567,7 @@ local function BuildItemRewardEntry(itemID)
     entry.description = GetRewardTooltipText(itemID, false, entry.name)
     entry.rewardType = "item"
     entry.previewType = "icon"
+    entry.pendingInfo = not entry.name
     return entry
 end
 

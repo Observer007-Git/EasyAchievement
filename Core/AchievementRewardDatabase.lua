@@ -29,6 +29,28 @@ function Database.GetMountID(itemID)
     return raw.mountItems and raw.mountItems[itemID]
 end
 
+function Database.GetPetInfo(itemID)
+    local values = raw.petItems and raw.petItems[itemID]
+    if values then
+        return values[1], values[2], values[3], values[4]
+    end
+end
+
+function Database.GetDecorInfo(itemID)
+    local values = raw.decorItems and raw.decorItems[itemID]
+    if values then
+        return values[1], values[2], values[3]
+    end
+end
+
+function Database.IsToy(itemID)
+    return raw.toyItems ~= nil and raw.toyItems[itemID] ~= nil
+end
+
+function Database.GetAppearanceSourceID(itemID)
+    return raw.appearanceItems and raw.appearanceItems[itemID]
+end
+
 function Database.HasReward(achievementID)
     return raw.rewards[achievementID] ~= nil
 end

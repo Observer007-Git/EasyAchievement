@@ -50,11 +50,14 @@ class RewardDatabaseBuilderTests(unittest.TestCase):
                   "Faction": row[4]}
                  for row in achievements))
             write_csv(self.input_dir / locale / "Creature.csv",
-                ("ID", "Name_lang"),
-                ({"ID": 20, "Name_lang": "Tiny Friend"},))
+                ("ID", "Name_lang", "DisplayID_0"),
+                ({"ID": 20, "Name_lang": "Tiny Friend",
+                  "DisplayID_0": 222},))
             write_csv(self.input_dir / locale / "BattlePetSpecies.csv",
-                ("SummonSpellID", "SourceText_lang", "CreatureID"),
-                ({"SummonSpellID": 2000,
+                ("SummonSpellID", "SourceText_lang", "CreatureID", "ID",
+                 "CardUIModelSceneID", "IconFileDataID"),
+                ({"SummonSpellID": 2000, "ID": 333,
+                  "CardUIModelSceneID": 6, "IconFileDataID": 444,
                   "SourceText_lang": "Achievement: Pet Prize",
                   "CreatureID": 20},))
             write_csv(self.input_dir / locale / "Mount.csv",
@@ -69,8 +72,10 @@ class RewardDatabaseBuilderTests(unittest.TestCase):
                 ({"ItemID": 400,
                   "SourceText_lang": "Achievement: Toy Prize"},))
             write_csv(self.input_dir / locale / "HouseDecor.csv",
-                ("ID", "ItemID", "Name_lang"),
+                ("ID", "ItemID", "Name_lang", "ModelFileDataID",
+                 "UiModelSceneID"),
                 ({"ID": 30, "ItemID": 300,
+                  "ModelFileDataID": 555, "UiModelSceneID": 666,
                   "Name_lang": "Cozy Chair"},))
             write_csv(self.input_dir / locale / "ItemSparse.csv",
                 ("ID", "Display_lang"), (
@@ -174,6 +179,20 @@ class RewardDatabaseBuilderTests(unittest.TestCase):
         self.assertEqual({row[6] for row in achievement_three}, {100, 300})
         self.assertIn("IconFileID", payload["headers"])
         self.assertIn("LegacyAfterTimeEvent", payload["headers"])
+
+    def test_preview_mappings_keep_model_ids_and_exclude_unrelated_items(self):
+        records, categories, _, _, factions = BUILDER.build_database(
+            self.input_dir)
+        previews = BUILDER.build_preview_items(self.input_dir, records)
+        self.assertEqual(previews["petItems"], {200: [333, 222, 6, 444]})
+        self.assertEqual(previews["decorItems"], {300: [30, 555, 666]})
+        self.assertEqual(previews["toyItems"], {400: 1})
+        self.assertEqual(previews["appearanceItems"], {500: 50})
+        output = self.input_dir / "database.lua"
+        BUILDER.write_lua(output, "test", records, categories, factions,
+            preview_items=previews)
+        self.assertIn("[200]={333,222,6,444},",
+            output.read_text(encoding="utf-8"))
 
 
 if __name__ == "__main__":

@@ -378,6 +378,7 @@ UpdateAchievementRewardPanel = function(frame, achievementID)
     local entries = reward.entries or {}
     if rewardFrame.achievementID ~= achievementID then
         rewardFrame.entryIndex = 1
+        rewardFrame.infoRetryCount = 0
     end
     rewardFrame.entryCount = #entries
     rewardFrame.entryIndex = math.max(1,
@@ -398,6 +399,27 @@ UpdateAchievementRewardPanel = function(frame, achievementID)
     end
     rewardFrame.achievementID = achievementID
     rewardFrame.rewardItemIDs = rewardItemIDs
+    local pendingInfo = false
+    for _, entry in ipairs(entries) do
+        pendingInfo = pendingInfo or entry.pendingInfo
+    end
+    if pendingInfo and not rewardFrame.infoRetryPending
+        and (rewardFrame.infoRetryCount or 0) < 3
+    then
+        rewardFrame.infoRetryCount = (rewardFrame.infoRetryCount or 0) + 1
+        rewardFrame.infoRetryPending = true
+        C_Timer.After(0.5, function()
+            rewardFrame.infoRetryPending = nil
+            local currentID = rewardFrame.achievementID
+            if rewardFrame:IsShown() and frame:IsShown()
+                and currentID and frame.sourceAchievementID == currentID
+            then
+                frame.rewardLookupAchievementID = nil
+                UpdateAchievementRewardHeader(frame, currentID)
+                UpdateAchievementRewardPanel(frame, currentID)
+            end
+        end)
+    end
     local showToy = primaryEntry ~= nil
         and primaryEntry.rewardType == "toy"
     rewardFrame.ItemIcon:SetTexture(nil)

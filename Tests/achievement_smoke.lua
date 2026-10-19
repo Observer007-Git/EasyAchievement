@@ -3,6 +3,7 @@ local settingValue = false
 local settingSanitizers = {}
 local menuCount = 0
 local menuActions = {}
+local registeredEventHandlers = {}
 
 local Addon = {
     L = {
@@ -66,7 +67,8 @@ function Addon:RegisterSetting(key, _, sanitizer, callback)
     end
 end
 
-function Addon:RegisterEvent()
+function Addon:RegisterEvent(event, callback)
+    registeredEventHandlers[event] = callback
 end
 
 function Addon:GetSetting(key)
@@ -777,6 +779,21 @@ assert(rewardEntry and rewardEntry.rewardType == "appearance"
     and #rewardEntry.appearanceSourceIDs == 3,
     "direct transmog set reward text was not resolved")
 
+local savedAllSets = C_TransmogSets.GetAllSets
+function GetAchievementInfo(id)
+    return id, "Achievement " .. id, 10, false, nil, nil, nil,
+        "Description", 0, 123, "Appearance: Late Set", false
+end
+reward = GetAchievementRewardData(1)
+assert(#reward.entries == 0, "missing set unexpectedly produced a preview")
+C_TransmogSets.GetAllSets = function()
+    return { { setID = 999, name = "Late Set" } }
+end
+reward = GetAchievementRewardData(1)
+assert(#reward.entries == 1 and reward.entries[1].transmogSetID == 999,
+    "transmog index did not recover after the set list loaded")
+C_TransmogSets.GetAllSets = savedAllSets
+
 function GetAchievementInfo(id)
     return id, "Achievement " .. id, 10, false, nil, nil, nil,
         "Description", 0, 123, "Reward", false
@@ -875,6 +892,109 @@ reward = GetAchievementRewardData(1)
 assert(reward and #reward.entries == 1
     and reward.entries[1].name == "Second Reward Decor",
     "decor rewards disappeared when reward text was empty")
+
+local originalCatalogInfo = C_HousingCatalog.GetCatalogEntryInfo
+searcher.GetCatalogSearchResults = function()
+    return { { recordID = 2 }, { recordID = 6 } }
+end
+C_HousingCatalog.GetCatalogEntryInfo = function(entryID)
+    local info = originalCatalogInfo(entryID)
+    if entryID.recordID == 6 then
+        info.name = "Late Reward Decor"
+        info.sourceText = "Achievement: Achievement 1"
+    end
+    return info
+end
+searchCallback()
+reward = GetAchievementRewardData(1)
+assert(#reward.entries == 2
+    and reward.entries[2].name == "Late Reward Decor",
+    "housing index ignored later catalog results")
+
+local savedItemAPI, savedPetAPI, savedToyAPI, savedHousingAPI,
+    savedTransmogAPI, savedSetsAPI = C_Item, C_PetJournal, C_ToyBox,
+        C_HousingCatalog, C_TransmogCollection, C_TransmogSets
+C_Item = {}
+C_PetJournal = {}
+C_ToyBox = {}
+C_HousingCatalog = nil
+C_TransmogCollection = nil
+C_TransmogSets = nil
+local rawRewards = Addon.AchievementRewardDatabase
+rawRewards.rewards[999999] = { 46, 990001, 990002, 990003, 990004 }
+rawRewards.petItems[990001] = { 333, 222, 6, 444 }
+rawRewards.decorItems[990002] = { 30, 555, 666 }
+rawRewards.toyItems[990003] = 1
+rawRewards.appearanceItems[990004] = 777
+reward = GetAchievementRewardData(999999)
+assert(#reward.entries == 4, "database preview mappings lost rewards")
+assert(reward.entries[1].rewardType == "pet"
+    and reward.entries[1].displayID == 222
+    and reward.entries[1].previewType == "model",
+    "pet model depends on item data availability")
+assert(reward.entries[2].rewardType == "decor"
+    and reward.entries[2].asset == 555
+    and reward.entries[2].previewType == "model",
+    "decor model depends on catalog data availability")
+assert(reward.entries[3].rewardType == "toy",
+    "toy classification depends on toy box data availability")
+assert(reward.entries[4].rewardType == "appearance"
+    and reward.entries[4].appearanceSourceIDs[1] == 777,
+    "appearance preview depends on item data availability")
+C_Item.GetItemNameByID = function() return "Loaded Reward" end
+reward = GetAchievementRewardData(999999)
+for _, entry in ipairs(reward.entries) do
+    assert(entry.name == "Loaded Reward",
+        "reward did not recover after item data became available")
+end
+rawRewards.rewards[999999] = nil
+rawRewards.petItems[990001] = nil
+rawRewards.decorItems[990002] = nil
+rawRewards.toyItems[990003] = nil
+rawRewards.appearanceItems[990004] = nil
+C_Item, C_PetJournal, C_ToyBox, C_HousingCatalog, C_TransmogCollection,
+    C_TransmogSets = savedItemAPI, savedPetAPI, savedToyAPI, savedHousingAPI,
+        savedTransmogAPI, savedSetsAPI
+
+local savedTimer = C_Timer
+local savedRewardPanelUpdate = AchievementUI.UpdateAchievementRewardPanel
+local savedRewardHeaderUpdate = AchievementUI.UpdateAchievementRewardHeader
+local savedTreeFrame = AchievementUI.achievementTreeFrame
+local savedRewardFrame = AchievementUI.achievementRewardFrame
+local queuedRefreshes = {}
+C_Timer = { After = function(_, callback)
+    queuedRefreshes[#queuedRefreshes + 1] = callback
+end }
+local refreshFrame = { sourceAchievementID = 999999,
+    IsShown = function() return true end }
+AchievementUI.achievementTreeFrame = refreshFrame
+AchievementUI.achievementRewardFrame = {
+    IsShown = function() return true end,
+}
+local headerRefreshCount, panelRefreshCount = 0, 0
+AchievementUI.UpdateAchievementRewardHeader = function(frame, id)
+    assert(frame == refreshFrame and id == 999999)
+    headerRefreshCount = headerRefreshCount + 1
+end
+AchievementUI.UpdateAchievementRewardPanel = function(frame, id)
+    assert(frame == refreshFrame and id == 999999)
+    panelRefreshCount = panelRefreshCount + 1
+end
+for _, event in ipairs({ "PET_JOURNAL_LIST_UPDATE",
+    "TRANSMOG_COLLECTION_UPDATED", "TOYS_UPDATED" })
+do
+    assert(registeredEventHandlers[event], "missing reward refresh event")
+    registeredEventHandlers[event]()
+end
+assert(#queuedRefreshes == 1, "collection updates were not coalesced")
+queuedRefreshes[1]()
+assert(headerRefreshCount == 1 and panelRefreshCount == 1,
+    "collection updates did not refresh the visible reward")
+AchievementUI.achievementTreeFrame = savedTreeFrame
+AchievementUI.achievementRewardFrame = savedRewardFrame
+AchievementUI.UpdateAchievementRewardPanel = savedRewardPanelUpdate
+AchievementUI.UpdateAchievementRewardHeader = savedRewardHeaderUpdate
+C_Timer = savedTimer
 
 settingValue = true
 settingCallback(true)

@@ -534,6 +534,29 @@ function OnRewardItemInfoReceived(_, itemID)
     UpdateAchievementRewardPanel(frame, frame.sourceAchievementID)
 end
 
+local rewardCollectionRefreshPending = false
+local function OnRewardCollectionChanged()
+    AchievementRewards.InvalidateCollectionIndexes()
+    local frame = achievementTreeFrame
+    if rewardCollectionRefreshPending or not frame or not frame:IsShown()
+        or not frame.sourceAchievementID or not achievementRewardFrame
+        or not achievementRewardFrame:IsShown()
+    then
+        return
+    end
+    rewardCollectionRefreshPending = true
+    C_Timer.After(0, function()
+        rewardCollectionRefreshPending = false
+        if frame:IsShown() and frame.sourceAchievementID
+            and achievementRewardFrame:IsShown()
+        then
+            frame.rewardLookupAchievementID = nil
+            UpdateAchievementRewardHeader(frame, frame.sourceAchievementID)
+            UpdateAchievementRewardPanel(frame, frame.sourceAchievementID)
+        end
+    end)
+end
+
 Addon:RegisterSetting("enableAchievementEnhancement", true,
     Addon.BooleanSetting, ApplyAchievementEnhancement)
 Addon:RegisterSetting("achievementTreeWidth", DEFAULT_FRAME_WIDTH,
@@ -581,6 +604,9 @@ Addon:RegisterSetting("achievementRewardCategoryStates", {},
 Addon:RegisterEvent("ACHIEVEMENT_EARNED", OnAchievementEarned)
 Addon:RegisterEvent("CRITERIA_UPDATE", OnCriteriaUpdate)
 Addon:RegisterEvent("GET_ITEM_INFO_RECEIVED", OnRewardItemInfoReceived)
+Addon:RegisterEvent("PET_JOURNAL_LIST_UPDATE", OnRewardCollectionChanged)
+Addon:RegisterEvent("TRANSMOG_COLLECTION_UPDATED", OnRewardCollectionChanged)
+Addon:RegisterEvent("TOYS_UPDATED", OnRewardCollectionChanged)
 Addon:RegisterEvent("PLAYER_LOGIN", function()
     ApplyAchievementEnhancement(
         Addon:GetSetting("enableAchievementEnhancement"))

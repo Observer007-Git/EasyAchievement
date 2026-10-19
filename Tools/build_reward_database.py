@@ -383,7 +383,55 @@ def build_mount_items(input_dir, records):
     return mount_items
 
 
-def write_lua(output, build, records, categories, factions, mount_items=None):
+def build_preview_items(input_dir, records):
+    reward_items = {direct or inferred for rows in records.values()
+        for direct, inferred in rows if direct or inferred}
+    effect_spells = {integer(row["ID"]): integer(row["SpellID"])
+        for row in read_rows(load_common(input_dir, "ItemEffect"))}
+    spell_items = defaultdict(set)
+    for row in read_rows(load_common(input_dir, "ItemXItemEffect")):
+        item_id = integer(row["ItemID"])
+        if item_id in reward_items:
+            spell_items[effect_spells.get(integer(row["ItemEffectID"]))].add(
+                item_id)
+    creatures = {integer(row["ID"]): row for row in read_rows(
+        load_localized(input_dir, "Creature", "enUS"))}
+    previews = {key: {} for key in
+        ("petItems", "decorItems", "toyItems", "appearanceItems")}
+    for row in read_rows(load_localized(input_dir, "BattlePetSpecies", "enUS")):
+        species_id = integer(row.get("ID"))
+        if not species_id:
+            continue
+        creature = creatures.get(integer(row["CreatureID"]), {})
+        values = [species_id, integer(creature.get("DisplayID_0")),
+            integer(row.get("CardUIModelSceneID")),
+            integer(row.get("IconFileDataID"))]
+        for item_id in spell_items.get(integer(row["SummonSpellID"]), ()):
+            previews["petItems"][item_id] = values
+    for row in read_rows(load_localized(input_dir, "HouseDecor", "enUS")):
+        item_id = integer(row["ItemID"])
+        if item_id in reward_items:
+            previews["decorItems"][item_id] = [integer(row["ID"]),
+                integer(row.get("ModelFileDataID")),
+                integer(row.get("UiModelSceneID"))]
+    for row in read_rows(load_localized(input_dir, "Toy", "enUS")):
+        item_id = integer(row["ItemID"])
+        if item_id in reward_items:
+            previews["toyItems"][item_id] = 1
+    appearances = sorted((row for row in read_rows(load_common(input_dir,
+        "ItemModifiedAppearance")) if integer(row["ItemID"]) in reward_items),
+        key=lambda row: (
+            integer(row.get("ItemAppearanceModifierID")),
+            integer(row.get("OrderIndex")), integer(row["ID"])))
+    for row in appearances:
+        item_id = integer(row["ItemID"])
+        if item_id in reward_items:
+            previews["appearanceItems"].setdefault(item_id, integer(row["ID"]))
+    return previews
+
+
+def write_lua(output, build, records, categories, factions, mount_items=None,
+    preview_items=None):
     output.parent.mkdir(parents=True, exist_ok=True)
     with output.open("w", encoding="utf-8", newline="\n") as handle:
         handle.write("local _, Addon = ...\n\n")
@@ -402,6 +450,13 @@ def write_lua(output, build, records, categories, factions, mount_items=None):
         for item_id, mount_id in sorted((mount_items or {}).items()):
             handle.write(f"[{item_id}]={mount_id},\n")
         handle.write("},\n")
+        for table_name, entries in (preview_items or {}).items():
+            handle.write(f"{table_name}={{\n")
+            for item_id, values in sorted(entries.items()):
+                encoded = ("{" + ",".join(map(str, values)) + "}"
+                    if isinstance(values, list) else str(values))
+                handle.write(f"[{item_id}]={encoded},\n")
+            handle.write("},\n")
         handle.write("factions={\n")
         for achievement_id in sorted(factions):
             handle.write(f"[{achievement_id}]={factions[achievement_id]},\n")
@@ -428,8 +483,9 @@ def main():
     records, categories, unresolved, inferred_count, factions = \
         build_database(args.input)
     mount_items = build_mount_items(args.input, records)
+    preview_items = build_preview_items(args.input, records)
     write_lua(args.output, args.build, records, categories, factions,
-        mount_items)
+        mount_items, preview_items)
     write_unresolved(args.unresolved, unresolved)
     direct_count = sum(rows[0][0] > 0 for rows in records.values())
     print(f"build={args.build}")
