@@ -128,16 +128,21 @@ class RewardDatabaseBuilderTests(unittest.TestCase):
         self.assertTrue(any(row[0] == 5 for row in unresolved))
         self.assertEqual(factions, {1: 0, 2: 1})
 
-    def test_lua_output_contains_generated_categories(self):
+    def test_lua_output_uses_compact_schema_without_losing_semantics(self):
         records, categories, _, _, factions = BUILDER.build_database(
             self.input_dir)
+        compact = BUILDER.compact_reward_values(records[3], categories[3])
+        self.assertEqual(compact, [9, 100, -300])
         output = self.input_dir / "database.lua"
         BUILDER.write_lua(output, "test", records, categories, factions)
         source = output.read_text(encoding="utf-8")
-        self.assertIn("categories = {", source)
-        self.assertIn('[3] = { "mount", "decor" },', source)
-        self.assertIn("factions = {", source)
-        self.assertIn("[1] = 0,", source)
+        self.assertIn("schema=2", source)
+        self.assertIn("rewards={", source)
+        self.assertNotIn("records={", source)
+        self.assertNotIn("categories={", source)
+        self.assertIn("[3]={9,100,-300},", source)
+        self.assertIn("factions={", source)
+        self.assertIn("[1]=0,", source)
 
     def test_workbook_export_rows_keep_source_fields_and_all_rewards(self):
         payload = EXPORTER.build_payload(self.input_dir, "test-build")

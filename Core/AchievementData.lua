@@ -9,11 +9,11 @@ local MAX_TREE_SCALE = Config.Tree.MaxScale
 local MAX_TREE_STATES = Config.State.MaxTreeStates
 local MAX_HISTORY_ENTRIES = Config.State.MaxHistoryEntries
 local FACTION_IDS = { Horde = 0, Alliance = 1 }
+local RewardDatabase = assert(Addon.RewardDatabase,
+    "EasyAchievement reward database API was not loaded")
 
 function Data.IsFactionAvailable(achievementID, factionGroup)
-    local database = Addon.AchievementRewardDatabase
-    local requiredFaction = database and database.factions
-        and database.factions[achievementID]
+    local requiredFaction = RewardDatabase.GetFaction(achievementID)
     if requiredFaction ~= 0 and requiredFaction ~= 1 then
         return true
     end

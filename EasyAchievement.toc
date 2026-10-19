@@ -14,6 +14,7 @@
 Core/Database.lua
 Data/AchievementRewardDatabase.lua
 Config/Defaults.lua
+Core/AchievementRewardDatabase.lua
 Core/AchievementData.lua
 Locales/enUS.lua
 Locales/zhCN.lua

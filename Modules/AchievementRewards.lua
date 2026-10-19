@@ -6,6 +6,8 @@ Addon.AchievementRewards = Rewards
 local L = Addon.L
 local Data = assert(Addon.AchievementData,
     "EasyAchievement achievement data service was not loaded")
+local RewardDatabase = assert(Addon.RewardDatabase,
+    "EasyAchievement reward database API was not loaded")
 local INDEX_BUDGET_MILLISECONDS =
     Addon.Config.Performance.IndexBudgetMilliseconds
 local ACHIEVEMENT_MOUNT_SOURCE_TYPE = 5
@@ -517,24 +519,21 @@ local function AddRewardEntry(reward, entry, seen)
 end
 
 local function AddDatabaseRewardEntries(reward, achievementID, seen)
-    local database = Addon.AchievementRewardDatabase
-    local records = database and database.records
-        and database.records[achievementID]
-    if not records then
+    if not RewardDatabase.HasReward(achievementID) then
         return false
     end
     local foundItemID = false
-    for _, record in ipairs(records) do
-        if record.achievementID == achievementID then
-            local itemID = record.rewardItemID
-            if not itemID or itemID == 0 then
-                itemID = record.inferredRewardItemID
-            end
-            if itemID and itemID > 0 then
-                foundItemID = true
-                AddRewardEntry(reward, BuildItemRewardEntry(itemID), seen)
-            end
+    local index = 1
+    while true do
+        local itemID = RewardDatabase.GetReward(achievementID, index)
+        if itemID == nil then
+            break
         end
+        if itemID > 0 then
+            foundItemID = true
+            AddRewardEntry(reward, BuildItemRewardEntry(itemID), seen)
+        end
+        index = index + 1
     end
     return foundItemID
 end
@@ -547,10 +546,7 @@ function Rewards.Has(achievementID, achievement)
     if achievement.rewardText and achievement.rewardText ~= "" then
         return true
     end
-    local database = Addon.AchievementRewardDatabase
-    local records = database and database.records
-        and database.records[achievement.id]
-    if records and #records > 0 then
+    if RewardDatabase.HasReward(achievement.id) then
         return true
     end
     if C_AchievementInfo and C_AchievementInfo.GetRewardItemID then

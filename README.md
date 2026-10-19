@@ -69,10 +69,11 @@ EasyAchievement/
 
 ## 更新奖励数据库
 
-插件优先读取 `Data/AchievementRewardDatabase.lua`。每个奖励记录都包含
-`achievementID`、`rewardItemID` 和 `inferredRewardItemID`；同一成就的多个奖励
-会保存为多条记录。数据库还为每个成就生成可多选的 `categories`，分类页直接
-读取该字段，不再在游戏中重新解析全部奖励。类别综合 Achievement、Mount、
+插件优先读取 `Data/AchievementRewardDatabase.lua`。数据库使用 `schema=2` 的
+紧凑数值格式：成就 ID 是表键，分类使用位掩码，正奖励 ID 表示成就表直接奖励，
+负奖励 ID 表示推导奖励，0 表示尚未解析。业务模块统一通过
+`Core/AchievementRewardDatabase.lua` 访问，不直接依赖压缩格式。分类页直接
+读取生成结果，不再在游戏中重新解析全部奖励。类别综合 Achievement、Mount、
 BattlePetSpecies、Toy、HouseDecor、ItemSparse、ItemEffect、
 ItemXItemEffect、ItemModifiedAppearance、TransmogSet、TransmogSetItem 和
 RetroactiveDecorReward 表的物品、法术、来源及名称关联；明确的本地化奖励类型
@@ -93,7 +94,7 @@ RetroactiveDecorReward 表的物品、法术、来源及名称关联；明确的
 ./Tools/update_reward_database.sh 12.1.5.70448
 ```
 
-脚本只依赖 `zsh`、`curl` 和 Python 3。下载缓存及未解析报告位于
+数据库下载和生成部分依赖 `zsh`、`curl` 和 Python 3。下载缓存及未解析报告位于
 `Tools/.cache/<build>/`，不会打包进插件或提交到 Git。
 生成逻辑回归测试可运行
 `python3 -m unittest Tests/test_reward_database_builder.py`。

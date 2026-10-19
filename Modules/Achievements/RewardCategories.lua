@@ -95,12 +95,7 @@ local function BuildCategoryIndex()
         seen[definition.key] = {}
     end
 
-    local achievementIDs = {}
-    local database = Addon.AchievementRewardDatabase
-    local generatedCategories = database and database.categories or {}
-    for achievementID in pairs(generatedCategories) do
-        achievementIDs[#achievementIDs + 1] = achievementID
-    end
+    local achievementIDs = RewardDatabase.GetAchievementIDs()
     table.sort(achievementIDs)
 
     local names = {}
@@ -141,12 +136,12 @@ local function BuildCategoryIndex()
             local achievement = GetAchievementData(achievementID)
             if achievement then
                 names[achievementID] = achievement.name
-                for _, category in ipairs(
-                    generatedCategories[achievementID] or {})
-                do
-                    if VALID_CATEGORIES[category] then
-                        AddCategoryAchievement(categoryIndex, seen, category,
-                            achievementID)
+                for _, definition in ipairs(CATEGORY_DEFINITIONS) do
+                    if RewardDatabase.HasCategory(achievementID,
+                        definition.key)
+                    then
+                        AddCategoryAchievement(categoryIndex, seen,
+                            definition.key, achievementID)
                     end
                 end
             end

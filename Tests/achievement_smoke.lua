@@ -157,9 +157,11 @@ AchievementFrameAchievements = {
     },
 }
 
-assert(loadfile("EasyAchievement/Core/AchievementData.lua"))(
-    "EasyAchievement", Addon)
 assert(loadfile("EasyAchievement/Data/AchievementRewardDatabase.lua"))(
+    "EasyAchievement", Addon)
+assert(loadfile("EasyAchievement/Core/AchievementRewardDatabase.lua"))(
+    "EasyAchievement", Addon)
+assert(loadfile("EasyAchievement/Core/AchievementData.lua"))(
     "EasyAchievement", Addon)
 assert(loadfile("EasyAchievement/Modules/AchievementTreeData.lua"))(
     "EasyAchievement", Addon)
@@ -192,8 +194,8 @@ assert(settingSanitizers.achievementTreeStates,
 assert(settingSanitizers.achievementRewardCategoryStates,
     "reward-category state sanitizer was not registered")
 
-local factionMetadata = Addon.AchievementRewardDatabase.factions
-assert(factionMetadata[10355] == 0 and factionMetadata[10356] == 1,
+assert(Addon.RewardDatabase.GetFaction(10355) == 0
+    and Addon.RewardDatabase.GetFaction(10356) == 1,
     "generated faction metadata is missing the Horde/Alliance Reins Lord pair")
 local originalUnitFactionGroup = UnitFactionGroup
 UnitFactionGroup = function() return "Horde" end
@@ -509,21 +511,20 @@ assert(gridLayout.contentWidth > 120,
 
 local GetAchievementRewardData = Addon.AchievementRewards.Get
 local HasAchievementReward = Addon.AchievementRewards.Has
-local generatedReward = Addon.AchievementRewardDatabase.records[63633]
-assert(generatedReward and generatedReward[1]
-    and generatedReward[1].achievementID == 63633
-    and generatedReward[1].rewardItemID == 0
-    and generatedReward[1].inferredRewardItemID == 279921,
+local kiklakItemID, kiklakInferred =
+    Addon.RewardDatabase.GetReward(63633, 1)
+assert(kiklakItemID == 279921 and kiklakInferred,
     "generated reward database is missing Kiklak")
-local combinedReward = Addon.AchievementRewardDatabase.records[20501]
-assert(combinedReward and #combinedReward == 2
-    and combinedReward[1].rewardItemID == 217612
-    and combinedReward[2].inferredRewardItemID == 248125,
+local directItemID, directInferred =
+    Addon.RewardDatabase.GetReward(20501, 1)
+local decorItemID, decorInferred =
+    Addon.RewardDatabase.GetReward(20501, 2)
+assert(directItemID == 217612 and not directInferred
+    and decorItemID == 248125 and decorInferred,
     "generated reward database lost a direct plus decor reward")
-local generatedCategories = Addon.AchievementRewardDatabase.categories
-assert(generatedCategories
-    and table.concat(generatedCategories[20501], ",") == "mount,decor"
-    and table.concat(generatedCategories[63633], ",") == "pet",
+assert(Addon.RewardDatabase.HasCategory(20501, "mount")
+    and Addon.RewardDatabase.HasCategory(20501, "decor")
+    and Addon.RewardDatabase.HasCategory(63633, "pet"),
     "generated reward categories lost multi-reward or pet evidence")
 
 local originalGetAchievementInfo = GetAchievementInfo
@@ -536,10 +537,7 @@ end
 C_AchievementInfo.GetRewardItemID = function(id)
     return id == 700003 and 99003 or nil
 end
-Addon.AchievementRewardDatabase.records[700001] = {
-    { achievementID = 700001, rewardItemID = 0,
-        inferredRewardItemID = 0 },
-}
+Addon.AchievementRewardDatabase.rewards[700001] = { 64, 0 }
 assert(HasAchievementReward(700001),
     "database reward was not detected")
 assert(HasAchievementReward(700002),
@@ -548,7 +546,7 @@ assert(HasAchievementReward(700003),
     "runtime reward item was not detected")
 assert(not HasAchievementReward(700004),
     "achievement without a reward was detected")
-Addon.AchievementRewardDatabase.records[700001] = nil
+Addon.AchievementRewardDatabase.rewards[700001] = nil
 C_AchievementInfo.GetRewardItemID = originalGetRewardItemID
 GetAchievementInfo = originalGetAchievementInfo
 
@@ -580,12 +578,7 @@ assert(openedChildID == 4321,
     "achievement child did not open its achievement card")
 AchievementUI.ShowAchievementTree = originalShowAchievementTree
 
-Addon.AchievementRewardDatabase.records[1] = {
-    { achievementID = 1, rewardItemID = 9101,
-        inferredRewardItemID = 0 },
-    { achievementID = 1, rewardItemID = 0,
-        inferredRewardItemID = 9102 },
-}
+Addon.AchievementRewardDatabase.rewards[1] = { 64, 9101, -9102 }
 C_AchievementInfo.GetRewardItemID = function()
     error("runtime reward API should not run after a database hit")
 end
@@ -599,7 +592,7 @@ assert(databaseReward and #databaseReward.entries == 2
     and databaseReward.entries[1].itemID == 9101
     and databaseReward.entries[2].itemID == 9102,
     "generated reward database was not used before runtime fallback")
-Addon.AchievementRewardDatabase.records[1] = nil
+Addon.AchievementRewardDatabase.rewards[1] = nil
 
 C_AchievementInfo.GetRewardItemID = function()
     return 9001

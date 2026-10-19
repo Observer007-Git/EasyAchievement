@@ -23,8 +23,12 @@ local rewardDatabasePosition = assert(tocSource:find(
 local rewardModulePosition = assert(tocSource:find(
     "Modules/AchievementRewards.lua", 1, true),
     "achievement reward module is missing from the TOC")
-assert(rewardDatabasePosition < rewardModulePosition,
-    "achievement reward database must load before the reward module")
+local rewardDatabaseAPIPosition = assert(tocSource:find(
+    "Core/AchievementRewardDatabase.lua", 1, true),
+    "achievement reward database API is missing from the TOC")
+assert(rewardDatabasePosition < rewardDatabaseAPIPosition
+    and rewardDatabaseAPIPosition < rewardModulePosition,
+    "achievement reward database and API load order is invalid")
 
 assert(not tocSource:find("Modules/Achievements%.lua"),
     "legacy monolithic achievement module is still loaded")
@@ -57,10 +61,20 @@ end
 
 local rewardDatabaseSource = ReadSource(
     "Data/AchievementRewardDatabase.lua")
-assert(rewardDatabaseSource:find("categories = {", 1, true),
-    "generated achievement reward categories are missing")
-assert(rewardDatabaseSource:find("factions = {", 1, true),
+assert(rewardDatabaseSource:find("schema=2", 1, true)
+    and rewardDatabaseSource:find("rewards={", 1, true)
+    and not rewardDatabaseSource:find("records={", 1, true)
+    and not rewardDatabaseSource:find("categories={", 1, true),
+    "generated achievement reward database is not using schema 2")
+assert(rewardDatabaseSource:find("factions={", 1, true),
     "generated achievement faction metadata is missing")
+local rewardDatabaseAPISource = ReadSource(
+    "Core/AchievementRewardDatabase.lua")
+assert(rewardDatabaseAPISource:find("function Database.GetReward", 1, true)
+    and rewardDatabaseAPISource:find(
+        "function Database.HasCategory", 1, true)
+    and rewardDatabaseAPISource:find("function Database.GetFaction", 1, true),
+    "reward database access is not isolated behind its API")
 
 local launcherSource = ReadSource("Modules/Achievements/Launcher.lua")
 assert(launcherSource:find(
@@ -197,9 +211,9 @@ do
         "reward category menu is missing " .. category)
 end
 assert(rewardCategoriesSource:find(
-        "Addon.AchievementRewardDatabase", 1, true)
+        "RewardDatabase.GetAchievementIDs()", 1, true)
     and rewardCategoriesSource:find(
-        "database and database.categories", 1, true)
+        "RewardDatabase.HasCategory(achievementID", 1, true)
     and not rewardCategoriesSource:find(
         "Addon.AchievementRewards.Get(achievementID)", 1, true)
     and rewardCategoriesSource:find(

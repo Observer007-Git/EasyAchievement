@@ -212,6 +212,8 @@ end
 
 AchievementData = assert(Addon.AchievementData,
     "EasyAchievement achievement data service was not loaded")
+RewardDatabase = assert(Addon.RewardDatabase,
+    "EasyAchievement reward database API was not loaded")
 IsAchievementValid = AchievementData.IsValid
 SanitizeAchievementID = AchievementData.SanitizeID
 SanitizeAchievementFavorites = AchievementData.SanitizeIDList
