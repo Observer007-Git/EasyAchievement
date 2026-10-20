@@ -206,6 +206,7 @@ function PopulateAchievementPopup(frame, data)
         cardHighlight:SetAlpha(0)
     end
     local height = card:DisplayObjectives(data.id, card.completed)
+    ConfigureAchievementCardChildLinks(card:GetObjectiveFrame())
     card:Expand(height)
     FormatAchievementCardDate(card, data)
     frame.achievementID = data.id

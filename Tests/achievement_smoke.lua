@@ -596,6 +596,44 @@ assert(childButton.registeredClicks[1] == "LeftButtonUp"
 childButton.scripts.OnClick(childButton, "LeftButton")
 assert(openedChildID == 4321,
     "achievement child did not open its achievement card")
+
+local popupObjectives = { metas = { childButton } }
+local popupCard = {
+    Init = function() end,
+    GetHighlightTexture = function() end,
+    GetObjectiveFrame = function() return popupObjectives end,
+    DisplayObjectives = function()
+        childButton.scripts.OnClick = nil
+        return 142
+    end,
+    Expand = function() end,
+}
+function popupObjectives:GetParent() return popupCard end
+local popupFrame = {
+    Card = popupCard,
+    SetAlpha = function() end,
+    Show = function() end,
+    Raise = function() end,
+}
+local originalApplyPopupScale = AchievementUI.ApplyAchievementPopupScale
+local originalGetPopupScale = AchievementUI.GetAchievementPopupScale
+local originalGetPopupAlpha = AchievementUI.GetAchievementPopupAlpha
+AchievementUI.ApplyAchievementPopupScale = function() end
+AchievementUI.GetAchievementPopupScale = function() return 1 end
+AchievementUI.GetAchievementPopupAlpha = function() return 1 end
+for _, childID in ipairs({ 4321, 4322 }) do
+    childButton.id = childID
+    openedChildID = nil
+    AchievementUI.PopulateAchievementPopup(popupFrame, { id = 1234 })
+    assert(childButton.scripts.OnClick,
+        "popup population did not bind achievement child navigation")
+    childButton.scripts.OnClick(childButton, "LeftButton")
+    assert(openedChildID == childID,
+        "popup child opened the parent or a previously displayed achievement")
+end
+AchievementUI.ApplyAchievementPopupScale = originalApplyPopupScale
+AchievementUI.GetAchievementPopupScale = originalGetPopupScale
+AchievementUI.GetAchievementPopupAlpha = originalGetPopupAlpha
 AchievementUI.ShowAchievementTree = originalShowAchievementTree
 
 Addon.AchievementRewardDatabase.rewards[1] = { 64, 9101, -9102 }
