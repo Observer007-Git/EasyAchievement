@@ -191,6 +191,7 @@ local achievementUIModules = {
     "Tree.lua",
     "RewardCategories.lua",
     "Search.lua",
+    "Content.lua",
     "Launcher.lua",
 }
 for _, moduleName in ipairs(achievementUIModules) do

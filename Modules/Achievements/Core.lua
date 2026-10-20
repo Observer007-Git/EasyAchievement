@@ -254,21 +254,7 @@ function ToggleAchievementFavorite(achievementID)
     if RefreshAchievementFavoritesBar and achievementTreeFrame then
         RefreshAchievementFavoritesBar(achievementTreeFrame)
     end
-    if achievementTreeFrame and achievementTreeFrame:IsShown()
-        and achievementTreeFrame.sourceAchievementID and ShowAchievementTree
-    then
-        ShowAchievementTree(achievementTreeFrame.sourceAchievementID,
-            "refresh")
-    elseif achievementTreeFrame and achievementTreeFrame:IsShown()
-        and achievementTreeFrame.rewardCategoryMode
-        and achievementTreeFrame.layoutNodes and LayoutAchievementTree
-    then
-        LayoutAchievementTree(achievementTreeFrame.layoutNodes,
-            achievementTreeFrame.layoutEdges,
-            achievementTreeFrame.layoutRoot, true,
-            achievementTreeFrame.layoutStats,
-            achievementTreeFrame.layoutTitleRoot)
-    end
+    Content.Refresh(achievementTreeFrame, "favorite")
 end
 
 RefreshAchievementFavoritesBar = function(frame)
@@ -324,8 +310,7 @@ RefreshAchievementFavoritesBar = function(frame)
                     elseif IsShiftKeyDown() then
                         InsertAchievementLink(self.achievementID)
                     else
-                        ShowAchievementTree(self.achievementID,
-                            nil, nil, true)
+                        Navigation.OpenCard(self.achievementID)
                     end
                 end)
                 button:SetScript("OnEnter", function(self)

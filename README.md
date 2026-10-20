@@ -71,6 +71,7 @@ EasyAchievement/
         ├── Tree.lua             # 成就树节点、连线和布局呈现
         ├── RewardCategories.lua # 奖励类别索引与成就网格
         ├── Search.lua           # 面包屑、搜索和上下文菜单
+        ├── Content.lua          # 页面内容刷新与单独布局
         └── Launcher.lua         # 启动图标、事件和设置注册
 ```
 
@@ -146,6 +147,9 @@ Excel 生成器使用 Node.js 和 `@oai/artifact-tool`。如果依赖不在 Code
 - 主窗口：`Modules/Achievements/Window.lua`
 - 树绘制：`Modules/Achievements/Tree.lua`
 - 搜索与菜单：`Modules/Achievements/Search.lua`
+- 页面刷新与布局：`Modules/Achievements/Content.lua`
+- 奖励类别与列表：`Modules/Achievements/RewardCategories.lua`
+- 页面状态和历史：`Modules/Achievements/Navigation.lua`
 - 启动图标与事件：`Modules/Achievements/Launcher.lua`
 - 成就关系与过滤：`Modules/AchievementTreeData.lua`
 - 奖励识别：`Modules/AchievementRewards.lua`

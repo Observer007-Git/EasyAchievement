@@ -268,6 +268,8 @@ function AcquireNodeButton(frame, index)
                 local achievementID = self.node.id
                 OpenAchievementContextMenu(self, achievementID, function()
                     OpenAchievementNodeCard(frame, achievementID)
+                end, function()
+                    Navigation.OpenRelatedTree(frame, achievementID)
                 end)
             end
         elseif IsShiftKeyDown() then
@@ -291,6 +293,39 @@ function AcquireLine(frame, index)
     end
     line:Show()
     return line
+end
+
+function RefreshAchievementNodeAppearance(frame, node, favoriteSet)
+    local button = node.button
+    if not button or button.node ~= node then return end
+    button.Icon:SetTexture(node.icon)
+    button.Icon:SetDesaturated(not node.completed)
+    button.BaseIconAlpha = node.completed and 1 or 0.58
+    button.BaseLabelAlpha = 1
+    button.Icon:SetAlpha(button.BaseIconAlpha)
+    local hasReward = Addon.AchievementRewards.Has(node.id, node.data)
+    local isFavorite
+    if favoriteSet then
+        isFavorite = favoriteSet[node.id] == true
+    else
+        isFavorite = IsAchievementFavorite(node.id)
+    end
+    button.RewardMarker:SetShown(hasReward)
+    button.Label:SetAlpha(button.BaseLabelAlpha)
+    button.DisabledOverlay:SetShown(not node.completed)
+    button.DisabledOverlay:SetAlpha(node.completed and 0 or 0.45)
+    button.Border:SetDesaturated(not node.completed)
+    button.Border:SetAlpha(node.completed and 1 or 0.72)
+    button.FavoriteStar:ClearAllPoints()
+    if hasReward and isFavorite then
+        button.FavoriteStar:SetPoint("RIGHT", button.RewardMarker, "LEFT", 0, 0)
+    else
+        button.FavoriteStar:SetPoint("CENTER", button.Icon, "TOPRIGHT")
+    end
+    button.FavoriteStar:SetShown(isFavorite)
+    button.Label:SetText(node.name)
+    SetAchievementTextColor(button.Label, node.completed,
+        button.SearchHighlightQuery ~= nil)
 end
 
 LayoutAchievementTree = function(nodes, edges, root, preserveScroll, stats,
@@ -500,36 +535,14 @@ LayoutAchievementTree = function(nodes, edges, root, preserveScroll, stats,
         button.Label:ClearAllPoints()
         button.Label:SetPoint("LEFT", button, "RIGHT", labelLeftGap, scale)
         button.node = node
-        button.Icon:SetTexture(node.icon)
-        button.Icon:SetDesaturated(not node.completed)
-        button.BaseIconAlpha = node.completed and 1 or 0.58
-        button.BaseLabelAlpha = 1
-        button.Icon:SetAlpha(button.BaseIconAlpha)
-        local hasReward = Addon.AchievementRewards.Has(node.id, node)
-        local isFavorite = favoriteSet[node.id] == true
-        button.RewardMarker:SetShown(hasReward)
-        button.Label:SetAlpha(button.BaseLabelAlpha)
-        button.DisabledOverlay:SetShown(not node.completed)
-        button.DisabledOverlay:SetAlpha(node.completed and 0 or 0.45)
-        button.Border:SetDesaturated(not node.completed)
-        button.Border:SetAlpha(node.completed and 1 or 0.72)
-        button.FavoriteStar:ClearAllPoints()
-        if hasReward and isFavorite then
-            button.FavoriteStar:SetPoint(
-                "RIGHT", button.RewardMarker, "LEFT", 0, 0)
-        else
-            button.FavoriteStar:SetPoint("CENTER", button.Icon, "TOPRIGHT")
-        end
-        button.FavoriteStar:SetShown(isFavorite)
-        button.Label:SetText(node.name)
-        SetAchievementTextColor(button.Label, node.completed, false)
+        node.button = button
+        RefreshAchievementNodeAppearance(frame, node, favoriteSet)
         button.RootGlow:SetShown(not categoryMode and node == root)
         local collapsed = frame.collapsedNodes
             and frame.collapsedNodes[node.id] == true
         button.CollapseButton:SetShown(node.hasChildren == true and collapsed)
         button.CollapseButton.Text:SetText("+"
             .. tostring(node.descendantCount or 0))
-        node.button = button
 
         local labelWidth = math.ceil(button.Label:GetStringWidth())
         node.layoutWidth = nodeSize + labelLeftGap + labelWidth
@@ -589,9 +602,8 @@ LayoutAchievementTree = function(nodes, edges, root, preserveScroll, stats,
             ancestorButton:SetScript("OnClick", function(self)
                 local achievementIDs = self.achievementIDs or {}
                 local function OpenFullTree(rootID)
-                    frame.pendingRevealAchievementID =
-                        self.originAchievementID
-                    ShowAchievementTree(rootID)
+                    Navigation.OpenRelatedTree(frame, rootID,
+                        self.originAchievementID)
                 end
                 if #achievementIDs == 1 then
                     OpenFullTree(achievementIDs[1])

@@ -64,7 +64,8 @@ local frame = {
 }
 ui.achievementTreeFrame = frame
 ui.CreateAchievementTreeFrame = function() return frame end
-for _, name in ipairs({ "Navigation", "Window", "RewardCategories", "Search" }) do
+for _, name in ipairs({ "Navigation", "Window", "RewardCategories", "Search",
+    "Content" }) do
     assert(loadfile("EasyAchievement/Modules/Achievements/" .. name .. ".lua"))(
         "EasyAchievement", addon)
 end
@@ -386,4 +387,99 @@ ui.OpenAchievementPathCard(frame, 201)
 ui.ShowAchievementTree(999, nil, nil, true)
 assert(not frame.rewardCategoryOrigin and not frame.rewardCategoryCardContext,
     "an unrelated entry inherited the previous category origin")
-print("navigation snapshots, category return, breadcrumb paths: ok")
+-- Separate visits to the same category must not overwrite one another.
+ui.ShowAchievementRewardCategory("mount")
+local firstVisit = frame.currentPage.category.visitID
+scroll.x = 100
+ui.OpenAchievementRewardCategoryCard(frame, 105)
+ui.ShowAchievementRewardCategory("mount")
+local secondVisit = frame.currentPage.category.visitID
+assert(secondVisit ~= firstVisit)
+scroll.x = 200
+ui.OpenAchievementRewardCategoryCard(frame, 106)
+local secondListIndex = frame.historyIndex - 1
+ui.NavigateAchievementHistory(frame, -2)
+assert(frame.sourceAchievementID == 105)
+ui.NavigateAchievementHistory(frame, 1)
+assert(frame.history[secondListIndex].viewState.horizontal == 200
+    and frame.rewardCategoryMode.selectedAchievementID == 106
+    and frame.rewardCategoryMode.visitID == secondVisit,
+    "forward navigation replaced a separate category visit with the old source")
+
+-- Same achievement, different entry path: keep both history meanings.
+ui.ShowAchievementTree(900, nil, { 10, 900 }, true)
+local pathHistoryIndex = frame.historyIndex
+ui.Navigation.OpenCard(900)
+assert(frame.historyIndex == pathHistoryIndex + 1)
+ui.NavigateAchievementHistory(frame, -1)
+assert(table.concat(frame.breadcrumbIDs, ",") == "10,900",
+    "independent entry overwrote the existing breadcrumb history")
+ui.NavigateAchievementHistory(frame, 1)
+assert(table.concat(frame.breadcrumbIDs, ",") == "900")
+
+-- Real right-click tree action must preserve the source category.
+ui.L.ACHIEVEMENT_TREE_VIEW = "tree"
+ui.GetChildAchievementIDs = function() return { 107 } end
+ui.ShowAchievementRewardCategory("mount")
+scroll.x = 100
+local sourceVisit = frame.rewardCategoryMode.visitID
+nodeButton.node = ui.GetAchievementData(106)
+nodeButton.scripts.OnClick(nodeButton, "RightButton")
+menuActions.tree()
+assert(frame.currentPage.kind == "tree"
+    and frame.rewardCategoryOrigin.visitID == sourceVisit)
+ui.OpenAchievementPathCard(frame, 107)
+assert(frame.rewardCategoryOrigin.visitID == sourceVisit
+    and not frame.rewardCategoryCardContext)
+ui.Navigation.OpenRelatedTree(frame, 107)
+assert(table.concat(frame.breadcrumbIDs, ",") == "106,107")
+ui.Navigation.OpenRelatedTree(frame, 100, 107)
+assert(revealedID == 107 and frame.rewardCategoryOrigin.visitID == sourceVisit)
+ui.ReturnToAchievementRewardCategory(frame)
+assert(frame.rewardCategoryMode.visitID == sourceVisit
+    and frame.rewardCategoryMode.selectedAchievementID == 106)
+
+-- A refresh updates the node's data, keeping widgets, order and viewport.
+local earned = false
+ui.GetAchievementData = function(id)
+    local data = originalGet(id)
+    data.completed = earned
+    return data
+end
+addon.AchievementRewards = {
+    Has = function() return true end,
+    CancelRequest = function() end,
+}
+ui.SetAchievementTextColor = function() end
+ui.ShowAchievementRewardCategory("mount")
+local nodesBefore = frame.layoutNodes
+local nodeBefore = nodesBefore[1]
+local dataBefore = nodeBefore.data
+local rendered = Widget()
+rendered.node = nodeBefore
+for _, name in ipairs({ "Icon", "RewardMarker", "Label", "DisabledOverlay",
+    "Border", "FavoriteStar", "CompletionAnimation" }) do
+    rendered[name] = Widget()
+end
+rendered.Icon.SetDesaturated = function(self, value) self.desaturated = value end
+nodeBefore.button = rendered
+scroll.x = 200
+local pageBefore, revisionBefore = frame.currentPage, frame.navigationRevision
+local historyCountBefore = #frame.history
+earned = true
+ui.OnAchievementEarned("ACHIEVEMENT_EARNED", nodeBefore.id)
+assert(frame.layoutNodes == nodesBefore and frame.layoutNodes[1] == nodeBefore
+    and nodeBefore.button == rendered and nodeBefore.data ~= dataBefore
+    and nodeBefore.completed and rendered.Icon.desaturated == false,
+    "completion refresh rebuilt the category or failed to update its node")
+assert(scroll.x == 200 and frame.currentPage == pageBefore
+    and frame.navigationRevision == revisionBefore
+    and #frame.history == historyCountBefore,
+    "content refresh changed navigation, order or viewport")
+assert(dataBefore.button == nil and dataBefore.depth == 1
+    and dataBefore.navigatorX == nil,
+    "layout state leaked into achievement data")
+ui.Content.Refresh(frame, "favorite")
+assert(frame.layoutNodes == nodesBefore and scroll.x == 200)
+ui.GetAchievementData = originalGet
+print("navigation visits, snapshots, related trees and in-place refresh: ok")

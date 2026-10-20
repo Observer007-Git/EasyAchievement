@@ -60,9 +60,7 @@ function OpenAchievementPanel()
     end
 
     local frame = CreateAchievementTreeFrame()
-    frame.sourceAchievementID = nil
-    frame.rewardCategoryMode = nil
-    frame.pendingRewardCategory = nil
+    Navigation.ApplyPage(frame, { kind = "empty" })
     for _, nodeButton in ipairs(frame.nodeButtons) do
         nodeButton:Hide()
     end
@@ -493,15 +491,7 @@ function RefreshVisibleCriteriaProgress()
     RefreshAchievementPopup()
 
     local frame = achievementTreeFrame
-    if frame and frame:IsShown() and frame.AchievementCard
-        and frame.AchievementCard:IsShown()
-    then
-        local header = frame.AchievementCardHeader
-        local achievementID = header and header.node and header.node.id
-        if achievementID then
-            ShowAchievementCardInTree(frame, achievementID)
-        end
-    end
+    Content.Refresh(frame, "progress")
     if achievementFavoritesPanel and achievementFavoritesPanel:IsShown()
         and RefreshFavoritesPanel
     then
@@ -523,20 +513,7 @@ end
 
 function OnAchievementEarned(_, achievementID)
     RefreshAchievementPopup()
-    local frame = achievementTreeFrame
-    if not frame or not frame:IsShown() or not frame.sourceAchievementID then
-        return
-    end
-    ShowAchievementTree(frame.sourceAchievementID, "refresh")
-    for _, node in ipairs(frame.layoutNodes or {}) do
-        if node.id == achievementID and node.button
-            and node.button.CompletionAnimation
-        then
-            node.button.CompletionAnimation:Stop()
-            node.button.CompletionAnimation:Play()
-            break
-        end
-    end
+    Content.Refresh(achievementTreeFrame, "earned", achievementID)
 end
 
 function OnRewardItemInfoReceived(_, itemID)

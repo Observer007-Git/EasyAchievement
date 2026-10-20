@@ -26,6 +26,10 @@ local transmogSetRewardIndex
 local transmogSetRewardIndexRetryAt
 local transmogSetRewardTextCache = {}
 local indexReadyCallback
+local requestID
+local requestGeneration = 0
+local requestRetryCount = 0
+local requestRetryPending = false
 
 function Rewards.SetIndexReadyCallback(callback)
     assert(callback == nil or type(callback) == "function",
@@ -34,6 +38,7 @@ function Rewards.SetIndexReadyCallback(callback)
 end
 
 function Rewards.InvalidateCollectionIndexes(rewardType)
+    Rewards.CancelRequest()
     if rewardType == nil or rewardType == "mount" then
         mountRewardIndex = nil
         mountRewardIndexRetryAt = nil
@@ -44,6 +49,13 @@ function Rewards.InvalidateCollectionIndexes(rewardType)
         transmogSetRewardIndexRetryAt = nil
         transmogSetRewardTextCache = {}
     end
+end
+
+function Rewards.CancelRequest()
+    requestID = nil
+    requestGeneration = requestGeneration + 1
+    requestRetryCount = 0
+    requestRetryPending = false
 end
 
 local HOUSING_ACHIEVEMENT_LABELS = {
@@ -349,7 +361,8 @@ local function FindMountRewardByText(rewardText)
     elseif not matchedMountID and not mountRewardIndexRetryAt then
         mountRewardTextCache[rewardText] = false
     end
-    return entry
+    return entry, mountRewardIndexRetryAt ~= nil
+        or matchedMountID ~= nil and (not entry or entry.previewType ~= "model")
 end
 
 local function BuildTransmogSetRewardEntry(setInfo)
@@ -425,7 +438,8 @@ local function FindTransmogSetRewardByText(rewardText)
     elseif not matchedSetInfo and not transmogSetRewardIndexRetryAt then
         transmogSetRewardTextCache[rewardText] = false
     end
-    return entry
+    return entry, transmogSetRewardIndexRetryAt ~= nil
+        or matchedSetInfo ~= nil and entry == nil
 end
 
 local function BuildItemRewardEntry(itemID)
@@ -671,6 +685,7 @@ function Rewards.Get(achievementID)
         text = achievement.rewardText or "",
         entries = {},
     }
+    local pending = false
     local seen = { keys = {}, items = {} }
     local foundDatabaseItem = AddDatabaseRewardEntries(reward,
         achievement.id, seen)
@@ -690,7 +705,8 @@ function Rewards.Get(achievementID)
         end
     end
     if not hasMountReward then
-        local mountEntry = FindMountRewardByText(reward.text)
+        local mountEntry, mountPending = FindMountRewardByText(reward.text)
+        pending = pending or mountPending
         if mountEntry then
             local itemEntry = #reward.entries == 1
                 and reward.entries[1] or nil
@@ -714,8 +730,10 @@ function Rewards.Get(achievementID)
         end
     end
     if not hasAppearanceReward then
-        AddRewardEntry(reward,
-            FindTransmogSetRewardByText(reward.text), seen)
+        local appearanceEntry, appearancePending =
+            FindTransmogSetRewardByText(reward.text)
+        pending = pending or appearancePending
+        AddRewardEntry(reward, appearanceEntry, seen)
     end
 
     StartHousingRewardIndex()
@@ -749,6 +767,36 @@ function Rewards.Get(achievementID)
             end
         end
     end
+    for _, entry in ipairs(reward.entries) do
+        pending = pending or entry.pendingInfo
+            or entry.rewardType == "mount" and entry.previewType ~= "model"
+    end
+    pending = pending or housingRewardIndexState == "loading"
+        or housingRewardIndexState == "processing"
+    reward.state = pending and "pending"
+        or #reward.entries > 0 and "ready" or "unmatched"
     return (reward.text ~= "" or #reward.entries > 0) and reward or nil
+end
+
+-- Only the visible reward consumer requests retries; ordinary queries stay cheap.
+function Rewards.Request(achievementID)
+    if requestID ~= achievementID then
+        Rewards.CancelRequest()
+        requestID = achievementID
+    end
+    local reward = Rewards.Get(achievementID)
+    if reward and reward.state == "pending" and not requestRetryPending
+        and requestRetryCount < 3 and C_Timer and C_Timer.After
+    then
+        requestRetryCount = requestRetryCount + 1
+        requestRetryPending = true
+        local generation = requestGeneration
+        C_Timer.After(COLLECTION_INDEX_RETRY_SECONDS, function()
+            if generation ~= requestGeneration then return end
+            requestRetryPending = false
+            if indexReadyCallback then indexReadyCallback(achievementID) end
+        end)
+    end
+    return reward
 end
 

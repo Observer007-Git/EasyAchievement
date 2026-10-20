@@ -11,6 +11,7 @@ local expectedUIModules = {
     "Modules/Achievements/Tree.lua",
     "Modules/Achievements/RewardCategories.lua",
     "Modules/Achievements/Search.lua",
+    "Modules/Achievements/Content.lua",
     "Modules/Achievements/Launcher.lua",
 }
 
@@ -207,7 +208,7 @@ assert(treeSource:find('"SoulBinds_Collection_Charge_Pending"', 1, true)
     and treeSource:find('"RIGHT", button.RewardMarker, "LEFT", 0, 0)',
         1, true)
     and treeSource:find(
-        "Addon.AchievementRewards.Has(node.id, node)", 1, true),
+        "Addon.AchievementRewards.Has(node.id, node.data)", 1, true),
     "rewarded achievement icons do not use a scale-aware corner marker")
 assert(cardsSource:find("OpenAchievementContextMenu", 1, true)
     and cardsSource:find('"SoulBinds_Collection_Charge_Pending"', 1, true)

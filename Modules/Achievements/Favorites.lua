@@ -180,8 +180,7 @@ function CreateAchievementFavoritesPanel(anchor)
                     InsertAchievementLink(self.achievementID)
                 else
                     panel:Hide()
-                    ShowAchievementTree(self.achievementID,
-                        nil, nil, true)
+                    Navigation.OpenCard(self.achievementID)
                 end
             end
             self.wasDragged = nil

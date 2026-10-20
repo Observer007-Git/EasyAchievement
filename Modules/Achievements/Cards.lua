@@ -43,11 +43,19 @@ function ConfigureAchievementCardChildLinks(objectivesFrame)
                 then
                     OpenAchievementPathCard(frame, achievementID)
                 else
-                    ShowAchievementTree(achievementID, nil, nil, true)
+                    Navigation.OpenCard(achievementID)
                 end
             end
             if mouseButton == "RightButton" then
-                OpenAchievementContextMenu(self, achievementID, OpenCard)
+                OpenAchievementContextMenu(self, achievementID, OpenCard,
+                    function()
+                        local frame = achievementTreeFrame
+                        if frame and objectivesFrame:GetParent() == frame.AchievementCard then
+                            Navigation.OpenRelatedTree(frame, achievementID)
+                        else
+                            ShowAchievementTree(achievementID)
+                        end
+                    end)
             elseif IsShiftKeyDown() then
                 InsertAchievementLink(self.id)
             else
@@ -147,8 +155,7 @@ function CreateAchievementPopupFrame()
             elseif IsShiftKeyDown() then
                 InsertAchievementLink(self.EasyAchievementElementData.id)
             else
-                ShowAchievementTree(self.EasyAchievementElementData.id,
-                    nil, nil, true)
+                Navigation.OpenCard(self.EasyAchievementElementData.id)
             end
         end
     end)
@@ -243,7 +250,7 @@ ShowAchievementPopup = function(achievementID, saveSelection)
     end
 end
 
-function ShowAchievementCardInTree(frame, achievementID)
+function ShowAchievementCardInTree(frame, achievementID, progressOnly)
     if not LoadAchievementUI() then
         return false
     end
@@ -309,6 +316,8 @@ function ShowAchievementCardInTree(frame, achievementID)
             then
                 OpenAchievementContextMenu(self, self.node.id, function()
                     ShowAchievementTree(frame.sourceAchievementID, "refresh")
+                end, function()
+                    Navigation.OpenRelatedTree(frame, self.node.id)
                 end)
             elseif mouseButton == "LeftButton" and self.node
                 and IsShiftKeyDown()
@@ -335,11 +344,7 @@ function ShowAchievementCardInTree(frame, achievementID)
         treeButton:SetText(L.ACHIEVEMENT_TREE_VIEW)
         treeButton:SetScript("OnClick", function(self)
             if self.achievementID then
-                ShowAchievementTree(self.achievementID, nil,
-                    frame.breadcrumbIDs, false, nil, {
-                        breadcrumbCategory = frame.breadcrumbCategory,
-                        categoryOrigin = frame.rewardCategoryOrigin,
-                    })
+                Navigation.OpenRelatedTree(frame, self.achievementID)
             end
         end)
         treeButton:Hide()
@@ -447,7 +452,9 @@ function ShowAchievementCardInTree(frame, achievementID)
     ConfigureAchievementCardChildLinks(card:GetObjectiveFrame())
     card:Expand(height)
     FormatAchievementCardDate(card, data)
-    UpdateAchievementRewardPanel(frame, data.id)
+    if not progressOnly then
+        UpdateAchievementRewardPanel(frame, data.id)
+    end
     local cardOffsetX = -(GetAchievementRewardPanelWidth(frame) / 2 + 6)
     card:ClearAllPoints()
     card:SetPoint("CENTER", frame, "CENTER", cardOffsetX, -45)

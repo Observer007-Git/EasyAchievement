@@ -218,3 +218,11 @@ function Data.GetProgress(achievementID)
     end
     return completedCount, total, hasProgress
 end
+
+-- Layout and widgets belong to the node; achievement fields belong to data.
+local nodeMeta = { __index = function(node, key) return node.data[key] end }
+
+function Data.CreateNode(data, depth)
+    if not data then return nil end
+    return setmetatable({ data = data, depth = depth or 1 }, nodeMeta)
+end

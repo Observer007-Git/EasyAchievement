@@ -219,7 +219,7 @@ function TreeData.GetChildIDs(achievementID)
 end
 
 function TreeData.Build(rootID)
-    local root = Data.Get(rootID)
+    local root = Data.CreateNode(Data.Get(rootID))
     if not root then
         return nil
     end
@@ -238,7 +238,7 @@ function TreeData.Build(rootID)
         for _, childID in ipairs(TreeData.GetChildIDs(parent.id)) do
             local child = byID[childID]
             if not child then
-                child = Data.Get(childID)
+                child = Data.CreateNode(Data.Get(childID), parent.depth + 1)
                 if child then
                     child.depth = parent.depth + 1
                     byID[childID] = child

@@ -367,9 +367,7 @@ function CreateAchievementTreeFrame()
             and frame.layoutNodes
             and LayoutAchievementTree
         then
-            LayoutAchievementTree(frame.layoutNodes, frame.layoutEdges,
-                frame.layoutRoot, true, frame.layoutStats,
-                frame.layoutTitleRoot)
+            Content.Relayout(frame)
             if not frame.rewardCategoryMode and UpdateBreadcrumb then
                 UpdateBreadcrumb(frame)
             end
@@ -471,7 +469,7 @@ function CreateAchievementTreeFrame()
         searchResults:Hide()
         searchBox:ClearFocus()
         searchBox:SetText("")
-        ShowAchievementTree(achievementID, nil, nil, true)
+        Navigation.OpenCard(achievementID)
     end
     local function SetSearchSelection(index)
         local shown = frame.searchShownCount or 0
@@ -1125,9 +1123,7 @@ function CreateAchievementTreeFrame()
             and LayoutAchievementTree
         then
             frame.pendingResizeLayout = nil
-            LayoutAchievementTree(frame.layoutNodes, frame.layoutEdges,
-                frame.layoutRoot, true, frame.layoutStats,
-                frame.layoutTitleRoot)
+            Content.Relayout(frame)
         end
     end
     local function FlushResizeLayout()
@@ -1193,6 +1189,7 @@ function CreateAchievementTreeFrame()
     end)
     frame:SetScript("OnHide", function()
         frame.navigationRevision = (frame.navigationRevision or 0) + 1
+        AchievementRewards.CancelRequest()
         ReleaseAchievementSearch(frame)
         PlayAchievementSound(SOUNDKIT and SOUNDKIT.ACHIEVEMENT_MENU_CLOSE)
         SaveAchievementTreeState(frame)

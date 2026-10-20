@@ -37,6 +37,8 @@ function UpdateBreadcrumb(frame)
         elseif mouseButton == "RightButton" then
             OpenAchievementContextMenu(frame, entry.id, function()
                 OpenAchievementPathCard(frame, entry.id)
+            end, function()
+                Navigation.OpenRelatedTree(frame, entry.id)
             end)
         elseif IsShiftKeyDown() then
             InsertAchievementLink(entry.id)
@@ -195,101 +197,27 @@ function RevealAchievementNode(frame, achievementID)
     end
 end
 
-ShowAchievementTree = function(achievementID, navigationMode, breadcrumbIDs,
-    showCardOnly, rewardCategoryCardContext, navigationEntry)
-    local frameWasShown = achievementTreeFrame
-        and achievementTreeFrame:IsShown() or false
-    local cardOnlyAchievementID = showCardOnly and achievementID or nil
-    if navigationMode == "refresh" and achievementTreeFrame then
-        cardOnlyAchievementID = achievementTreeFrame.cardOnlyAchievementID
-        rewardCategoryCardContext = AchievementData.CopyNavigationState(
-            achievementTreeFrame.rewardCategoryCardContext)
+local function RenderAchievementPage(frame, nodes, edges, root, preserveScroll,
+    revealAchievementID)
+    frame.fullNodes = nodes
+    frame.fullEdges = edges
+    for _, node in ipairs(nodes) do
+        node.hasChildren = false
     end
-    local nodes, edges, root
-    if cardOnlyAchievementID == achievementID then
-        root = GetAchievementData(achievementID)
-        if root then
-            nodes, edges = { root }, {}
-        end
-    else
-        nodes, edges, root = BuildAchievementTree(achievementID)
+    local children, parents = {}, {}
+    for _, node in ipairs(nodes) do children[node.id] = {} end
+    for _, edge in ipairs(edges) do
+        edge.parent.hasChildren = true
+        table.insert(children[edge.parent.id], edge.child)
+        parents[edge.child.id] = parents[edge.child.id] or {}
+        table.insert(parents[edge.child.id], edge.parent.id)
     end
-    if nodes then
-        local frame = CreateAchievementTreeFrame()
-        frame.navigationRevision = (frame.navigationRevision or 0) + 1
-        local previousCategoryContext = frame.rewardCategoryCardContext
-        local previousCardOnly = frame.cardOnlyAchievementID
-        if navigationMode ~= "history" and navigationMode ~= "refresh" then
-            SaveCurrentAchievementNavigation(frame)
-        end
-        if frame.rewardCategoryMode then
-            SaveAchievementRewardCategoryState(frame)
-        end
-        frame.rewardCategoryMode = nil
-        frame.pendingRewardCategory = nil
-        frame.rewardCategoryCardContext = AchievementData.CopyNavigationState(
-            rewardCategoryCardContext)
-        if navigationMode ~= "refresh" then
-            frame.rewardCategoryOrigin = AchievementData.CopyNavigationState(
-                navigationEntry and navigationEntry.categoryOrigin)
-        end
-        local rootChanged = frame.sourceAchievementID ~= achievementID
-        if frame.sourceAchievementID and (rootChanged
-            or not previousCardOnly and cardOnlyAchievementID)
-        then
-            SaveAchievementTreeState(frame)
-        end
-        frame.sourceAchievementID = achievementID
-        if navigationMode ~= "refresh" then
-            frame.cardOnlyAchievementID = showCardOnly
-                and achievementID or nil
-        end
-        if rootChanged or previousCardOnly and not cardOnlyAchievementID then
-            RestoreAchievementTreeState(frame, achievementID)
-        end
-        if navigationEntry and navigationEntry.viewState then
-            RestoreAchievementNavigationState(frame, navigationEntry.viewState)
-        end
-        Addon:SetSetting("achievementLastTreeID", achievementID)
-        RefreshAchievementFavoritesBar(frame)
-        frame.history = frame.history or {}
-        frame.collapsedNodes = frame.collapsedNodes or {}
-        if navigationMode ~= "refresh" then
-            frame.breadcrumbIDs = AchievementData.CopyNavigationState(
-                breadcrumbIDs or { achievementID })
-            frame.breadcrumbCategory = navigationEntry
-                and navigationEntry.breadcrumbCategory
-                or rewardCategoryCardContext and rewardCategoryCardContext.key
-            RecordRecentAchievement(achievementID)
-        end
-        if navigationMode ~= "refresh" and navigationMode ~= "history" then
-            local replace = navigationMode == "category"
-                and previousCategoryContext and rewardCategoryCardContext
-                and previousCategoryContext.key == rewardCategoryCardContext.key
-            RecordAchievementNavigation(frame, replace)
-        end
-        frame.breadcrumbIDs = frame.breadcrumbIDs or { achievementID }
-        frame.fullNodes = nodes
-        frame.fullEdges = edges
-        for _, node in ipairs(nodes) do
-            node.hasChildren = false
-        end
-        for _, edge in ipairs(edges) do
-            edge.parent.hasChildren = true
-        end
-        local fullChildren = {}
-        for _, node in ipairs(nodes) do
-            fullChildren[node.id] = {}
-        end
-        for _, edge in ipairs(edges) do
-            fullChildren[edge.parent.id][#fullChildren[edge.parent.id] + 1] =
-                edge.child
-        end
-        local function CountDescendants(node)
-            local seen = {}
-            local count = 0
+    for _, node in ipairs(nodes) do
+        node.descendantCount = nil
+        if frame.collapsedNodes[node.id] then
+            local seen, count = {}, 0
             local function Visit(parent)
-                for _, child in ipairs(fullChildren[parent.id] or {}) do
+                for _, child in ipairs(children[parent.id] or {}) do
                     if not seen[child.id] then
                         seen[child.id] = true
                         count = count + 1
@@ -300,61 +228,121 @@ ShowAchievementTree = function(achievementID, navigationMode, breadcrumbIDs,
             Visit(node)
             node.descendantCount = count
         end
-        for _, node in ipairs(nodes) do
-            node.descendantCount = nil
-            if frame.collapsedNodes[node.id] then
-                CountDescendants(node)
+    end
+    if revealAchievementID then
+        frame.incompleteOnly = false
+        frame.IncompleteOnly:SetChecked(false)
+        local visited = {}
+        local function ExpandAncestors(id)
+            if visited[id] then return end
+            visited[id] = true
+            for _, parentID in ipairs(parents[id] or {}) do
+                frame.collapsedNodes[parentID] = nil
+                ExpandAncestors(parentID)
             end
         end
-        local revealAchievementID = frame.pendingRevealAchievementID
-        if revealAchievementID then
-            frame.incompleteOnly = false
-            frame.IncompleteOnly:SetChecked(false)
-            local parentsByID = {}
-            for _, edge in ipairs(edges) do
-                local parents = parentsByID[edge.child.id]
-                if not parents then
-                    parents = {}
-                    parentsByID[edge.child.id] = parents
-                end
-                parents[#parents + 1] = edge.parent.id
-            end
-            local visited = {}
-            local function ExpandAncestors(nodeID)
-                if visited[nodeID] then
-                    return
-                end
-                visited[nodeID] = true
-                for _, parentID in ipairs(parentsByID[nodeID] or {}) do
-                    frame.collapsedNodes[parentID] = nil
-                    ExpandAncestors(parentID)
-                end
-            end
-            ExpandAncestors(revealAchievementID)
+        ExpandAncestors(revealAchievementID)
+    end
+    local stats = GetAchievementTreeStats(nodes)
+    if stats.incomplete == 0 and frame.incompleteOnly then
+        frame.incompleteOnly = false
+        frame.IncompleteOnly:SetChecked(false)
+    end
+    local layoutNodes, layoutEdges, layoutRoot = nodes, edges, root
+    if frame.incompleteOnly then
+        layoutNodes, layoutEdges, layoutRoot = FilterIncompleteTree(nodes, edges)
+    end
+    layoutNodes, layoutEdges = FilterCollapsedTree(layoutNodes, layoutEdges,
+        frame.collapsedNodes)
+    LayoutAchievementTree(layoutNodes, layoutEdges, layoutRoot,
+        preserveScroll, stats, root, frame.cardOnlyAchievementID)
+    UpdateBreadcrumb(frame)
+    if revealAchievementID then
+        RevealAchievementNode(frame, revealAchievementID)
+        SaveAchievementTreeState(frame)
+    end
+    SaveCurrentAchievementNavigation(frame)
+end
+
+function RefreshAchievementTreePage(frame)
+    if not frame or not frame.sourceAchievementID then return false end
+    local id = frame.sourceAchievementID
+    local nodes, edges, root
+    if frame.cardOnlyAchievementID then
+        root = AchievementData.CreateNode(GetAchievementData(id))
+        if root then nodes, edges = { root }, {} end
+    else
+        nodes, edges, root = BuildAchievementTree(id)
+    end
+    if not nodes then return false end
+    frame.navigationRevision = (frame.navigationRevision or 0) + 1
+    RenderAchievementPage(frame, nodes, edges, root, true)
+    return true
+end
+
+ShowAchievementTree = function(achievementID, navigationMode, breadcrumbIDs,
+    showCardOnly, rewardCategoryCardContext, navigationEntry)
+    if navigationMode == "refresh" then
+        return RefreshAchievementTreePage(achievementTreeFrame)
+    end
+    local frameWasShown = achievementTreeFrame
+        and achievementTreeFrame:IsShown() or false
+    local cardOnlyAchievementID = showCardOnly and achievementID or nil
+    local nodes, edges, root
+    if cardOnlyAchievementID == achievementID then
+        root = AchievementData.CreateNode(GetAchievementData(achievementID))
+        if root then
+            nodes, edges = { root }, {}
         end
-        local stats = GetAchievementTreeStats(nodes)
-        if stats.incomplete == 0 and frame.incompleteOnly then
-            frame.incompleteOnly = false
-            frame.IncompleteOnly:SetChecked(false)
+    else
+        nodes, edges, root = BuildAchievementTree(achievementID)
+    end
+    if nodes then
+        local frame = CreateAchievementTreeFrame()
+        local previousCategoryContext = frame.rewardCategoryCardContext
+        local previousCardOnly = frame.cardOnlyAchievementID
+        if navigationMode ~= "history" then
+            SaveCurrentAchievementNavigation(frame)
         end
-        local layoutNodes, layoutEdges, layoutRoot = nodes, edges, root
-        if frame.incompleteOnly then
-            layoutNodes, layoutEdges, layoutRoot =
-                FilterIncompleteTree(nodes, edges)
+        if frame.rewardCategoryMode then
+            SaveAchievementRewardCategoryState(frame)
         end
-        layoutNodes, layoutEdges = FilterCollapsedTree(layoutNodes,
-            layoutEdges, frame.collapsedNodes)
-        LayoutAchievementTree(layoutNodes, layoutEdges, layoutRoot,
-            navigationMode == "refresh", stats, root,
-            frame.cardOnlyAchievementID)
-        UpdateBreadcrumb(frame)
-        SaveCurrentAchievementNavigation(frame)
-        if revealAchievementID then
-            frame.pendingRevealAchievementID = nil
-            RevealAchievementNode(frame, revealAchievementID)
+        local rootChanged = frame.sourceAchievementID ~= achievementID
+        if frame.sourceAchievementID and (rootChanged
+            or not previousCardOnly and cardOnlyAchievementID)
+        then
             SaveAchievementTreeState(frame)
         end
-        if frameWasShown and navigationMode ~= "refresh" then
+        Navigation.ApplyPage(frame, {
+            kind = showCardOnly and "card" or "tree",
+            achievementID = achievementID,
+            categoryContext = rewardCategoryCardContext,
+            categoryOrigin = navigationEntry and navigationEntry.categoryOrigin,
+            breadcrumbIDs = breadcrumbIDs or { achievementID },
+            breadcrumbCategory = navigationEntry
+                and navigationEntry.breadcrumbCategory
+                or rewardCategoryCardContext and rewardCategoryCardContext.key,
+        })
+        if rootChanged or previousCardOnly and not cardOnlyAchievementID then
+            RestoreAchievementTreeState(frame, achievementID)
+        end
+        if navigationEntry and navigationEntry.viewState then
+            RestoreAchievementNavigationState(frame, navigationEntry.viewState)
+        end
+        Addon:SetSetting("achievementLastTreeID", achievementID)
+        RefreshAchievementFavoritesBar(frame)
+        frame.history = frame.history or {}
+        frame.collapsedNodes = frame.collapsedNodes or {}
+        RecordRecentAchievement(achievementID)
+        if navigationMode ~= "history" then
+            local replace = navigationMode == "category"
+                and previousCategoryContext and rewardCategoryCardContext
+                and previousCategoryContext.visitID == rewardCategoryCardContext.visitID
+            RecordAchievementNavigation(frame, replace)
+        end
+        RenderAchievementPage(frame, nodes, edges, root, false,
+            navigationEntry and navigationEntry.revealAchievementID)
+        if frameWasShown then
             PlayAchievementSound(SOUNDKIT
                 and SOUNDKIT.IG_CHARACTER_INFO_TAB)
         end
@@ -406,7 +394,7 @@ InsertAchievementLink = function(achievementID)
     print(link)
 end
 
-OpenAchievementContextMenu = function(button, achievementID, openCard)
+OpenAchievementContextMenu = function(button, achievementID, openCard, openTree)
     if not MenuUtil or not MenuUtil.CreateContextMenu then
         return
     end
@@ -433,13 +421,17 @@ OpenAchievementContextMenu = function(button, achievementID, openCard)
             if openCard then
                 openCard()
             else
-                ShowAchievementTree(achievementID, nil, nil, true)
+                Navigation.OpenCard(achievementID)
             end
         end)
         if #GetChildAchievementIDs(achievementID) > 0 then
             rootDescription:CreateButton(L.ACHIEVEMENT_TREE_VIEW,
                 function()
-                    ShowAchievementTree(achievementID)
+                    if openTree then
+                        openTree()
+                    else
+                        ShowAchievementTree(achievementID)
+                    end
                 end)
         end
         local hasPopup = false
@@ -513,7 +505,7 @@ function CreateAchievementLauncherSearch(anchor)
             InsertAchievementLink(row.achievementID)
         else
             HidePanel()
-            ShowAchievementTree(row.achievementID, nil, nil, true)
+            Navigation.OpenCard(row.achievementID)
         end
     end
     for index = 1, 6 do

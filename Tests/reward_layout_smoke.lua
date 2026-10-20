@@ -22,18 +22,21 @@ end
 function methods:SetJustifyH(value) self.justifyH = value end
 function methods:GetFrameStrata() return "DIALOG" end
 function methods:GetFrameLevel() return 1 end
-function methods:GetActorByTag() return nil end
-function methods:GetPlayerActor() return nil end
+function methods:GetActorByTag() return self.actor end
+function methods:GetPlayerActor() return self.actor end
 for _, name in ipairs({ "SetTexture", "SetTexCoord", "SetAtlas",
     "SetEnabled", "SetJustifyV", "SetParent", "SetFrameStrata",
     "SetFrameLevel", "ClearScene", "TransitionToModelSceneID",
     "Raise", "UpdateLayout" }) do
     methods[name] = function() end
 end
+function methods:ClearScene()
+    self.clears = (self.clears or 0) + 1
+end
 
 local reward, lookups
 local addon = { AchievementRewards = {
-    Get = function() lookups = lookups + 1; return reward end,
+    Request = function() lookups = lookups + 1; return reward end,
     SetIndexReadyCallback = function() end,
 } }
 assert(loadfile("EasyAchievement/Modules/AchievementUI.lua"))("EasyAchievement", addon)
@@ -55,7 +58,7 @@ for _, name in ipairs({ "ItemIcon", "CollectionBorder", "PetBorder",
 end
 panel.ToyButton.Icon = Widget()
 panel.Description:SetJustifyH("CENTER")
-panel.entryIndex, panel.infoRetryCount = 1, 0
+panel.entryIndex = 1
 ui.achievementRewardFrame = panel
 
 for _, kind in ipairs({ "mount", "pet", "toy", "decor", "appearance", "item" }) do
@@ -94,4 +97,64 @@ for _, kind in ipairs({ "mount", "pet", "toy", "decor", "appearance", "item" }) 
             "model viewport overlaps the relocated reward information")
     end
 end
-print("reward header removal and vertically centered reward information: ok")
+
+-- Scene replacement must follow model identity, not every UI refresh.
+local actor = { loads = 0, rotation = 0 }
+local camera = { zoom = 0 }
+function camera:SetTarget() end
+function camera:SetZoomDistance(value) self.zoom = value end
+function actor:IsLoaded() return true end
+function actor:GetActiveBoundingBox() return -2, -2, -2, 2, 2, 2 end
+function actor:SetOnModelLoadedCallback(callback) self.onLoaded = callback end
+function actor:SetModelByCreatureDisplayID()
+    self.loads = self.loads + 1
+    self.rotation = 0
+end
+function actor:SetAnimation() end
+function actor:Show() end
+panel.ModelScene.actor = actor
+panel.ModelScene.GetActiveCamera = function() return camera end
+panel.ModelScene.OnMouseWheel = function(_, delta) camera.zoom = camera.zoom - delta end
+reward = { state = "ready", entries = {
+    { uniqueKey = "mount:1", rewardType = "mount", previewType = "model",
+        modelSceneID = 1, displayID = 100, name = "Mount", icon = 123 },
+    { uniqueKey = "item:2", rewardType = "item", previewType = "icon",
+        name = "Item", icon = 456 },
+} }
+ui.UpdateAchievementRewardPanel(host, 987)
+local clears = panel.ModelScene.clears
+actor.rotation = 1.5
+camera.zoom = 25
+host.width = 1000
+reward.entries[1].description = "New text"
+ui.UpdateAchievementRewardPanel(host, 987)
+assert(panel.ModelScene.clears == clears and actor.loads == 1
+    and actor.rotation == 1.5 and camera.zoom == 25
+    and panel.Description.text == "New text",
+    "text or layout refresh reset an unchanged model")
+table.insert(reward.entries, 1,
+    { uniqueKey = "item:3", rewardType = "item", previewType = "icon" })
+ui.UpdateAchievementRewardPanel(host, 987)
+assert(panel.entryIndex == 2 and panel.entryKey == "mount:1"
+    and actor.rotation == 1.5,
+    "an asynchronously inserted reward changed the selected model")
+local oldModelCallback = actor.onLoaded
+reward.entries[2].displayID = 101
+ui.UpdateAchievementRewardPanel(host, 987)
+assert(actor.loads == 2, "changed model data did not rebuild the scene")
+camera.zoom = 30
+oldModelCallback(actor)
+assert(camera.zoom == 30, "stale model callback refitted a newer model")
+panel.entryIndex, panel.entryKey = 3, nil
+ui.UpdateAchievementRewardPanel(host, 987)
+assert(not panel.ModelScene:IsShown() and panel.modelKey == nil,
+    "switching to an icon reward left the old model active")
+panel.entryIndex, panel.entryKey = 2, nil
+panel.ModelScene.actor = nil
+ui.UpdateAchievementRewardPanel(host, 987)
+assert(panel.pendingModelRefresh, "missing scene actor was not marked pending")
+panel.ModelScene.actor = actor
+ui.UpdateAchievementRewardPanel(host, 987)
+assert(not panel.pendingModelRefresh and actor.loads == 3,
+    "late scene actor did not recover")
+print("reward layout, selection identity and model view preservation: ok")

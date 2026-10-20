@@ -12,7 +12,7 @@ end
 
 AchievementRewards = assert(Addon.AchievementRewards,
     "EasyAchievement achievement reward service was not loaded")
-GetAchievementRewardData = AchievementRewards.Get
+GetAchievementRewardData = AchievementRewards.Request
 
 local MODEL_SCENE_LEFT_OFFSET = -200
 local MODEL_SCENE_RIGHT_OFFSET = 24
@@ -102,9 +102,10 @@ local function FitMountRewardModel(modelScene, actor)
     return true
 end
 
-AchievementRewards.SetIndexReadyCallback(function()
+AchievementRewards.SetIndexReadyCallback(function(achievementID)
     local frame = achievementTreeFrame
     if not frame or not frame:IsShown() or not frame.sourceAchievementID
+        or achievementID and achievementID ~= frame.sourceAchievementID
         or not UpdateAchievementRewardHeader
     then
         return
@@ -244,7 +245,6 @@ function CreateAchievementRewardFrame()
         then
             return
         end
-        self.pendingModelRefresh = nil
         UpdateAchievementRewardPanel(achievementTreeFrame,
             self.achievementID)
     end)
@@ -269,6 +269,7 @@ function CreateAchievementRewardFrame()
             return
         end
         rewardFrame.entryIndex = entryIndex
+        rewardFrame.entryKey = nil
         UpdateAchievementRewardPanel(achievementTreeFrame,
             rewardFrame.achievementID)
     end
@@ -338,6 +339,83 @@ function ConfigureAchievementRewardFrame(rewardFrame, hostFrame)
         "BOTTOMRIGHT", -24, 26)
 end
 
+local function RewardEntryKey(entry)
+    return entry.itemID and "item:" .. entry.itemID or entry.uniqueKey
+end
+
+local function ModelKey(achievementID, entry)
+    return table.concat({
+        tostring(achievementID), tostring(RewardEntryKey(entry)),
+        tostring(entry.rewardType), tostring(entry.previewType),
+        tostring(entry.modelSceneID), tostring(entry.displayID),
+        tostring(entry.asset), tostring(entry.isSelfMount),
+        table.concat(entry.appearanceSourceIDs or {}, ","),
+    }, ":")
+end
+
+local function ConfigureRewardModel(rewardFrame, entry, showAppearance, modelKey)
+    local scene = rewardFrame.ModelScene
+    local modelSceneID = showAppearance and DRESS_UP_FRAME_MODEL_SCENE_ID
+        or entry.modelSceneID
+    if showAppearance then
+        if scene.SetViewInsets then scene:SetViewInsets(0, 0, 0, 0) end
+        if scene.ReleaseAllActors then scene:ReleaseAllActors() end
+    end
+    if scene.TransitionToModelSceneID then
+        scene:TransitionToModelSceneID(modelSceneID,
+            CAMERA_TRANSITION_TYPE_IMMEDIATE or 1,
+            CAMERA_MODIFICATION_TYPE_DISCARD or 1, true)
+    else
+        scene:SetFromModelSceneID(modelSceneID, true)
+    end
+    if showAppearance then
+        local useNativeForm = true
+        if C_PlayerInfo and C_PlayerInfo.GetAlternateFormInfo then
+            local _, inAlternateForm = C_PlayerInfo.GetAlternateFormInfo()
+            useNativeForm = not inAlternateForm
+        end
+        SetupPlayerForModelScene(scene, nil, entry.appearanceSourceIDs,
+            false, true, false, useNativeForm)
+    end
+    local actor
+    if showAppearance then
+        actor = scene:GetPlayerActor()
+    else
+        actor = scene:GetActorByTag(entry.rewardType == "decor"
+            and "decor" or "unwrapped")
+    end
+    if not actor then
+        rewardFrame.pendingModelRefresh = true
+        return
+    end
+    local isMount = entry.rewardType == "mount"
+    scene.rewardType = entry.rewardType
+    if actor.SetOnModelLoadedCallback then
+        actor:SetOnModelLoadedCallback(isMount and function(loadedActor)
+            if rewardFrame.modelKey == modelKey then
+                FitMountRewardModel(scene, loadedActor)
+            end
+        end or nil)
+    end
+    if not showAppearance and actor.SetPreferModelCollisionBounds then
+        actor:SetPreferModelCollisionBounds(entry.rewardType == "decor")
+    end
+    if not showAppearance then
+        if entry.rewardType == "decor" then
+            actor:SetModelByFileID(entry.asset)
+        else
+            actor:SetModelByCreatureDisplayID(entry.displayID, true)
+            if actor.SetAnimationBlendOperation and Enum and Enum.ModelBlendOperation then
+                actor:SetAnimationBlendOperation(entry.isSelfMount
+                    and Enum.ModelBlendOperation.None or Enum.ModelBlendOperation.Anim)
+            end
+            actor:SetAnimation(entry.isSelfMount and 618 or 0)
+        end
+    end
+    actor:Show()
+    if isMount then FitMountRewardModel(scene, actor) end
+end
+
 UpdateAchievementRewardPanel = function(frame, achievementID)
     local reward = GetAchievementRewardData(achievementID)
     if not frame or not reward or #reward.entries == 0
@@ -352,12 +430,21 @@ UpdateAchievementRewardPanel = function(frame, achievementID)
     local entries = reward.entries or {}
     if rewardFrame.achievementID ~= achievementID then
         rewardFrame.entryIndex = 1
-        rewardFrame.infoRetryCount = 0
+        rewardFrame.entryKey = nil
     end
     rewardFrame.entryCount = #entries
+    if rewardFrame.entryKey then
+        for index, entry in ipairs(entries) do
+            if RewardEntryKey(entry) == rewardFrame.entryKey then
+                rewardFrame.entryIndex = index
+                break
+            end
+        end
+    end
     rewardFrame.entryIndex = math.max(1,
         math.min(#entries, rewardFrame.entryIndex or 1))
     local primaryEntry = entries[rewardFrame.entryIndex]
+    rewardFrame.entryKey = RewardEntryKey(primaryEntry)
     local previewEntry = primaryEntry
     local rewardNames = primaryEntry and primaryEntry.name
         and primaryEntry.name ~= "" and { primaryEntry.name } or {}
@@ -373,26 +460,6 @@ UpdateAchievementRewardPanel = function(frame, achievementID)
     end
     rewardFrame.achievementID = achievementID
     rewardFrame.rewardItemIDs = rewardItemIDs
-    local pendingInfo = false
-    for _, entry in ipairs(entries) do
-        pendingInfo = pendingInfo or entry.pendingInfo
-    end
-    if pendingInfo and not rewardFrame.infoRetryPending
-        and (rewardFrame.infoRetryCount or 0) < 3
-    then
-        rewardFrame.infoRetryCount = (rewardFrame.infoRetryCount or 0) + 1
-        rewardFrame.infoRetryPending = true
-        C_Timer.After(0.5, function()
-            rewardFrame.infoRetryPending = nil
-            local currentID = rewardFrame.achievementID
-            if rewardFrame:IsShown() and frame:IsShown()
-                and currentID and frame.sourceAchievementID == currentID
-            then
-                UpdateAchievementRewardHeader(frame, currentID)
-                UpdateAchievementRewardPanel(frame, currentID)
-            end
-        end)
-    end
     local showToy = primaryEntry ~= nil
         and primaryEntry.rewardType == "toy"
     rewardFrame.ItemIcon:SetTexture(nil)
@@ -420,8 +487,6 @@ UpdateAchievementRewardPanel = function(frame, achievementID)
     rewardFrame.ItemName:SetShown(#rewardNames > 0)
     rewardFrame.Description:SetText(table.concat(rewardDescriptions, "\n\n"))
     rewardFrame.Description:SetShown(#rewardDescriptions > 0)
-    rewardFrame.pendingModelRefresh = nil
-    rewardFrame.ModelScene:ClearScene()
     local showAppearance = previewEntry
         and previewEntry.previewType == "appearance"
         and #(previewEntry.appearanceSourceIDs or {}) > 0
@@ -430,6 +495,14 @@ UpdateAchievementRewardPanel = function(frame, achievementID)
         and previewEntry.previewType == "model"
         and previewEntry.modelSceneID
         and (previewEntry.displayID or previewEntry.asset)
+    local modelKey = showModel and ModelKey(achievementID, previewEntry) or nil
+    local resetModel = rewardFrame.modelKey ~= modelKey
+        or rewardFrame.pendingModelRefresh or showModel and not rewardFrame.modelKey
+    if resetModel then
+        rewardFrame.pendingModelRefresh = nil
+        rewardFrame.modelKey = modelKey
+        rewardFrame.ModelScene:ClearScene()
+    end
     local contentCenterOffset = showModel and MODEL_SCENE_CENTER_OFFSET or 0
     ConfigureAchievementRewardFrame(rewardFrame, frame)
     local textWidth = math.max(1, rewardFrame:GetWidth() - 40)
@@ -481,85 +554,8 @@ UpdateAchievementRewardPanel = function(frame, achievementID)
         rewardFrame.ModelScene:SetPoint("BOTTOMRIGHT", rewardFrame,
             "BOTTOMRIGHT", MODEL_SCENE_RIGHT_OFFSET, -20)
         rewardFrame.ModelScene:Show()
-        local modelSceneID = showAppearance
-            and DRESS_UP_FRAME_MODEL_SCENE_ID
-            or previewEntry.modelSceneID
-        if showAppearance then
-            if rewardFrame.ModelScene.SetViewInsets then
-                rewardFrame.ModelScene:SetViewInsets(0, 0, 0, 0)
-            end
-            if rewardFrame.ModelScene.ReleaseAllActors then
-                rewardFrame.ModelScene:ReleaseAllActors()
-            end
-        end
-        if rewardFrame.ModelScene.TransitionToModelSceneID then
-            rewardFrame.ModelScene:TransitionToModelSceneID(
-                modelSceneID,
-                CAMERA_TRANSITION_TYPE_IMMEDIATE or 1,
-                CAMERA_MODIFICATION_TYPE_DISCARD or 1, true)
-        else
-            rewardFrame.ModelScene:SetFromModelSceneID(
-                modelSceneID, true)
-        end
-        if showAppearance then
-            local useNativeForm = true
-            if C_PlayerInfo and C_PlayerInfo.GetAlternateFormInfo then
-                local _, inAlternateForm =
-                    C_PlayerInfo.GetAlternateFormInfo()
-                useNativeForm = not inAlternateForm
-            end
-            SetupPlayerForModelScene(rewardFrame.ModelScene, nil,
-                previewEntry.appearanceSourceIDs, false, true, false,
-                useNativeForm)
-        end
-        local actor
-        if showAppearance then
-            actor = rewardFrame.ModelScene:GetPlayerActor()
-        else
-            actor = rewardFrame.ModelScene:GetActorByTag(
-                previewEntry.rewardType == "decor" and "decor"
-                    or "unwrapped")
-        end
-        if actor then
-            local isMount = previewEntry.rewardType == "mount"
-            rewardFrame.ModelScene.rewardType = previewEntry.rewardType
-            if actor.SetOnModelLoadedCallback then
-                actor:SetOnModelLoadedCallback(isMount and function(loadedActor)
-                    if rewardFrame.ModelScene.rewardType == "mount" then
-                        FitMountRewardModel(rewardFrame.ModelScene,
-                            loadedActor)
-                    end
-                end or nil)
-            end
-            if not showAppearance and actor.SetPreferModelCollisionBounds then
-                actor:SetPreferModelCollisionBounds(
-                    previewEntry.rewardType == "decor")
-            end
-            if showAppearance then
-                actor:Show()
-            elseif previewEntry.rewardType == "decor" then
-                actor:SetModelByFileID(previewEntry.asset)
-            else
-                actor:SetModelByCreatureDisplayID(
-                    previewEntry.displayID, true)
-                if actor.SetAnimationBlendOperation
-                    and Enum and Enum.ModelBlendOperation
-                then
-                    actor:SetAnimationBlendOperation(
-                        previewEntry.isSelfMount
-                            and Enum.ModelBlendOperation.None
-                            or Enum.ModelBlendOperation.Anim)
-                end
-                actor:SetAnimation(previewEntry.isSelfMount and 618 or 0)
-            end
-            if not showAppearance then
-                actor:Show()
-            end
-            if isMount then
-                FitMountRewardModel(rewardFrame.ModelScene, actor)
-            end
-        else
-            rewardFrame.pendingModelRefresh = true
+        if resetModel then
+            ConfigureRewardModel(rewardFrame, previewEntry, showAppearance, modelKey)
         end
         rewardFrame.ModelControls:Show()
         rewardFrame.ModelControls:ClearAllPoints()
