@@ -20,26 +20,6 @@ LayoutAchievementHeader = function(frame)
     if statsWidth > 0 then
         frame.Stats:SetPoint("LEFT", previous, "RIGHT", 10, 0)
         totalWidth = totalWidth + 10 + statsWidth
-        previous = frame.Stats
-    end
-
-    frame.RewardOpenParen:ClearAllPoints()
-    frame.RewardSummary:ClearAllPoints()
-    frame.RewardCloseParen:ClearAllPoints()
-    if frame.RewardSummary:IsShown() then
-        local openWidth = math.ceil(frame.RewardOpenParen:GetStringWidth())
-        local rewardWidth = math.ceil(frame.RewardSummary:GetStringWidth())
-        frame.RewardOpenParen:SetPoint("LEFT", previous, "RIGHT", 14, 0)
-        frame.RewardSummary:SetPoint("LEFT", frame.RewardOpenParen,
-            "RIGHT", 0, 0)
-        totalWidth = totalWidth + 14 + openWidth + rewardWidth
-        previous = frame.RewardSummary
-    end
-
-    if frame.RewardCloseParen:IsShown() then
-        local closeWidth = math.ceil(frame.RewardCloseParen:GetStringWidth())
-        frame.RewardCloseParen:SetPoint("LEFT", previous, "RIGHT", 2, 0)
-        totalWidth = totalWidth + 2 + closeWidth
     end
     frame.HeaderRow:SetWidth(math.max(1, totalWidth))
 end
@@ -51,21 +31,6 @@ function UpdateAchievementHeader(frame, titleText, statsText)
 end
 
 UpdateAchievementRewardHeader = function(frame, achievementID)
-    local reward
-    if achievementID then
-        if frame.rewardLookupAchievementID == achievementID then
-            reward = frame.rewardData
-        else
-            reward = GetAchievementRewardData(achievementID)
-        end
-    end
-    frame.rewardLookupAchievementID = achievementID
-    frame.rewardData = reward
-    frame.RewardSummary:SetText(reward and reward.text or "")
-    local showRewardText = reward ~= nil and reward.text ~= ""
-    frame.RewardOpenParen:SetShown(showRewardText)
-    frame.RewardSummary:SetShown(showRewardText)
-    frame.RewardCloseParen:SetShown(showRewardText)
     if achievementRewardFrame and achievementRewardFrame:IsShown()
         and achievementRewardFrame.achievementID ~= achievementID
     then
@@ -238,29 +203,6 @@ function CreateAchievementTreeFrame()
     stats:SetJustifyV("MIDDLE")
     stats:SetTextColor(0.85, 0.85, 0.85)
     frame.Stats = stats
-
-    local rewardOpenParen = headerRow:CreateFontString(nil, "OVERLAY",
-        "GameFontHighlightSmall")
-    rewardOpenParen:SetText("(")
-    rewardOpenParen:SetTextColor(1, 0.82, 0)
-    rewardOpenParen:Hide()
-    frame.RewardOpenParen = rewardOpenParen
-
-    local rewardSummary = headerRow:CreateFontString(nil, "OVERLAY",
-        "GameFontHighlightSmall")
-    rewardSummary:SetWordWrap(false)
-    rewardSummary:SetJustifyH("LEFT")
-    rewardSummary:SetJustifyV("MIDDLE")
-    rewardSummary:SetTextColor(1, 0.82, 0)
-    rewardSummary:Hide()
-    frame.RewardSummary = rewardSummary
-
-    local rewardCloseParen = headerRow:CreateFontString(nil, "OVERLAY",
-        "GameFontHighlightSmall")
-    rewardCloseParen:SetText(")")
-    rewardCloseParen:SetTextColor(1, 0.82, 0)
-    rewardCloseParen:Hide()
-    frame.RewardCloseParen = rewardCloseParen
 
     local function CreateGoldDivider(offsetY)
         local divider = frame:CreateTexture(nil, "ARTWORK")

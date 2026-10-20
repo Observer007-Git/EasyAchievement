@@ -19,24 +19,6 @@ local MODEL_SCENE_RIGHT_OFFSET = 24
 local MODEL_SCENE_CENTER_OFFSET =
     (MODEL_SCENE_LEFT_OFFSET + MODEL_SCENE_RIGHT_OFFSET) / 2
 
-local REWARD_TYPE_LABEL_KEYS = {
-    mount = "ACHIEVEMENT_REWARD_TYPE_MOUNT",
-    pet = "ACHIEVEMENT_REWARD_TYPE_PET",
-    toy = "ACHIEVEMENT_REWARD_TYPE_TOY",
-    decor = "ACHIEVEMENT_REWARD_TYPE_DECOR",
-    appearance = "ACHIEVEMENT_REWARD_TYPE_APPEARANCE",
-    item = "ACHIEVEMENT_REWARD_TYPE_ITEM",
-}
-
-local function GetRewardTypeLabel(entry)
-    if not entry then
-        return nil
-    end
-    local labelKey = REWARD_TYPE_LABEL_KEYS[entry.rewardType]
-        or "ACHIEVEMENT_REWARD_TYPE_OTHER"
-    return string.format(L.ACHIEVEMENT_REWARD_TYPE_LABEL, L[labelKey])
-end
-
 local function FitMountRewardModel(modelScene, actor)
     if not modelScene or not actor or not actor.IsLoaded
         or not actor:IsLoaded() or not actor.GetActiveBoundingBox
@@ -127,7 +109,6 @@ AchievementRewards.SetIndexReadyCallback(function()
     then
         return
     end
-    frame.rewardLookupAchievementID = nil
     UpdateAchievementRewardHeader(frame, frame.sourceAchievementID)
     if frame.AchievementCard and frame.AchievementCard:IsShown() then
         local shown = UpdateAchievementRewardPanel(frame,
@@ -222,13 +203,6 @@ function CreateAchievementRewardFrame()
     end)
     toyButton:Hide()
     frame.ToyButton = toyButton
-
-    local itemType = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    itemType:SetJustifyH("RIGHT")
-    itemType:SetJustifyV("MIDDLE")
-    itemType:SetWordWrap(false)
-    itemType:SetHeight(48)
-    frame.ItemType = itemType
 
     local itemName = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     itemName:SetPoint("TOPLEFT", itemIcon, "TOPRIGHT", 10, -2)
@@ -414,7 +388,6 @@ UpdateAchievementRewardPanel = function(frame, achievementID)
             if rewardFrame:IsShown() and frame:IsShown()
                 and currentID and frame.sourceAchievementID == currentID
             then
-                frame.rewardLookupAchievementID = nil
                 UpdateAchievementRewardHeader(frame, currentID)
                 UpdateAchievementRewardPanel(frame, currentID)
             end
@@ -442,9 +415,6 @@ UpdateAchievementRewardPanel = function(frame, achievementID)
     rewardFrame.ToyButton.Icon:SetTexture(showToy and primaryEntry.icon
         or nil)
     rewardFrame.ToyButton:SetShown(showToy and primaryEntry.icon ~= nil)
-    local rewardTypeLabel = GetRewardTypeLabel(primaryEntry)
-    rewardFrame.ItemType:SetText(rewardTypeLabel or "")
-    rewardFrame.ItemType:SetShown(rewardTypeLabel ~= nil)
     rewardFrame.ItemName:SetText(table.concat(rewardNames, "  +  "))
     rewardFrame.ItemName:SetHeight(18)
     rewardFrame.ItemName:SetShown(#rewardNames > 0)
@@ -461,14 +431,33 @@ UpdateAchievementRewardPanel = function(frame, achievementID)
         and previewEntry.modelSceneID
         and (previewEntry.displayID or previewEntry.asset)
     local contentCenterOffset = showModel and MODEL_SCENE_CENTER_OFFSET or 0
+    ConfigureAchievementRewardFrame(rewardFrame, frame)
+    local textWidth = math.max(1, rewardFrame:GetWidth() - 40)
+    rewardFrame.ItemName:ClearAllPoints()
+    rewardFrame.ItemName:SetWidth(textWidth)
+    rewardFrame.ItemName:SetHeight(0)
+    rewardFrame.ItemName:SetJustifyH("CENTER")
+    rewardFrame.ItemName:SetJustifyV("TOP")
+    rewardFrame.ItemName:SetPoint("TOP", rewardFrame, "TOP",
+        contentCenterOffset, -10)
+    local nameHeight = #rewardNames > 0
+        and math.max(18, rewardFrame.ItemName:GetStringHeight()) or 0
+    rewardFrame.ItemName:SetHeight(nameHeight)
+    local descriptionTop = 10 + nameHeight + (nameHeight > 0 and 6 or 0)
     rewardFrame.Description:ClearAllPoints()
     rewardFrame.Description:SetPoint("TOPLEFT", rewardFrame, "TOPLEFT",
-        20 + contentCenterOffset, -65)
+        20 + contentCenterOffset, -descriptionTop)
     rewardFrame.Description:SetPoint("TOPRIGHT", rewardFrame, "TOPRIGHT",
-        -20 + contentCenterOffset, -65)
-    local nameExtraHeight = math.max(0,
-        rewardFrame.ItemName:GetHeight() - 18)
-    local extraHeight = nameExtraHeight
+        -20 + contentCenterOffset, -descriptionTop)
+    rewardFrame.Description:SetHeight(0)
+    local descriptionHeight = #rewardDescriptions > 0
+        and rewardFrame.Description:GetStringHeight() or 0
+    rewardFrame.Description:SetHeight(descriptionHeight)
+    local iconTop = descriptionTop + descriptionHeight + 8
+    rewardFrame.ItemIcon:ClearAllPoints()
+    rewardFrame.ItemIcon:SetPoint("TOP", rewardFrame, "TOP",
+        contentCenterOffset, -iconTop)
+    local extraHeight = math.max(0, iconTop + 48 - 108)
     local hasMultipleEntries = #entries > 1
     rewardFrame.PreviousReward:SetShown(hasMultipleEntries)
     rewardFrame.PreviousReward:SetEnabled(rewardFrame.entryIndex > 1)
@@ -484,7 +473,6 @@ UpdateAchievementRewardPanel = function(frame, achievementID)
         contentCenterOffset, counterCenterOffset)
     if showModel then
         rewardFrame:SetSize(460, 540 + extraHeight)
-        rewardFrame.Description:SetHeight(44 + extraHeight)
         rewardFrame.ModelScene:ClearAllPoints()
         local modelTopOffset = hasMultipleEntries
             and -146 - extraHeight or -118 - extraHeight
@@ -579,56 +567,11 @@ UpdateAchievementRewardPanel = function(frame, achievementID)
             contentCenterOffset, 18)
         rewardFrame.ModelControls:UpdateLayout()
     else
-        rewardFrame.Description:SetHeight(88 + extraHeight)
         rewardFrame:SetSize(380, primaryEntry and 250 + extraHeight or 180)
         rewardFrame.ModelControls:Hide()
         rewardFrame.ModelScene:Hide()
     end
     ConfigureAchievementRewardFrame(rewardFrame, frame)
-    local hasRewardIcon = rewardFrame.ItemIcon:IsShown()
-        or rewardFrame.ToyButton:IsShown()
-    local hasRewardType = rewardFrame.ItemType:IsShown()
-    local hasRewardName = rewardFrame.ItemName:IsShown()
-    local hasNativeIconBorder = rewardFrame.CollectionBorder:IsShown()
-        or rewardFrame.PetBorder:IsShown()
-        or rewardFrame.ToyButton:IsShown()
-    local iconWidth = hasRewardIcon
-        and (hasNativeIconBorder and 56 or 48) or 0
-    local typeWidth = hasRewardType
-        and math.ceil(rewardFrame.ItemType:GetStringWidth()) or 0
-    local typeGap = hasRewardType and (hasRewardIcon or hasRewardName)
-        and 6 or 0
-    local nameGap = hasRewardIcon and hasRewardName and 10 or 0
-    local maximumNameWidth = math.max(1,
-        rewardFrame:GetWidth() - typeWidth - typeGap - iconWidth
-            - nameGap - 40)
-    local unboundedNameWidth = rewardFrame.ItemName.GetUnboundedStringWidth
-        and rewardFrame.ItemName:GetUnboundedStringWidth()
-        or rewardFrame.ItemName:GetStringWidth()
-    local rewardNameWidth = hasRewardName
-        and math.min(maximumNameWidth, unboundedNameWidth) or 0
-    local headerWidth = typeWidth + typeGap + iconWidth + nameGap
-        + rewardNameWidth
-    local headerLeft = contentCenterOffset - headerWidth / 2
-    rewardFrame.ItemType:ClearAllPoints()
-    rewardFrame.ItemType:SetWidth(math.max(1, typeWidth))
-    rewardFrame.ItemType:SetPoint("LEFT", rewardFrame, "TOP",
-        headerLeft, -34)
-    rewardFrame.ItemIcon:ClearAllPoints()
-    rewardFrame.ItemIcon:SetPoint("TOP", rewardFrame, "TOP",
-        headerLeft + typeWidth + typeGap + iconWidth / 2, -10)
-    rewardFrame.ItemName:ClearAllPoints()
-    rewardFrame.ItemName:SetWidth(math.max(1, rewardNameWidth))
-    rewardFrame.ItemName:SetHeight(48)
-    rewardFrame.ItemName:SetJustifyH("CENTER")
-    rewardFrame.ItemName:SetJustifyV("MIDDLE")
-    if hasRewardIcon or hasRewardType then
-        rewardFrame.ItemName:SetPoint("LEFT", rewardFrame, "TOP",
-            headerLeft + typeWidth + typeGap + iconWidth + nameGap, -34)
-    else
-        rewardFrame.ItemName:SetPoint("TOP", rewardFrame, "TOP",
-            contentCenterOffset, -10)
-    end
     rewardFrame:Show()
     rewardFrame:Raise()
     return true

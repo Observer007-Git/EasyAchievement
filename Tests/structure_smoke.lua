@@ -283,16 +283,12 @@ assert(tooltipSource:find(
     "achievement tooltips do not show the yellow reward description")
 
 local rewardPanelSource = ReadSource("Modules/Achievements/RewardPanel.lua")
-assert(rewardPanelSource:find("local function GetRewardTypeLabel(entry)",
-        1, true)
-    and rewardPanelSource:find(
-        "L.ACHIEVEMENT_REWARD_TYPE_LABEL", 1, true)
-    and rewardPanelSource:find(
-        "REWARD_TYPE_LABEL_KEYS[entry.rewardType]", 1, true)
-    and rewardPanelSource:find(
-        'rewardFrame.ItemType:SetPoint("LEFT", rewardFrame, "TOP"',
-        1, true),
-    "reward panel does not show its localized type left of the icon")
+assert(not rewardPanelSource:find("ItemType", 1, true),
+    "reward panel still contains a reward-type prefix")
+assert(not windowSource:find("RewardOpenParen", 1, true)
+    and not windowSource:find("RewardSummary", 1, true)
+    and not windowSource:find("RewardCloseParen", 1, true),
+    "main panel still contains the parenthesized reward summary")
 local rewardsSource = ReadSource("Modules/AchievementRewards.lua")
 assert(rewardsSource:find(
         "local ACHIEVEMENT_MOUNT_SOURCE_TYPE = 5", 1, true)
@@ -303,10 +299,9 @@ assert(rewardPanelSource:find('description:SetJustifyH("CENTER")', 1,
         true)
     and rewardPanelSource:find("20 + contentCenterOffset", 1, true)
     and rewardPanelSource:find("-20 + contentCenterOffset", 1, true)
-    and rewardPanelSource:find(
-        "local headerLeft = contentCenterOffset - headerWidth / 2", 1,
-        true)
-    and rewardPanelSource:find("GetUnboundedStringWidth", 1, true),
+    and rewardPanelSource:find('rewardFrame.ItemName:SetJustifyH("CENTER")',
+        1, true)
+    and rewardPanelSource:find("-descriptionTop", 1, true),
     "reward header information is not horizontally centered")
 assert(rewardPanelSource:find(
         'rewardFrame:SetPoint("TOPRIGHT", hostFrame, "TOPRIGHT", -24, -115)',
@@ -344,9 +339,7 @@ assert(rewardPanelSource:find(
         'contentCenterOffset, counterCenterOffset', 1, true)
     and rewardPanelSource:find(
         'contentCenterOffset, 18)', 1, true)
-    and rewardPanelSource:find(
-        'local headerLeft = contentCenterOffset - headerWidth / 2', 1,
-        true),
+    and rewardPanelSource:find('contentCenterOffset, -iconTop)', 1, true),
     "reward information and controls are not centered on the model viewport")
 assert(rewardPanelSource:find("local function FitMountRewardModel", 1, true)
     and rewardPanelSource:find(

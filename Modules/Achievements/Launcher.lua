@@ -568,7 +568,6 @@ local function OnRewardCollectionChanged()
         if frame:IsShown() and frame.sourceAchievementID
             and achievementRewardFrame:IsShown()
         then
-            frame.rewardLookupAchievementID = nil
             UpdateAchievementRewardHeader(frame, frame.sourceAchievementID)
             UpdateAchievementRewardPanel(frame, frame.sourceAchievementID)
         end
