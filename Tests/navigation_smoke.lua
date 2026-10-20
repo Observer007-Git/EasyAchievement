@@ -53,7 +53,11 @@ function scroll:GetHeight() return self.height end
 function scroll:IsShown() return self.shown end
 local frame = {
     ScrollFrame = scroll,
-    IsShown = function() return true end,
+    shown = true,
+    IsShown = function(self) return self.shown end,
+    Show = function(self) self.shown = true end,
+    Hide = function(self) self.shown = false end,
+    Raise = function() end,
     IncompleteOnly = { SetChecked = function() end },
     ScaleSlider = { SetValue = function() end },
     EmptyText = { SetText = function() end },
@@ -109,6 +113,8 @@ assert(savedContext.index == 5 and frame.history[3].categoryContext.index == 6,
 ui.NavigateAchievementHistory(frame, -1)
 assert(frame.rewardCategoryMode.key == "mount" and scroll.x == 100,
     "back skipped the source list or lost its scroll position")
+assert(frame.rewardCategoryMode.selectedAchievementID == 106,
+    "top back did not select the most recently viewed category achievement")
 ui.NavigateAchievementHistory(frame, 1)
 assert(frame.sourceAchievementID == 106 and frame.rewardCategoryCardContext.index == 6,
     "forward did not restore category card order and position")
@@ -145,4 +151,58 @@ assert(#layout == 3 and layout[2].index == 0
 local totalWidth = 0
 for _, item in ipairs(layout) do totalWidth = totalWidth + item.width end
 assert(totalWidth <= 300, "breadcrumb overflow exceeds its available width")
+
+ui.ShowAchievementTree(202, nil, nil, true)
+ui.ShowAchievementTree(203, nil, nil, true)
+local previousIndex, previousCount = frame.historyIndex, #frame.history
+local originalGet = ui.GetAchievementData
+ui.GetAchievementData = function(id)
+    if id ~= 202 then return originalGet(id) end
+end
+assert(ui.NavigateAchievementHistory(frame, -1) == false
+    and frame.historyIndex == previousIndex and #frame.history == previousCount
+    and frame.sourceAchievementID == 203,
+    "unavailable history target changed the history cursor or visible page")
+ui.GetAchievementData = originalGet
+assert(ui.NavigateAchievementHistory(frame, -1)
+    and frame.sourceAchievementID == 202,
+    "history did not recover when the unavailable achievement loaded")
+local originalShow = ui.ShowAchievementTree
+ui.ShowAchievementTree = function() return false end
+previousIndex = frame.historyIndex
+assert(ui.NavigateAchievementHistory(frame, 1) == false
+    and frame.historyIndex == previousIndex and frame.sourceAchievementID == 202,
+    "failed page open did not roll back the history cursor")
+ui.ShowAchievementTree = originalShow
+ui.NavigateAchievementHistory(frame, 1)
+assert(frame.sourceAchievementID == 203)
+
+function addon:RegisterSetting() end
+function addon:RegisterEvent() end
+function addon.NumberSetting() return function(value) return value end end
+function addon.BooleanSetting(value) return not not value end
+assert(loadfile("EasyAchievement/Modules/Achievements/Launcher.lua"))(
+    "EasyAchievement", addon)
+ui.ShowAchievementRewardCategory("mount")
+scroll.x = 100
+previousIndex, previousCount = frame.historyIndex, #frame.history
+frame:Hide()
+ui.OpenAchievementPanel()
+assert(frame:IsShown() and frame.rewardCategoryMode.key == "mount"
+    and scroll.x == 100 and frame.historyIndex == previousIndex
+    and #frame.history == previousCount,
+    "reopening the panel discarded the category list or changed history")
+ui.OpenAchievementRewardCategoryCard(frame, 105)
+ui.NavigateAchievementRewardCategoryCard(frame, 1)
+previousIndex, previousCount = frame.historyIndex, #frame.history
+frame:Hide()
+ui.OpenAchievementPanel()
+assert(frame:IsShown() and frame.sourceAchievementID == 106
+    and frame.rewardCategoryCardContext.index == 6
+    and frame.breadcrumbCategory == "mount"
+    and frame.historyIndex == previousIndex and #frame.history == previousCount,
+    "reopening the panel discarded category card context or changed history")
+ui.OpenAchievementPanel()
+assert(frame.historyIndex == previousIndex and #frame.history == previousCount,
+    "opening an already visible panel appended history")
 print("navigation snapshots, category return, breadcrumb paths: ok")

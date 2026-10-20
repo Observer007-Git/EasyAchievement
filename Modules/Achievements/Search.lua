@@ -357,7 +357,9 @@ ShowAchievementTree = function(achievementID, navigationMode, breadcrumbIDs,
             PlayAchievementSound(SOUNDKIT
                 and SOUNDKIT.IG_CHARACTER_INFO_TAB)
         end
+        return true
     end
+    return false
 end
 
 function IsAchievementTracked(achievementID)

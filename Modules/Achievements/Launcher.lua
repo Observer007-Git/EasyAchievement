@@ -33,6 +33,24 @@ function OpenAchievementPanel()
     if achievementFavoritesPanel then
         achievementFavoritesPanel:Hide()
     end
+    local currentFrame = achievementTreeFrame
+    if currentFrame and (currentFrame.sourceAchievementID
+        or currentFrame.rewardCategoryMode)
+    then
+        if not currentFrame:IsShown() then
+            SaveCurrentAchievementNavigation(currentFrame)
+            currentFrame:Show()
+            if currentFrame.rewardCategoryMode then
+                ShowAchievementRewardCategory(currentFrame.rewardCategoryMode.key,
+                    "history", AchievementData.CopyNavigationState(
+                        currentFrame.history[currentFrame.historyIndex]))
+            else
+                ShowAchievementTree(currentFrame.sourceAchievementID, "refresh")
+            end
+        end
+        currentFrame:Raise()
+        return
+    end
     local achievementID = Addon:GetSetting("achievementLastTreeID")
         or GetAchievementFavorites()[1]
         or GetAchievementRecent()[1]

@@ -248,7 +248,7 @@ end
 ShowAchievementRewardCategory = function(category, navigationMode, snapshot)
     local definition = GetCategoryDefinition(category)
     if not definition then
-        return
+        return false
     end
     local frame = CreateAchievementTreeFrame()
     if navigationMode ~= "history" then
@@ -297,6 +297,7 @@ ShowAchievementRewardCategory = function(category, navigationMode, snapshot)
             end
         end)
     end
+    return true
 end
 
 OpenAchievementRewardCategoryCard = function(frame, achievementID)
@@ -349,9 +350,6 @@ ReturnToAchievementRewardCategory = function(frame)
             local entry = frame.history[index]
             if type(entry) == "table" and entry.rewardCategory == context.key
             then
-                entry.viewState = AchievementData.CopyNavigationState(
-                    context.listState or entry.viewState or {})
-                entry.viewState.selectedAchievementID = selectedID
                 NavigateAchievementHistory(frame, index - frame.historyIndex)
                 return
             end

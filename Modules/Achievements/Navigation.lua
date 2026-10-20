@@ -96,23 +96,40 @@ function RecordAchievementNavigation(frame, replace)
 end
 
 function NavigateAchievementHistory(frame, offset)
-    local targetIndex = (frame.historyIndex or 0) + offset
+    local previousIndex = frame.historyIndex or 0
+    local targetIndex = previousIndex + offset
     if targetIndex < 1 or targetIndex > #(frame.history or {}) then
         return
     end
     SaveCurrentAchievementNavigation(frame)
-    frame.historyIndex = targetIndex
     local entry = Copy(frame.history[targetIndex])
     local achievementID, showCardOnly, rewardCategory =
         GetAchievementHistoryEntry(entry)
+    if not rewardCategory and not GetAchievementData(achievementID) then
+        return false
+    end
+    local context = frame.rewardCategoryCardContext
+    if rewardCategory and context and context.key == rewardCategory then
+        entry.viewState = Copy(context.listState or entry.viewState or {})
+        entry.viewState.selectedAchievementID =
+            context.achievementIDs[context.index]
+        entry.achievementIDs = Copy(context.achievementIDs)
+    end
+    frame.historyIndex = targetIndex
+    local opened
     if rewardCategory then
-        ShowAchievementRewardCategory(rewardCategory, "history", entry)
+        opened = ShowAchievementRewardCategory(rewardCategory, "history", entry)
     else
-        ShowAchievementTree(achievementID, "history",
+        opened = ShowAchievementTree(achievementID, "history",
             type(entry) == "table" and entry.breadcrumbIDs or nil,
             showCardOnly, type(entry) == "table" and entry.categoryContext
                 or nil, type(entry) == "table" and entry or nil)
     end
+    if opened == false then
+        frame.historyIndex = previousIndex
+        return false
+    end
+    return true
 end
 
 function OpenAchievementPathCard(frame, achievementID)
