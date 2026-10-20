@@ -4,6 +4,9 @@ local settingSanitizers = {}
 local menuCount = 0
 local menuActions = {}
 local registeredEventHandlers = {}
+local savedGetTime = GetTime
+local rewardTestTime = 0
+GetTime = function() return rewardTestTime end
 
 local Addon = {
     L = {
@@ -782,6 +785,7 @@ reward = GetAchievementRewardData(1)
 assert(#reward.entries == 0,
     "empty mount journal unexpectedly returned a mount")
 C_MountJournal.GetMountIDs = readyMountIDs
+rewardTestTime = rewardTestTime + 2
 reward = GetAchievementRewardData(1)
 rewardEntry = reward.entries[1]
 assert(rewardEntry and rewardEntry.mountID == 1614
@@ -856,10 +860,124 @@ assert(#reward.entries == 0, "missing set unexpectedly produced a preview")
 C_TransmogSets.GetAllSets = function()
     return { { setID = 999, name = "Late Set" } }
 end
+registeredEventHandlers.TRANSMOG_COLLECTION_UPDATED(
+    "TRANSMOG_COLLECTION_UPDATED")
 reward = GetAchievementRewardData(1)
 assert(#reward.entries == 1 and reward.entries[1].transmogSetID == 999,
     "transmog index did not recover after the set list loaded")
 C_TransmogSets.GetAllSets = savedAllSets
+
+-- Unrelated reward text must not discard otherwise complete indexes.
+local mountBuilds, setBuilds = 0, 0
+C_MountJournal.GetMountIDs = function()
+    mountBuilds = mountBuilds + 1
+    return { 1614, 1690 }
+end
+C_TransmogSets.GetAllSets = function()
+    setBuilds = setBuilds + 1
+    return savedAllSets()
+end
+Addon.AchievementRewards.InvalidateCollectionIndexes()
+function GetAchievementInfo(id)
+    return id, "Achievement " .. id, 10, false, nil, nil, nil,
+        "Description", 0, 123, "Title: Whelp Caretaker", false
+end
+for _ = 1, 3 do
+    assert(#GetAchievementRewardData(1).entries == 0)
+end
+assert(mountBuilds == 1 and setBuilds == 1,
+    "unmatched reward text repeatedly rebuilt collection indexes")
+registeredEventHandlers.PET_JOURNAL_LIST_UPDATE("PET_JOURNAL_LIST_UPDATE")
+registeredEventHandlers.TOYS_UPDATED("TOYS_UPDATED")
+GetAchievementRewardData(1)
+assert(mountBuilds == 1 and setBuilds == 1,
+    "unrelated collection events discarded reward indexes")
+registeredEventHandlers.NEW_MOUNT_ADDED("NEW_MOUNT_ADDED")
+GetAchievementRewardData(1)
+assert(mountBuilds == 2 and setBuilds == 1,
+    "mount update did not invalidate only the mount index")
+registeredEventHandlers.TRANSMOG_COLLECTION_UPDATED(
+    "TRANSMOG_COLLECTION_UPDATED")
+GetAchievementRewardData(1)
+assert(mountBuilds == 2 and setBuilds == 2,
+    "transmog update did not invalidate only the appearance index")
+
+-- A known name with delayed model/source data retries only that entry.
+local savedMountExtra = C_MountJournal.GetMountInfoExtraByID
+local savedSourceIDs = C_TransmogSets.GetAllSourceIDs
+local modelReady = false
+C_MountJournal.GetMountInfoExtraByID = function(...)
+    if modelReady then return savedMountExtra(...) end
+end
+C_TransmogSets.GetAllSourceIDs = function(...)
+    if modelReady then return savedSourceIDs(...) end
+    return {}
+end
+function GetAchievementInfo(id)
+    return id, "Achievement " .. id, 10, false, nil, nil, nil,
+        "Description", 0, 123,
+        "Mount: Direct Reward Mount; Appearance: Sargerei Commander's Lightbound Regalia",
+        false
+end
+reward = GetAchievementRewardData(1)
+assert(#reward.entries == 1 and reward.entries[1].previewType == "icon")
+modelReady = true
+reward = GetAchievementRewardData(1)
+assert(#reward.entries == 2 and reward.entries[1].previewType == "model"
+    and reward.entries[2].rewardType == "appearance",
+    "delayed model/source data did not recover both rewards")
+GetAchievementRewardData(1)
+assert(mountBuilds == 2 and setBuilds == 2,
+    "delayed entry data or successful matches rebuilt the name indexes")
+C_MountJournal.GetMountInfoExtraByID = savedMountExtra
+C_TransmogSets.GetAllSourceIDs = savedSourceIDs
+
+-- Empty catalogs are pending, throttled, and recover without an event.
+local catalogReady = false
+C_MountJournal.GetMountIDs = function()
+    mountBuilds = mountBuilds + 1
+    return catalogReady and { 1614, 1690 } or {}
+end
+C_TransmogSets.GetAllSets = function()
+    setBuilds = setBuilds + 1
+    return catalogReady and savedAllSets() or {}
+end
+Addon.AchievementRewards.InvalidateCollectionIndexes()
+for _ = 1, 3 do
+    assert(#GetAchievementRewardData(1).entries == 0)
+end
+assert(mountBuilds == 3 and setBuilds == 3,
+    "pending collection indexes were not throttled")
+catalogReady = true
+rewardTestTime = rewardTestTime + 2
+reward = GetAchievementRewardData(1)
+assert(#reward.entries == 2 and mountBuilds == 4 and setBuilds == 4,
+    "empty collection indexes permanently cached missing rewards")
+local savedMountInfo = C_MountJournal.GetMountInfoByID
+local namesReady = false
+C_MountJournal.GetMountInfoByID = function(...)
+    if namesReady then return savedMountInfo(...) end
+    return nil, nil, nil, nil, nil, 5
+end
+C_TransmogSets.GetAllSets = function()
+    setBuilds = setBuilds + 1
+    if namesReady then return savedAllSets() end
+    return { { setID = 5282 } }
+end
+Addon.AchievementRewards.InvalidateCollectionIndexes()
+assert(#GetAchievementRewardData(1).entries == 0)
+assert(#GetAchievementRewardData(1).entries == 0)
+assert(mountBuilds == 5 and setBuilds == 5,
+    "partially loaded names were not throttled")
+namesReady = true
+rewardTestTime = rewardTestTime + 2
+assert(#GetAchievementRewardData(1).entries == 2,
+    "partially loaded names were incorrectly cached as no match")
+C_MountJournal.GetMountInfoByID = savedMountInfo
+C_MountJournal.GetMountIDs = readyMountIDs
+C_TransmogSets.GetAllSets = savedAllSets
+Addon.AchievementRewards.InvalidateCollectionIndexes()
+GetTime = savedGetTime
 
 function GetAchievementInfo(id)
     return id, "Achievement " .. id, 10, false, nil, nil, nil,
@@ -1051,7 +1169,7 @@ for _, event in ipairs({ "PET_JOURNAL_LIST_UPDATE",
     "TRANSMOG_COLLECTION_UPDATED", "TOYS_UPDATED" })
 do
     assert(registeredEventHandlers[event], "missing reward refresh event")
-    registeredEventHandlers[event]()
+    registeredEventHandlers[event](event)
 end
 assert(#queuedRefreshes == 1, "collection updates were not coalesced")
 queuedRefreshes[1]()

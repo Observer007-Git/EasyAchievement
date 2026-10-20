@@ -11,6 +11,7 @@ local RewardDatabase = assert(Addon.RewardDatabase,
 local INDEX_BUDGET_MILLISECONDS =
     Addon.Config.Performance.IndexBudgetMilliseconds
 local ACHIEVEMENT_MOUNT_SOURCE_TYPE = 5
+local COLLECTION_INDEX_RETRY_SECONDS = 2
 
 local housingRewardIndex = {}
 local housingRewardNameIndex = {}
@@ -19,8 +20,10 @@ local housingRewardIndexState
 local housingRewardSearcher
 local housingRewardIndexGeneration = 0
 local mountRewardIndex
+local mountRewardIndexRetryAt
 local mountRewardTextCache = {}
 local transmogSetRewardIndex
+local transmogSetRewardIndexRetryAt
 local transmogSetRewardTextCache = {}
 local indexReadyCallback
 
@@ -30,11 +33,17 @@ function Rewards.SetIndexReadyCallback(callback)
     indexReadyCallback = callback
 end
 
-function Rewards.InvalidateCollectionIndexes()
-    mountRewardIndex = nil
-    mountRewardTextCache = {}
-    transmogSetRewardIndex = nil
-    transmogSetRewardTextCache = {}
+function Rewards.InvalidateCollectionIndexes(rewardType)
+    if rewardType == nil or rewardType == "mount" then
+        mountRewardIndex = nil
+        mountRewardIndexRetryAt = nil
+        mountRewardTextCache = {}
+    end
+    if rewardType == nil or rewardType == "appearance" then
+        transmogSetRewardIndex = nil
+        transmogSetRewardIndexRetryAt = nil
+        transmogSetRewardTextCache = {}
+    end
 end
 
 local HOUSING_ACHIEVEMENT_LABELS = {
@@ -296,19 +305,31 @@ local function FindMountRewardByText(rewardText)
     if cached ~= nil then
         return cached or nil
     end
-    if not mountRewardIndex then
+    if not mountRewardIndex or mountRewardIndexRetryAt
+        and GetTime() >= mountRewardIndexRetryAt
+    then
         mountRewardIndex = {}
+        mountRewardTextCache = {}
+        local mountIDs = C_MountJournal.GetMountIDs() or {}
+        local complete = #mountIDs > 0
         if C_MountJournal.GetMountInfoByID then
-            for _, mountID in ipairs(C_MountJournal.GetMountIDs() or {}) do
+            for _, mountID in ipairs(mountIDs) do
                 local name, _, _, _, _, sourceType =
                     C_MountJournal.GetMountInfoByID(mountID)
+                if not name or name == "" or sourceType == nil then
+                    complete = false
+                end
                 if sourceType == ACHIEVEMENT_MOUNT_SOURCE_TYPE
                     and name and name ~= ""
                 then
                     mountRewardIndex[name] = mountID
                 end
             end
+        else
+            complete = false
         end
+        mountRewardIndexRetryAt = not complete
+            and GetTime() + COLLECTION_INDEX_RETRY_SECONDS or nil
     end
     local matchedName
     local matchedMountID
@@ -321,11 +342,12 @@ local function FindMountRewardByText(rewardText)
         end
     end
     local entry = BuildMountRewardEntry(matchedMountID, nil, matchedName)
-    if entry and entry.previewType == "model" then
+    if entry and entry.previewType == "model"
+        and not mountRewardIndexRetryAt
+    then
         mountRewardTextCache[rewardText] = entry
-    else
-        -- The mount journal can still be loading on the first lookup.
-        mountRewardIndex = nil
+    elseif not matchedMountID and not mountRewardIndexRetryAt then
+        mountRewardTextCache[rewardText] = false
     end
     return entry
 end
@@ -365,14 +387,18 @@ local function FindTransmogSetRewardByText(rewardText)
     if cached ~= nil then
         return cached or nil
     end
-    if not transmogSetRewardIndex then
+    if not transmogSetRewardIndex or transmogSetRewardIndexRetryAt
+        and GetTime() >= transmogSetRewardIndexRetryAt
+    then
         local sets = C_TransmogSets.GetAllSets() or {}
-        if #sets == 0 then
-            return nil
-        end
         transmogSetRewardIndex = {}
+        transmogSetRewardTextCache = {}
+        local complete = #sets > 0
         for _, setInfo in ipairs(sets) do
             local name = setInfo.name
+            if not name or name == "" or not setInfo.setID then
+                complete = false
+            end
             local indexed = name and transmogSetRewardIndex[name]
             if name and name ~= "" and (not indexed
                 or setInfo.validForCharacter and not indexed.validForCharacter)
@@ -380,6 +406,8 @@ local function FindTransmogSetRewardByText(rewardText)
                 transmogSetRewardIndex[name] = setInfo
             end
         end
+        transmogSetRewardIndexRetryAt = not complete
+            and GetTime() + COLLECTION_INDEX_RETRY_SECONDS or nil
     end
     local matchedName
     local matchedSetInfo
@@ -392,10 +420,10 @@ local function FindTransmogSetRewardByText(rewardText)
         end
     end
     local entry = BuildTransmogSetRewardEntry(matchedSetInfo)
-    if entry then
+    if entry and not transmogSetRewardIndexRetryAt then
         transmogSetRewardTextCache[rewardText] = entry
-    else
-        transmogSetRewardIndex = nil
+    elseif not matchedSetInfo and not transmogSetRewardIndexRetryAt then
+        transmogSetRewardTextCache[rewardText] = false
     end
     return entry
 end

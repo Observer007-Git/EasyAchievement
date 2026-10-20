@@ -553,8 +553,12 @@ function OnRewardItemInfoReceived(_, itemID)
 end
 
 local rewardCollectionRefreshPending = false
-local function OnRewardCollectionChanged()
-    AchievementRewards.InvalidateCollectionIndexes()
+local function OnRewardCollectionChanged(event)
+    if event == "NEW_MOUNT_ADDED" then
+        AchievementRewards.InvalidateCollectionIndexes("mount")
+    elseif event == "TRANSMOG_COLLECTION_UPDATED" then
+        AchievementRewards.InvalidateCollectionIndexes("appearance")
+    end
     local frame = achievementTreeFrame
     if rewardCollectionRefreshPending or not frame or not frame:IsShown()
         or not frame.sourceAchievementID or not achievementRewardFrame
@@ -622,6 +626,7 @@ Addon:RegisterEvent("ACHIEVEMENT_EARNED", OnAchievementEarned)
 Addon:RegisterEvent("CRITERIA_UPDATE", OnCriteriaUpdate)
 Addon:RegisterEvent("GET_ITEM_INFO_RECEIVED", OnRewardItemInfoReceived)
 Addon:RegisterEvent("PET_JOURNAL_LIST_UPDATE", OnRewardCollectionChanged)
+Addon:RegisterEvent("NEW_MOUNT_ADDED", OnRewardCollectionChanged)
 Addon:RegisterEvent("TRANSMOG_COLLECTION_UPDATED", OnRewardCollectionChanged)
 Addon:RegisterEvent("TOYS_UPDATED", OnRewardCollectionChanged)
 Addon:RegisterEvent("PLAYER_LOGIN", function()
