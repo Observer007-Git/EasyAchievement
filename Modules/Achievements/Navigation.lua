@@ -53,6 +53,7 @@ local function CaptureNavigation(frame)
             breadcrumbIDs = Copy(frame.breadcrumbIDs),
             breadcrumbCategory = frame.breadcrumbCategory,
             categoryContext = Copy(frame.rewardCategoryCardContext),
+            categoryOrigin = Copy(frame.rewardCategoryOrigin),
             viewState = not frame.cardOnlyAchievementID
                 and CaptureAchievementViewState(frame) or nil,
         }
@@ -75,6 +76,9 @@ function RecordAchievementNavigation(frame, replace)
     local snapshot = CaptureNavigation(frame)
     local current = frame.history[frame.historyIndex or 0]
     if replace and current then
+        for index = #frame.history, frame.historyIndex + 1, -1 do
+            table.remove(frame.history, index)
+        end
         frame.history[frame.historyIndex] = snapshot
         return
     end
@@ -108,7 +112,7 @@ function NavigateAchievementHistory(frame, offset)
     if not rewardCategory and not GetAchievementData(achievementID) then
         return false
     end
-    local context = frame.rewardCategoryCardContext
+    local context = frame.rewardCategoryCardContext or frame.rewardCategoryOrigin
     if rewardCategory and context and context.key == rewardCategory then
         entry.viewState = Copy(context.listState or entry.viewState or {})
         entry.viewState.selectedAchievementID =
@@ -130,6 +134,29 @@ function NavigateAchievementHistory(frame, offset)
         return false
     end
     return true
+end
+
+function OpenAchievementNodeCard(frame, achievementID)
+    if frame.rewardCategoryMode then
+        OpenAchievementRewardCategoryCard(frame, achievementID)
+    else
+        OpenAchievementPathCard(frame, achievementID)
+    end
+end
+
+function ScheduleAchievementNodeClick(frame, button)
+    button.clickSerial = (button.clickSerial or 0) + 1
+    local serial = button.clickSerial
+    local revision = frame.navigationRevision
+    local achievementID = button.node.id
+    C_Timer.After(0.24, function()
+        if button.clickSerial == serial and frame:IsShown()
+            and button:IsShown() and frame.navigationRevision == revision
+            and button.node and button.node.id == achievementID
+        then
+            OpenAchievementNodeCard(frame, achievementID)
+        end
+    end)
 end
 
 function OpenAchievementPathCard(frame, achievementID)
@@ -180,7 +207,11 @@ function OpenAchievementPathCard(frame, achievementID)
     else
         path[#path + 1] = achievementID
     end
-    ShowAchievementTree(achievementID, nil, path, true, nil, {
+    local origin = frame.rewardCategoryCardContext or frame.rewardCategoryOrigin
+    local categoryContext = origin
+        and origin.achievementIDs[origin.index] == achievementID and origin or nil
+    ShowAchievementTree(achievementID, nil, path, true, categoryContext, {
         breadcrumbCategory = frame.breadcrumbCategory,
+        categoryOrigin = not categoryContext and Copy(origin) or nil,
     })
 end

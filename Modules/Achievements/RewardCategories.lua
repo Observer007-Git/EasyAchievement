@@ -251,6 +251,7 @@ ShowAchievementRewardCategory = function(category, navigationMode, snapshot)
         return false
     end
     local frame = CreateAchievementTreeFrame()
+    frame.navigationRevision = (frame.navigationRevision or 0) + 1
     if navigationMode ~= "history" then
         SaveCurrentAchievementNavigation(frame)
     end
@@ -263,6 +264,7 @@ ShowAchievementRewardCategory = function(category, navigationMode, snapshot)
     frame.sourceAchievementID = nil
     frame.cardOnlyAchievementID = nil
     frame.rewardCategoryCardContext = nil
+    frame.rewardCategoryOrigin = nil
     frame.breadcrumbCategory = nil
     frame.breadcrumbIDs = nil
     frame.pendingRewardCategory = category
@@ -343,7 +345,8 @@ NavigateAchievementRewardCategoryCard = function(frame, offset)
 end
 
 ReturnToAchievementRewardCategory = function(frame)
-    local context = frame and frame.rewardCategoryCardContext
+    local context = frame and (frame.rewardCategoryCardContext
+        or frame.rewardCategoryOrigin)
     if context then
         local selectedID = context.achievementIDs[context.index]
         for index = (frame.historyIndex or 1) - 1, 1, -1 do

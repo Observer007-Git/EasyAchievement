@@ -35,19 +35,23 @@ function ConfigureAchievementCardChildLinks(objectivesFrame)
             if not IsAchievementValid(self.id) then
                 return
             end
-            if mouseButton == "RightButton" then
-                OpenAchievementContextMenu(self, self.id)
-            elseif IsShiftKeyDown() then
-                InsertAchievementLink(self.id)
-            else
+            local achievementID = self.id
+            local function OpenCard()
                 local frame = achievementTreeFrame
                 if frame and objectivesFrame:GetParent()
                     == frame.AchievementCard
                 then
-                    OpenAchievementPathCard(frame, self.id)
+                    OpenAchievementPathCard(frame, achievementID)
                 else
-                    ShowAchievementTree(self.id, nil, nil, true)
+                    ShowAchievementTree(achievementID, nil, nil, true)
                 end
+            end
+            if mouseButton == "RightButton" then
+                OpenAchievementContextMenu(self, achievementID, OpenCard)
+            elseif IsShiftKeyDown() then
+                InsertAchievementLink(self.id)
+            else
+                OpenCard()
             end
         end)
     end
@@ -303,7 +307,9 @@ function ShowAchievementCardInTree(frame, achievementID)
             if mouseButton == "RightButton" and self.node
                 and OpenAchievementContextMenu
             then
-                OpenAchievementContextMenu(self, self.node.id)
+                OpenAchievementContextMenu(self, self.node.id, function()
+                    ShowAchievementTree(frame.sourceAchievementID, "refresh")
+                end)
             elseif mouseButton == "LeftButton" and self.node
                 and IsShiftKeyDown()
             then
@@ -329,7 +335,11 @@ function ShowAchievementCardInTree(frame, achievementID)
         treeButton:SetText(L.ACHIEVEMENT_TREE_VIEW)
         treeButton:SetScript("OnClick", function(self)
             if self.achievementID then
-                ShowAchievementTree(self.achievementID)
+                ShowAchievementTree(self.achievementID, nil,
+                    frame.breadcrumbIDs, false, nil, {
+                        breadcrumbCategory = frame.breadcrumbCategory,
+                        categoryOrigin = frame.rewardCategoryOrigin,
+                    })
             end
         end)
         treeButton:Hide()
@@ -500,7 +510,15 @@ function ShowAchievementCardInTree(frame, achievementID)
         categoryReturnButton:Show()
     else
         categoryPosition:Hide()
-        categoryReturnButton:Hide()
+        local origin = frame.rewardCategoryOrigin
+        categoryReturnButton:SetShown(origin ~= nil)
+        if origin then
+            categoryReturnButton:SetText(string.format(
+                L.ACHIEVEMENT_REWARD_CATEGORY_RETURN, origin.label))
+            categoryReturnButton:ClearAllPoints()
+            categoryReturnButton:SetPoint("TOP", treeButton:IsShown()
+                and treeButton or card, "BOTTOM", 0, -8)
+        end
     end
     frame.Stats:SetText("")
     frame.Stats:Hide()

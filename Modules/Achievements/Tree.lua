@@ -263,28 +263,18 @@ function AcquireNodeButton(frame, index)
             return
         end
         if mouseButton == "RightButton" then
+            self.clickSerial = (self.clickSerial or 0) + 1
             if OpenAchievementContextMenu then
-                OpenAchievementContextMenu(self, self.node.id)
+                local achievementID = self.node.id
+                OpenAchievementContextMenu(self, achievementID, function()
+                    OpenAchievementNodeCard(frame, achievementID)
+                end)
             end
         elseif IsShiftKeyDown() then
             self.clickSerial = (self.clickSerial or 0) + 1
             InsertAchievementLink(self.node.id)
         else
-            self.clickSerial = (self.clickSerial or 0) + 1
-            local serial = self.clickSerial
-            local achievementID = self.node.id
-            C_Timer.After(0.24, function()
-                if self.clickSerial == serial then
-                    if frame.rewardCategoryMode
-                        and OpenAchievementRewardCategoryCard
-                    then
-                        OpenAchievementRewardCategoryCard(frame,
-                            achievementID)
-                    else
-                        OpenAchievementPathCard(frame, achievementID)
-                    end
-                end
-            end)
+            ScheduleAchievementNodeClick(frame, self)
         end
     end)
 

@@ -29,23 +29,19 @@ function UpdateBreadcrumb(frame)
     end
     local function Activate(entry, mouseButton)
         if entry.category then
-            if frame.rewardCategoryCardContext then
+            if frame.rewardCategoryCardContext or frame.rewardCategoryOrigin then
                 ReturnToAchievementRewardCategory(frame)
             else
                 ShowAchievementRewardCategory(entry.category)
             end
         elseif mouseButton == "RightButton" then
-            OpenAchievementContextMenu(frame, entry.id)
+            OpenAchievementContextMenu(frame, entry.id, function()
+                OpenAchievementPathCard(frame, entry.id)
+            end)
         elseif IsShiftKeyDown() then
             InsertAchievementLink(entry.id)
         elseif entry.pathIndex < #(frame.breadcrumbIDs or {}) then
-            local path = {}
-            for index = 1, entry.pathIndex do
-                path[index] = frame.breadcrumbIDs[index]
-            end
-            ShowAchievementTree(entry.id, nil, path, true, nil, {
-                breadcrumbCategory = frame.breadcrumbCategory,
-            })
+            OpenAchievementPathCard(frame, entry.id)
         end
     end
     local ruler = frame.Breadcrumb
@@ -220,6 +216,7 @@ ShowAchievementTree = function(achievementID, navigationMode, breadcrumbIDs,
     end
     if nodes then
         local frame = CreateAchievementTreeFrame()
+        frame.navigationRevision = (frame.navigationRevision or 0) + 1
         local previousCategoryContext = frame.rewardCategoryCardContext
         local previousCardOnly = frame.cardOnlyAchievementID
         if navigationMode ~= "history" and navigationMode ~= "refresh" then
@@ -232,6 +229,10 @@ ShowAchievementTree = function(achievementID, navigationMode, breadcrumbIDs,
         frame.pendingRewardCategory = nil
         frame.rewardCategoryCardContext = AchievementData.CopyNavigationState(
             rewardCategoryCardContext)
+        if navigationMode ~= "refresh" then
+            frame.rewardCategoryOrigin = AchievementData.CopyNavigationState(
+                navigationEntry and navigationEntry.categoryOrigin)
+        end
         local rootChanged = frame.sourceAchievementID ~= achievementID
         if frame.sourceAchievementID and (rootChanged
             or not previousCardOnly and cardOnlyAchievementID)
@@ -405,7 +406,7 @@ InsertAchievementLink = function(achievementID)
     print(link)
 end
 
-OpenAchievementContextMenu = function(button, achievementID)
+OpenAchievementContextMenu = function(button, achievementID, openCard)
     if not MenuUtil or not MenuUtil.CreateContextMenu then
         return
     end
@@ -429,7 +430,11 @@ OpenAchievementContextMenu = function(button, achievementID)
             ToggleAchievementTracking(achievementID)
         end)
         rootDescription:CreateButton(L.ACHIEVEMENT_CARD_VIEW, function()
-            ShowAchievementTree(achievementID, nil, nil, true)
+            if openCard then
+                openCard()
+            else
+                ShowAchievementTree(achievementID, nil, nil, true)
+            end
         end)
         if #GetChildAchievementIDs(achievementID) > 0 then
             rootDescription:CreateButton(L.ACHIEVEMENT_TREE_VIEW,

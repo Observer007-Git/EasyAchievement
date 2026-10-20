@@ -1250,6 +1250,7 @@ function CreateAchievementTreeFrame()
         PlayAchievementSound(SOUNDKIT and SOUNDKIT.ACHIEVEMENT_MENU_OPEN)
     end)
     frame:SetScript("OnHide", function()
+        frame.navigationRevision = (frame.navigationRevision or 0) + 1
         ReleaseAchievementSearch(frame)
         PlayAchievementSound(SOUNDKIT and SOUNDKIT.ACHIEVEMENT_MENU_CLOSE)
         SaveAchievementTreeState(frame)

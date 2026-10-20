@@ -69,6 +69,7 @@ for _, name in ipairs({ "Navigation", "Window", "RewardCategories", "Search" }) 
         "EasyAchievement", addon)
 end
 ui.CreateAchievementTreeFrame = function() return frame end
+local updateBreadcrumb = ui.UpdateBreadcrumb
 ui.UpdateBreadcrumb = function() end
 local revealedID
 ui.RevealAchievementNode = function(_, id) revealedID = id end
@@ -205,4 +206,184 @@ assert(frame:IsShown() and frame.sourceAchievementID == 106
 ui.OpenAchievementPanel()
 assert(frame.historyIndex == previousIndex and #frame.history == previousCount,
     "opening an already visible panel appended history")
+
+-- Exercise real node click handlers and menus, with only drawing APIs mocked.
+local function Widget()
+    return setmetatable({ scripts = {}, shown = true }, { __index = function(_, key)
+        if key == "SetScript" then
+            return function(self, name, callback) self.scripts[name] = callback end
+        elseif key == "IsShown" then
+            return function(self) return self.shown end
+        elseif key == "Hide" or key == "Show" then
+            return function(self) self.shown = key == "Show" end
+        elseif key == "GetFont" then
+            return function() return "test", 12, "" end
+        elseif key == "GetStringWidth" then
+            return function() return 60 end
+        elseif key == "GetWidth" then
+            return function() return 900 end
+        elseif key:match("^Create") then
+            return function() return Widget() end
+        end
+        return function() end
+    end })
+end
+ui.CreateFrame = Widget
+ui.SetTextureAtlas = function() return true end
+ui.IsShiftKeyDown = function() return false end
+local layoutTree = ui.LayoutAchievementTree
+assert(loadfile("EasyAchievement/Modules/Achievements/Tree.lua"))(
+    "EasyAchievement", addon)
+ui.LayoutAchievementTree = layoutTree
+frame.nodeButtons = {}
+local nodeButton = ui.AcquireNodeButton(frame, 1)
+nodeButton.clickSerial = 0
+local pendingClicks = {}
+ui.C_Timer = { After = function(_, callback)
+    pendingClicks[#pendingClicks + 1] = callback
+end }
+local function FlushClicks()
+    local callbacks = pendingClicks
+    pendingClicks = {}
+    for _, callback in ipairs(callbacks) do callback() end
+end
+local menuActions = {}
+ui.L.ACHIEVEMENT_CARD_VIEW = "card"
+ui.MenuUtil = { CreateContextMenu = function(_, generator)
+    menuActions = {}
+    generator(nil, {
+        CreateTitle = function() end,
+        CreateButton = function(_, label, callback)
+            if label then menuActions[label] = callback end
+        end,
+    })
+end }
+ui.IsAchievementFavorite = function() return false end
+ui.IsAchievementTracked = function() return false end
+ui.GetChildAchievementIDs = function() return {} end
+ui.CanOpenAchievementATTGuide = function() return false end
+ui.achievementPopupFrames = {}
+
+ui.ShowAchievementRewardCategory("mount")
+scroll.x = 100
+nodeButton.node = ui.GetAchievementData(105)
+nodeButton.scripts.OnClick(nodeButton, "RightButton")
+menuActions.card()
+assert(frame.sourceAchievementID == 105
+    and frame.rewardCategoryCardContext.index == 5
+    and frame.breadcrumbCategory == "mount",
+    "category node context-menu card lost category navigation")
+ui.ReturnToAchievementRewardCategory(frame)
+assert(scroll.x == 100 and frame.rewardCategoryMode.selectedAchievementID == 105,
+    "context-menu card did not return to the original category viewport")
+nodeButton.scripts.OnClick(nodeButton, "LeftButton")
+FlushClicks()
+assert(frame.sourceAchievementID == 105
+    and frame.rewardCategoryCardContext.index == 5,
+    "normal delayed category click did not preserve category navigation")
+
+ui.ShowAchievementTree(10)
+nodeButton.node = ui.GetAchievementData(12)
+nodeButton.scripts.OnClick(nodeButton, "RightButton")
+menuActions.card()
+assert(table.concat(frame.breadcrumbIDs, ",") == "10,11,12",
+    "tree node context-menu card lost ancestor breadcrumbs")
+
+ui.ShowAchievementTree(10)
+nodeButton.node = ui.GetAchievementData(12)
+nodeButton.scripts.OnClick(nodeButton, "LeftButton")
+ui.ShowAchievementTree(20)
+previousIndex = frame.historyIndex
+FlushClicks()
+assert(frame.sourceAchievementID == 20 and frame.historyIndex == previousIndex,
+    "stale delayed click overwrote a newer page")
+nodeButton.scripts.OnClick(nodeButton, "LeftButton")
+frame:Hide()
+FlushClicks()
+assert(not frame:IsShown() and frame.sourceAchievementID == 20,
+    "delayed click reopened a closed panel")
+frame:Show()
+nodeButton.scripts.OnClick(nodeButton, "LeftButton")
+nodeButton.node = ui.GetAchievementData(22)
+FlushClicks()
+assert(frame.sourceAchievementID == 20,
+    "a reused node button executed its old target")
+nodeButton.scripts.OnClick(nodeButton, "LeftButton")
+nodeButton.scripts.OnClick(nodeButton, "RightButton")
+FlushClicks()
+assert(frame.sourceAchievementID == 20,
+    "opening the context menu did not cancel a pending left click")
+
+ui.ShowAchievementRewardCategory("mount")
+scroll.x = 100
+ui.OpenAchievementRewardCategoryCard(frame, 105)
+local listIndex = frame.historyIndex - 1
+local frozenIDs = table.concat(frame.rewardCategoryCardContext.achievementIDs, ",")
+ui.OpenAchievementPathCard(frame, 201)
+assert(not frame.rewardCategoryCardContext and frame.rewardCategoryOrigin.index == 5,
+    "category descendant lost its origin or inherited unrelated list numbering")
+ui.ShowAchievementTree(201, "refresh")
+ui.OpenAchievementPathCard(frame, 202)
+ui.NavigateAchievementHistory(frame, -1)
+ui.NavigateAchievementHistory(frame, 1)
+ui.ReturnToAchievementRewardCategory(frame)
+assert(frame.historyIndex == listIndex and scroll.x == 100
+    and frame.rewardCategoryMode.selectedAchievementID == 105
+    and table.concat(frame.rewardCategoryMode.achievementIDs, ",") == frozenIDs,
+    "nested descendant return lost the original list order, viewport or selection")
+ui.NavigateAchievementHistory(frame, 1)
+assert(frame.sourceAchievementID == 105)
+ui.NavigateAchievementRewardCategoryCard(frame, 1)
+assert(frame.sourceAchievementID == 106 and #frame.history == frame.historyIndex,
+    "category navigation after back retained the obsolete descendant branch")
+assert(loadfile("EasyAchievement/Modules/Achievements/Cards.lua"))(
+    "EasyAchievement", addon)
+ui.IsAchievementValid = function() return true end
+frame.AchievementCard = Widget()
+local childButton = Widget()
+childButton.id = 201
+local objectives = { metas = { childButton } }
+function objectives:GetParent() return frame.AchievementCard end
+ui.ConfigureAchievementCardChildLinks(objectives)
+childButton.scripts.OnClick(childButton, "RightButton")
+menuActions.card()
+assert(frame.sourceAchievementID == 201 and frame.rewardCategoryOrigin.index == 6
+    and not frame.rewardCategoryCardContext,
+    "child context-menu card lost its category origin or inherited list numbering")
+frame:Hide()
+ui.OpenAchievementPanel()
+assert(frame.sourceAchievementID == 201 and frame.rewardCategoryOrigin.index == 6,
+    "reopening a descendant card lost its category origin")
+frame.Breadcrumb = Widget()
+updateBreadcrumb(frame)
+frame.BreadcrumbButtons[2].scripts.OnClick(frame.BreadcrumbButtons[2], "LeftButton")
+assert(frame.sourceAchievementID == 106
+    and frame.rewardCategoryCardContext.index == 6
+    and not frame.rewardCategoryOrigin,
+    "ancestor breadcrumb did not restore the original category card context")
+ui.OpenAchievementPathCard(frame, 201)
+updateBreadcrumb(frame)
+frame.BreadcrumbButtons[1].scripts.OnClick(frame.BreadcrumbButtons[1], "LeftButton")
+assert(frame.rewardCategoryMode.key == "mount"
+    and frame.rewardCategoryMode.selectedAchievementID == 106,
+    "descendant category breadcrumb did not restore its source list")
+ui.OpenAchievementRewardCategoryCard(frame, 106)
+ui.OpenAchievementPathCard(frame, 201)
+ui.NavigateAchievementHistory(frame, -2)
+assert(frame.rewardCategoryMode.key == "mount"
+    and frame.rewardCategoryMode.selectedAchievementID == 106,
+    "history back from a descendant lost its source-list selection")
+ui.NavigateAchievementHistory(frame, 2)
+local originIDs = table.concat(frame.rewardCategoryOrigin.achievementIDs, ",")
+frame.history = { frame.history[frame.historyIndex] }
+frame.historyIndex = 1
+ui.ReturnToAchievementRewardCategory(frame)
+assert(frame.rewardCategoryMode.selectedAchievementID == 106
+    and table.concat(frame.rewardCategoryMode.achievementIDs, ",") == originIDs,
+    "descendant return without an older list history lost the frozen snapshot")
+ui.OpenAchievementRewardCategoryCard(frame, 106)
+ui.OpenAchievementPathCard(frame, 201)
+ui.ShowAchievementTree(999, nil, nil, true)
+assert(not frame.rewardCategoryOrigin and not frame.rewardCategoryCardContext,
+    "an unrelated entry inherited the previous category origin")
 print("navigation snapshots, category return, breadcrumb paths: ok")
