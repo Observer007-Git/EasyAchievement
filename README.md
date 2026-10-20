@@ -33,6 +33,10 @@ LiteTools 中仍保留原成就模块作为回退。安装本插件后，建议�
 
 ## 项目结构
 
+开发后运行 `zsh Tools/sync_to_wow.sh` 同步到正式服。同步白名单仅包含
+`EasyAchievement.toc` 和 `Config`、`Core`、`Data`、`Locales`、`Modules`
+内的 Lua 文件；`Tests`、`Tools`、`Exports`、README 和 Git 元数据不进入游戏目录。
+
 ```text
 EasyAchievement/
 ├── EasyAchievement.toc       # 加载顺序、版本和插件元数据
