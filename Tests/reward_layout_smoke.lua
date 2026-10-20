@@ -17,9 +17,11 @@ function methods:Hide() self.shown = false end
 function methods:SetText(value) self.text = value end
 function methods:GetStringWidth() return #self.text * 8 end
 function methods:GetStringHeight()
+    if self.wordWrap == false then return self.text ~= "" and 18 or 0 end
     return math.ceil(#self.text * 8 / self.width) * 18
 end
 function methods:SetJustifyH(value) self.justifyH = value end
+function methods:SetWordWrap(value) self.wordWrap = value end
 function methods:GetFrameStrata() return "DIALOG" end
 function methods:GetFrameLevel() return 1 end
 function methods:GetActorByTag() return self.actor end
@@ -52,7 +54,8 @@ local host, panel = Widget(), Widget()
 host.width = 900
 host.Title, host.Stats, host.HeaderRow = Widget(), Widget(), Widget()
 for _, name in ipairs({ "ItemIcon", "CollectionBorder", "PetBorder",
-    "ToyButton", "ItemName", "Description", "ModelScene", "ModelControls",
+    "ToyButton", "ItemName", "Description", "DescriptionHover",
+    "ModelScene", "ModelControls",
     "PreviousReward", "NextReward", "EntryCounter" }) do
     panel[name] = Widget()
 end
@@ -65,7 +68,10 @@ for _, kind in ipairs({ "mount", "pet", "toy", "decor", "appearance", "item" }) 
     local model = kind == "mount" or kind == "pet" or kind == "decor"
         or kind == "appearance"
     reward = { text = "Reward summary", entries = {
-        { name = string.rep("Long reward name ", 8), description = "Reward description",
+        { name = string.rep("Long reward name ", 8),
+            description = kind == "decor"
+                and "Achievement: Example\nCategory: Decor\nPrice: 1"
+                or "Reward description",
             rewardType = kind, icon = 123, itemID = 456,
             previewType = kind == "appearance" and "appearance"
                 or model and "model" or "icon", modelSceneID = 1,
@@ -84,11 +90,24 @@ for _, kind in ipairs({ "mount", "pet", "toy", "decor", "appearance", "item" }) 
         "reward layout restored the removed type prefix or lost name alignment")
     local namePoint = panel.ItemName.points.TOP
     local descriptionPoint = panel.Description.points.TOPLEFT
+        or panel.Description.points.TOP
     local iconPoint = panel.ItemIcon.points.TOP
     assert(namePoint[3] == iconPoint[3]
         and descriptionPoint[4] < namePoint[4] - panel.ItemName.height
         and iconPoint[4] < descriptionPoint[4] - panel.Description.height,
         "reward text is not centered above the icon or overlaps it")
+    if kind == "decor" then
+        assert(panel.Description.wordWrap == false
+            and not panel.Description.text:find("\n", 1, true)
+            and panel.Description.width > panel.width
+            and panel.DescriptionHover.shown
+            and panel.DescriptionHover.fullText:find("\n", 1, true),
+            "decor details did not stay on one line with full text available")
+    else
+        assert(panel.Description.wordWrap == true
+            and not panel.DescriptionHover.shown,
+            "another reward type inherited the compact decor layout")
+    end
     assert(panel.ItemName.height > 18 and panel.EntryCounter.shown
         and panel.NextReward.shown,
         "wrapped names or multiple-reward controls were lost")

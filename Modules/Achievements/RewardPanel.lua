@@ -224,6 +224,20 @@ function CreateAchievementRewardFrame()
     description:SetWordWrap(true)
     frame.Description = description
 
+    local descriptionHover = CreateFrame("Frame", nil, frame)
+    descriptionHover:SetAllPoints(description)
+    descriptionHover:EnableMouse(true)
+    descriptionHover:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:SetText(self.fullText, 1, 1, 1, true)
+        GameTooltip:Show()
+    end)
+    descriptionHover:SetScript("OnLeave", function()
+        GameTooltip:Hide()
+    end)
+    descriptionHover:Hide()
+    frame.DescriptionHover = descriptionHover
+
     local modelScene = CreateFrame("ModelScene", nil, frame,
         "ModelSceneMixinTemplate")
     modelScene:SetPoint("TOPLEFT", frame, "TOPLEFT", 20, -118)
@@ -485,8 +499,15 @@ UpdateAchievementRewardPanel = function(frame, achievementID)
     rewardFrame.ItemName:SetText(table.concat(rewardNames, "  +  "))
     rewardFrame.ItemName:SetHeight(18)
     rewardFrame.ItemName:SetShown(#rewardNames > 0)
-    rewardFrame.Description:SetText(table.concat(rewardDescriptions, "\n\n"))
+    local fullDescription = table.concat(rewardDescriptions, "\n\n")
+    local compactDecor = primaryEntry.rewardType == "decor"
+    rewardFrame.Description:SetText(compactDecor
+        and fullDescription:gsub("[\r\n]+", "  ·  ") or fullDescription)
     rewardFrame.Description:SetShown(#rewardDescriptions > 0)
+    rewardFrame.Description:SetWordWrap(not compactDecor)
+    rewardFrame.DescriptionHover.fullText = fullDescription
+    rewardFrame.DescriptionHover:SetShown(compactDecor
+        and #rewardDescriptions > 0)
     local showAppearance = previewEntry
         and previewEntry.previewType == "appearance"
         and #(previewEntry.appearanceSourceIDs or {}) > 0
@@ -518,10 +539,19 @@ UpdateAchievementRewardPanel = function(frame, achievementID)
     rewardFrame.ItemName:SetHeight(nameHeight)
     local descriptionTop = 10 + nameHeight + (nameHeight > 0 and 6 or 0)
     rewardFrame.Description:ClearAllPoints()
-    rewardFrame.Description:SetPoint("TOPLEFT", rewardFrame, "TOPLEFT",
-        20 + contentCenterOffset, -descriptionTop)
-    rewardFrame.Description:SetPoint("TOPRIGHT", rewardFrame, "TOPRIGHT",
-        -20 + contentCenterOffset, -descriptionTop)
+    if compactDecor then
+        local descriptionWidth = showModel
+            and rewardFrame:GetWidth() + MODEL_SCENE_RIGHT_OFFSET
+                - MODEL_SCENE_LEFT_OFFSET - 40 or textWidth
+        rewardFrame.Description:SetWidth(descriptionWidth)
+        rewardFrame.Description:SetPoint("TOP", rewardFrame, "TOP",
+            contentCenterOffset, -descriptionTop)
+    else
+        rewardFrame.Description:SetPoint("TOPLEFT", rewardFrame, "TOPLEFT",
+            20 + contentCenterOffset, -descriptionTop)
+        rewardFrame.Description:SetPoint("TOPRIGHT", rewardFrame, "TOPRIGHT",
+            -20 + contentCenterOffset, -descriptionTop)
+    end
     rewardFrame.Description:SetHeight(0)
     local descriptionHeight = #rewardDescriptions > 0
         and rewardFrame.Description:GetStringHeight() or 0
