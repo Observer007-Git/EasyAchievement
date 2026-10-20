@@ -9,16 +9,23 @@ else
 end
 
 local CATEGORY_DEFINITIONS = {
-    { key = "mount", labelKey = "ACHIEVEMENT_REWARD_CATEGORY_MOUNT" },
-    { key = "pet", labelKey = "ACHIEVEMENT_REWARD_CATEGORY_PET" },
-    { key = "toy", labelKey = "ACHIEVEMENT_REWARD_CATEGORY_TOY" },
-    { key = "decor", labelKey = "ACHIEVEMENT_REWARD_CATEGORY_DECOR" },
-    { key = "title", labelKey = "ACHIEVEMENT_REWARD_CATEGORY_TITLE" },
+    { key = "mount", labelKey = "ACHIEVEMENT_REWARD_CATEGORY_MOUNT",
+        icon = "Interface\\Icons\\MountJournalPortrait" },
+    { key = "pet", labelKey = "ACHIEVEMENT_REWARD_CATEGORY_PET",
+        icon = "Interface\\Icons\\PetJournalPortrait" },
+    { key = "toy", labelKey = "ACHIEVEMENT_REWARD_CATEGORY_TOY",
+        icon = "Interface\\Icons\\Trade_Archaeology_ChestofTinyGlassAnimals" },
+    { key = "decor", labelKey = "ACHIEVEMENT_REWARD_CATEGORY_DECOR",
+        icon = "Interface\\Icons\\Spell_Housing" },
+    { key = "title", labelKey = "ACHIEVEMENT_REWARD_CATEGORY_TITLE",
+        icon = "Interface\\Icons\\INV_Misc_Note_01" },
     {
         key = "appearance",
         labelKey = "ACHIEVEMENT_REWARD_CATEGORY_APPEARANCE",
+        icon = "Interface\\Icons\\INV_Chest_Cloth_17",
     },
-    { key = "other", labelKey = "ACHIEVEMENT_REWARD_CATEGORY_OTHER" },
+    { key = "other", labelKey = "ACHIEVEMENT_REWARD_CATEGORY_OTHER",
+        icon = "Interface\\Icons\\INV_Misc_QuestionMark" },
 }
 
 local categoryIndex
@@ -201,14 +208,14 @@ local function RenderRewardCategory(frame, definition, achievementIDs)
     local root = nodes[1] or {
         id = 0,
         name = label,
-        icon = 134400,
+        icon = definition.icon,
         depth = 1,
     }
     frame.rewardCategoryMode = {
         key = definition.key,
         visitID = frame.currentPage.category.visitID,
         label = label,
-        icon = 134400,
+        icon = definition.icon,
         achievementIDs = orderedAchievementIDs,
         selectedAchievementID = frame.categoryRestoreState
             and frame.categoryRestoreState.selectedAchievementID,
@@ -269,7 +276,7 @@ ShowAchievementRewardCategory = function(category, navigationMode, snapshot)
             visitID = snapshot and snapshot.visitID
                 or Navigation.NewCategoryVisit(),
             label = L[definition.labelKey],
-            icon = 134400,
+            icon = definition.icon,
         },
     })
     local revision = frame.navigationRevision
@@ -285,7 +292,7 @@ ShowAchievementRewardCategory = function(category, navigationMode, snapshot)
         local placeholder = {
             id = 0,
             name = L[definition.labelKey],
-            icon = 134400,
+            icon = definition.icon,
             depth = 1,
         }
         LayoutAchievementTree({}, {}, placeholder, false,
