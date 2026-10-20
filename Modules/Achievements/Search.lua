@@ -437,9 +437,18 @@ OpenAchievementContextMenu = function(button, achievementID)
                     ShowAchievementTree(achievementID)
                 end)
         end
-        rootDescription:CreateButton(L.ACHIEVEMENT_POPUP_SHOW, function()
-            ShowAchievementPopup(achievementID)
-        end)
+        local hasPopup = false
+        for _, popup in ipairs(achievementPopupFrames) do
+            if popup.achievementID == achievementID then
+                hasPopup = true
+                break
+            end
+        end
+        if not hasPopup then
+            rootDescription:CreateButton(L.ACHIEVEMENT_POPUP_SHOW, function()
+                ShowAchievementPopup(achievementID)
+            end)
+        end
         if CanOpenAchievementATTGuide() then
             rootDescription:CreateButton(L.ACHIEVEMENT_ATT_OPEN, function()
                 OpenAchievementATTGuide(achievementID)

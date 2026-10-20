@@ -287,6 +287,24 @@ openedATTQuery = nil
 menuActions.att()
 assert(openedATTQuery == "achievementID:2468",
     "achievement context menu opened the wrong ATT guide")
+local popupFrames = AchievementUI.achievementPopupFrames
+popupFrames[#popupFrames + 1] = { achievementID = 2468 }
+menuActions = {}
+AchievementUI.OpenAchievementContextMenu(button, 2468)
+assert(menuActions.popup == nil,
+    "achievement with an open popup still offered to show the same popup")
+assert(menuActions.favorite and menuActions.track and menuActions.card
+    and menuActions.att,
+    "hiding the duplicate popup action removed unrelated achievement actions")
+menuActions = {}
+AchievementUI.OpenAchievementContextMenu(button, 1357)
+assert(type(menuActions.popup) == "function",
+    "another achievement's popup suppressed the target achievement action")
+table.remove(popupFrames)
+menuActions = {}
+AchievementUI.OpenAchievementContextMenu(button, 2468)
+assert(type(menuActions.popup) == "function",
+    "closing a popup did not restore its show-popup action")
 AllTheThings = nil
 assert(not AchievementUI.CanOpenAchievementATTGuide(),
     "ATT guide remained available after ATT was removed")
