@@ -370,8 +370,13 @@ LayoutAchievementTree = function(nodes, edges, root, preserveScroll, stats,
     local showIncompleteFilter = not categoryMode and stats.incomplete > 0
     frame.IncompleteOnly:SetShown(showIncompleteFilter)
     frame.IncompleteOnlyLabel:SetShown(showIncompleteFilter)
-    frame.PortraitIcon:SetTexture(categoryMode and categoryMode.icon
-        or titleRoot.icon)
+    if not (categoryMode and categoryMode.iconAtlas
+        and SetTextureAtlas(frame.PortraitIcon, categoryMode.iconAtlas))
+    then
+        frame.PortraitIcon:SetTexture(categoryMode and categoryMode.icon
+            or titleRoot.icon)
+        frame.PortraitIcon:SetTexCoord(0.06, 0.94, 0.06, 0.94)
+    end
     frame.ATTButton:SetShown(not categoryMode and CanOpenAchievementATTGuide())
     local completionPercent = stats.total > 0
         and math.floor(stats.completed * 100 / stats.total + 0.5) or 0

@@ -25,7 +25,8 @@ local CATEGORY_DEFINITIONS = {
         icon = "Interface\\Icons\\INV_Chest_Cloth_17",
     },
     { key = "other", labelKey = "ACHIEVEMENT_REWARD_CATEGORY_OTHER",
-        icon = "Interface\\Icons\\INV_Misc_QuestionMark" },
+        icon = "Interface\\Icons\\INV_Misc_QuestionMark",
+        iconAtlas = "decor-placement-list-default" },
 }
 
 local categoryIndex
@@ -189,6 +190,11 @@ function GetAchievementRewardCategoryLabel(category)
     return definition and L[definition.labelKey]
 end
 
+function GetAchievementRewardCategoryIcon(category)
+    local definition = GetCategoryDefinition(category)
+    return definition and definition.icon, definition and definition.iconAtlas
+end
+
 local function RenderRewardCategory(frame, definition, achievementIDs)
     if frame.pendingRewardCategory ~= definition.key or not frame:IsShown() then
         return
@@ -216,6 +222,7 @@ local function RenderRewardCategory(frame, definition, achievementIDs)
         visitID = frame.currentPage.category.visitID,
         label = label,
         icon = definition.icon,
+        iconAtlas = definition.iconAtlas,
         achievementIDs = orderedAchievementIDs,
         selectedAchievementID = frame.categoryRestoreState
             and frame.categoryRestoreState.selectedAchievementID,

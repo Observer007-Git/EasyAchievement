@@ -223,6 +223,8 @@ local function Widget()
             return function() return 60 end
         elseif key == "GetWidth" then
             return function() return 900 end
+        elseif key == "SetTexture" then
+            return function(self, texture) self.texture = texture end
         elseif key:match("^Create") then
             return function() return Widget() end
         end
@@ -230,7 +232,10 @@ local function Widget()
     end })
 end
 ui.CreateFrame = Widget
-ui.SetTextureAtlas = function() return true end
+ui.SetTextureAtlas = function(texture, atlas)
+    texture.atlas = atlas
+    return true
+end
 ui.IsShiftKeyDown = function() return false end
 local layoutTree = ui.LayoutAchievementTree
 assert(loadfile("EasyAchievement/Modules/Achievements/Tree.lua"))(
@@ -356,6 +361,16 @@ ui.OpenAchievementPanel()
 assert(frame.sourceAchievementID == 201 and frame.rewardCategoryOrigin.index == 6,
     "reopening a descendant card lost its category origin")
 frame.Breadcrumb = Widget()
+updateBreadcrumb(frame)
+assert(frame.BreadcrumbButtons[1].Icon.texture
+    == "Interface\\Icons\\MountJournalPortrait",
+    "category breadcrumb did not use the category icon")
+frame.breadcrumbCategory = "other"
+updateBreadcrumb(frame)
+assert(frame.BreadcrumbButtons[1].Icon.atlas
+    == "decor-placement-list-default",
+    "other-category breadcrumb did not use its atlas")
+frame.breadcrumbCategory = "mount"
 updateBreadcrumb(frame)
 frame.BreadcrumbButtons[2].scripts.OnClick(frame.BreadcrumbButtons[2], "LeftButton")
 assert(frame.sourceAchievementID == 106

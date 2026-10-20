@@ -93,7 +93,17 @@ function UpdateBreadcrumb(frame)
             text = text .. "  >"
         end
         button.Text:SetText(text)
-        button.Icon:SetTexture(data and data.icon or entry and 134400 or nil)
+        local categoryIcon, categoryAtlas
+        if entry and entry.category then
+            categoryIcon, categoryAtlas = GetAchievementRewardCategoryIcon(
+                entry.category)
+        end
+        if not (categoryAtlas and SetTextureAtlas(button.Icon, categoryAtlas))
+        then
+            button.Icon:SetTexture(data and data.icon or categoryIcon
+                or entry and 134400 or nil)
+            button.Icon:SetTexCoord(0, 1, 0, 1)
+        end
         button.Icon:SetShown(item.index ~= 0)
         button.Border:SetShown(item.index ~= 0)
         button.Icon:SetDesaturated(data and not data.completed or false)
