@@ -41,6 +41,44 @@ function Data.AppendHistory(history, entry)
     return #history
 end
 
+function Data.CopyNavigationState(value)
+    if type(value) ~= "table" then
+        return value
+    end
+    local copy = {}
+    for key, item in pairs(value) do
+        copy[key] = Data.CopyNavigationState(item)
+    end
+    return copy
+end
+
+function Data.GetBreadcrumbLayout(widths, available)
+    available = math.max(1, available)
+    local total = 0
+    for _, width in ipairs(widths) do
+        total = total + width
+    end
+    local layout = {}
+    if total <= available then
+        for index, width in ipairs(widths) do
+            layout[#layout + 1] = { index = index, width = width }
+        end
+    elseif #widths == 1 then
+        layout[1] = { index = 1, width = available }
+    elseif #widths > 1 then
+        local overflow = #widths > 2 and 24 or 0
+        local firstWidth = math.min(widths[1], (available - overflow) * 0.4)
+        layout[1] = { index = 1, width = firstWidth }
+        if overflow > 0 then
+            layout[2] = { index = 0, width = overflow }
+        end
+        layout[#layout + 1] = {
+            index = #widths, width = available - overflow - firstWidth,
+        }
+    end
+    return layout
+end
+
 function Data.IsValid(achievementID)
     if type(achievementID) ~= "number" or achievementID <= 0 then
         return false

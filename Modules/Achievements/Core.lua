@@ -118,23 +118,6 @@ achievementPopupFrames = {}
 achievementPopupPool = {}
 achievementPopupFrameSerial = 0
 
-function NavigateAchievementHistory(frame, offset)
-    local targetIndex = (frame.historyIndex or 0) + offset
-    if targetIndex < 1 or targetIndex > #(frame.history or {}) then
-        return
-    end
-    frame.historyIndex = targetIndex
-    local achievementID, showCardOnly, rewardCategory =
-        GetAchievementHistoryEntry(
-        frame.history[targetIndex])
-    if rewardCategory and ShowAchievementRewardCategory then
-        ShowAchievementRewardCategory(rewardCategory, "history")
-    else
-        ShowAchievementTree(achievementID, "history", nil, showCardOnly)
-    end
-end
-
-
 function GetAchievementCardScale()
     return math.max(MIN_ACHIEVEMENT_CARD_SCALE,
         math.min(MAX_ACHIEVEMENT_CARD_SCALE,

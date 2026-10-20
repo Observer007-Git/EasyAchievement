@@ -281,7 +281,7 @@ function AcquireNodeButton(frame, index)
                         OpenAchievementRewardCategoryCard(frame,
                             achievementID)
                     else
-                        ShowAchievementTree(achievementID, nil, nil, true)
+                        OpenAchievementPathCard(frame, achievementID)
                     end
                 end
             end)

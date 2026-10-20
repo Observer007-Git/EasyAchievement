@@ -13,8 +13,51 @@ end
 function UpdateBreadcrumb(frame)
     frame.Breadcrumb:Hide()
     frame.BreadcrumbButtons = frame.BreadcrumbButtons or {}
+    local entries, widths = {}, {}
+    if frame.breadcrumbCategory then
+        entries[1] = {
+            label = GetAchievementRewardCategoryLabel(frame.breadcrumbCategory),
+            category = frame.breadcrumbCategory,
+        }
+    end
+    for pathIndex, achievementID in ipairs(frame.breadcrumbIDs or {}) do
+        local data = GetAchievementData(achievementID)
+        entries[#entries + 1] = {
+            id = achievementID, pathIndex = pathIndex, data = data,
+            label = data and data.name or tostring(achievementID),
+        }
+    end
+    local function Activate(entry, mouseButton)
+        if entry.category then
+            if frame.rewardCategoryCardContext then
+                ReturnToAchievementRewardCategory(frame)
+            else
+                ShowAchievementRewardCategory(entry.category)
+            end
+        elseif mouseButton == "RightButton" then
+            OpenAchievementContextMenu(frame, entry.id)
+        elseif IsShiftKeyDown() then
+            InsertAchievementLink(entry.id)
+        elseif entry.pathIndex < #(frame.breadcrumbIDs or {}) then
+            local path = {}
+            for index = 1, entry.pathIndex do
+                path[index] = frame.breadcrumbIDs[index]
+            end
+            ShowAchievementTree(entry.id, nil, path, true, nil, {
+                breadcrumbCategory = frame.breadcrumbCategory,
+            })
+        end
+    end
+    local ruler = frame.Breadcrumb
+    for index, entry in ipairs(entries) do
+        ruler:SetText(entry.label or "")
+        widths[index] = math.ceil(ruler:GetStringWidth()) + 48
+    end
+    local layout = AchievementData.GetBreadcrumbLayout(widths,
+        math.max(60, ruler:GetWidth()))
     local offset = 128
-    for index, achievementID in ipairs(frame.breadcrumbIDs or {}) do
+    for index, item in ipairs(layout) do
+        local entry = entries[item.index]
         local button = frame.BreadcrumbButtons[index]
         if not button then
             button = CreateFrame("Button", nil, frame)
@@ -41,43 +84,56 @@ function UpdateBreadcrumb(frame)
             local text = button:CreateFontString(nil, "OVERLAY",
                 "GameFontHighlightSmall")
             text:SetPoint("LEFT", icon, "RIGHT", 5, 0)
+            text:SetPoint("RIGHT", -4, 0)
+            text:SetWordWrap(false)
             button.Text = text
             frame.BreadcrumbButtons[index] = button
         end
-        local data = GetAchievementData(achievementID)
-        local text = data and data.name or tostring(achievementID)
-        if index < #(frame.breadcrumbIDs or {}) then
+        local data = entry and entry.data
+        local text = entry and entry.label or "…"
+        if index < #layout and item.index ~= 0 then
             text = text .. "  >"
         end
         button.Text:SetText(text)
-        button.Icon:SetTexture(data and data.icon or nil)
+        button.Icon:SetTexture(data and data.icon or entry and 134400 or nil)
+        button.Icon:SetShown(item.index ~= 0)
+        button.Border:SetShown(item.index ~= 0)
         button.Icon:SetDesaturated(data and not data.completed or false)
         button.Border:SetDesaturated(data and not data.completed or false)
         button.Border:SetAlpha(data and data.completed and 1 or 0.72)
-        local width = 32 + math.ceil(button.Text:GetStringWidth()) + 8
+        button.Text:ClearAllPoints()
+        button.Text:SetPoint("LEFT", item.index == 0 and 2 or 28, 0)
+        button.Text:SetPoint("RIGHT", -4, 0)
+        local width = item.width
         button:SetWidth(width)
         button:ClearAllPoints()
         button:SetPoint("LEFT", frame, "TOPLEFT", offset, -97)
-        button.achievementID = achievementID
-        button.pathIndex = index
         button:SetScript("OnClick", function(self, mouseButton)
-            if mouseButton == "RightButton" then
-                OpenAchievementContextMenu(self, self.achievementID)
-                return
-            elseif IsShiftKeyDown() then
-                InsertAchievementLink(self.achievementID)
-                return
+            if entry then
+                Activate(entry, mouseButton)
+            elseif MenuUtil and MenuUtil.CreateContextMenu then
+                MenuUtil.CreateContextMenu(self, function(_, menu)
+                    for hiddenIndex = 2, #entries - 1 do
+                        local hiddenEntry = entries[hiddenIndex]
+                        menu:CreateButton(hiddenEntry.label, function()
+                            Activate(hiddenEntry, "LeftButton")
+                        end)
+                    end
+                end)
             end
-            local path = {}
-            for pathIndex = 1, self.pathIndex do
-                path[pathIndex] = frame.breadcrumbIDs[pathIndex]
-            end
-            ShowAchievementTree(self.achievementID, nil, path, true)
         end)
+        button:SetScript("OnEnter", function(self)
+            if entry then
+                GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
+                GameTooltip:SetText(entry.label)
+                GameTooltip:Show()
+            end
+        end)
+        button:SetScript("OnLeave", function() GameTooltip:Hide() end)
         button:Show()
         offset = offset + width
     end
-    for index = #(frame.breadcrumbIDs or {}) + 1,
+    for index = #layout + 1,
         #frame.BreadcrumbButtons
     do
         frame.BreadcrumbButtons[index]:Hide()
@@ -144,12 +200,14 @@ function RevealAchievementNode(frame, achievementID)
 end
 
 ShowAchievementTree = function(achievementID, navigationMode, breadcrumbIDs,
-    showCardOnly, rewardCategoryCardContext)
+    showCardOnly, rewardCategoryCardContext, navigationEntry)
     local frameWasShown = achievementTreeFrame
         and achievementTreeFrame:IsShown() or false
     local cardOnlyAchievementID = showCardOnly and achievementID or nil
     if navigationMode == "refresh" and achievementTreeFrame then
         cardOnlyAchievementID = achievementTreeFrame.cardOnlyAchievementID
+        rewardCategoryCardContext = AchievementData.CopyNavigationState(
+            achievementTreeFrame.rewardCategoryCardContext)
     end
     local nodes, edges, root
     if cardOnlyAchievementID == achievementID then
@@ -162,14 +220,22 @@ ShowAchievementTree = function(achievementID, navigationMode, breadcrumbIDs,
     end
     if nodes then
         local frame = CreateAchievementTreeFrame()
+        local previousCategoryContext = frame.rewardCategoryCardContext
+        local previousCardOnly = frame.cardOnlyAchievementID
+        if navigationMode ~= "history" and navigationMode ~= "refresh" then
+            SaveCurrentAchievementNavigation(frame)
+        end
         if frame.rewardCategoryMode then
             SaveAchievementRewardCategoryState(frame)
         end
         frame.rewardCategoryMode = nil
         frame.pendingRewardCategory = nil
-        frame.rewardCategoryCardContext = rewardCategoryCardContext
+        frame.rewardCategoryCardContext = AchievementData.CopyNavigationState(
+            rewardCategoryCardContext)
         local rootChanged = frame.sourceAchievementID ~= achievementID
-        if frame.sourceAchievementID and rootChanged then
+        if frame.sourceAchievementID and (rootChanged
+            or not previousCardOnly and cardOnlyAchievementID)
+        then
             SaveAchievementTreeState(frame)
         end
         frame.sourceAchievementID = achievementID
@@ -177,39 +243,29 @@ ShowAchievementTree = function(achievementID, navigationMode, breadcrumbIDs,
             frame.cardOnlyAchievementID = showCardOnly
                 and achievementID or nil
         end
-        if rootChanged then
+        if rootChanged or previousCardOnly and not cardOnlyAchievementID then
             RestoreAchievementTreeState(frame, achievementID)
+        end
+        if navigationEntry and navigationEntry.viewState then
+            RestoreAchievementNavigationState(frame, navigationEntry.viewState)
         end
         Addon:SetSetting("achievementLastTreeID", achievementID)
         RefreshAchievementFavoritesBar(frame)
         frame.history = frame.history or {}
         frame.collapsedNodes = frame.collapsedNodes or {}
-        if navigationMode ~= "refresh" and navigationMode ~= "history"
-            and navigationMode ~= "category"
-        then
-            local currentID, currentShowCardOnly =
-                GetAchievementHistoryEntry(
-                    frame.history[frame.historyIndex or 0])
-            if currentID ~= achievementID
-                or currentShowCardOnly ~= (showCardOnly == true)
-            then
-                for index = #frame.history, (frame.historyIndex or 0) + 1, -1 do
-                    table.remove(frame.history, index)
-                end
-                frame.historyIndex = AchievementData.AppendHistory(
-                    frame.history, {
-                        achievementID = achievementID,
-                        showCardOnly = showCardOnly == true,
-                    })
-            end
-            frame.breadcrumbIDs = breadcrumbIDs or { achievementID }
+        if navigationMode ~= "refresh" then
+            frame.breadcrumbIDs = AchievementData.CopyNavigationState(
+                breadcrumbIDs or { achievementID })
+            frame.breadcrumbCategory = navigationEntry
+                and navigationEntry.breadcrumbCategory
+                or rewardCategoryCardContext and rewardCategoryCardContext.key
             RecordRecentAchievement(achievementID)
-        elseif navigationMode == "history" then
-            frame.breadcrumbIDs = { achievementID }
-            RecordRecentAchievement(achievementID)
-        elseif navigationMode == "category" then
-            frame.breadcrumbIDs = { achievementID }
-            RecordRecentAchievement(achievementID)
+        end
+        if navigationMode ~= "refresh" and navigationMode ~= "history" then
+            local replace = navigationMode == "category"
+                and previousCategoryContext and rewardCategoryCardContext
+                and previousCategoryContext.key == rewardCategoryCardContext.key
+            RecordAchievementNavigation(frame, replace)
         end
         frame.breadcrumbIDs = frame.breadcrumbIDs or { achievementID }
         frame.fullNodes = nodes
@@ -291,6 +347,7 @@ ShowAchievementTree = function(achievementID, navigationMode, breadcrumbIDs,
             navigationMode == "refresh", stats, root,
             frame.cardOnlyAchievementID)
         UpdateBreadcrumb(frame)
+        SaveCurrentAchievementNavigation(frame)
         if revealAchievementID then
             frame.pendingRevealAchievementID = nil
             RevealAchievementNode(frame, revealAchievementID)

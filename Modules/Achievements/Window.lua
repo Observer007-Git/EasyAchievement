@@ -83,7 +83,7 @@ SaveAchievementTreeState = function(frame)
             SaveAchievementRewardCategoryState(frame)
         end
         return
-    elseif not frame.sourceAchievementID then
+    elseif not frame.sourceAchievementID or frame.cardOnlyAchievementID then
         return
     end
     local states = {}
@@ -341,6 +341,12 @@ function CreateAchievementTreeFrame()
     backButton:SetScript("OnClick", function()
         NavigateAchievementHistory(frame, -1)
     end)
+    backButton:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
+        GameTooltip:SetText(L.ACHIEVEMENT_HISTORY_BACK)
+        GameTooltip:Show()
+    end)
+    backButton:SetScript("OnLeave", function() GameTooltip:Hide() end)
     frame.BackButton = backButton
 
     local forwardButton = CreateFrame("Button", nil, frame)
@@ -355,6 +361,12 @@ function CreateAchievementTreeFrame()
     forwardButton:SetScript("OnClick", function()
         NavigateAchievementHistory(frame, 1)
     end)
+    forwardButton:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
+        GameTooltip:SetText(L.ACHIEVEMENT_HISTORY_FORWARD)
+        GameTooltip:Show()
+    end)
+    forwardButton:SetScript("OnLeave", function() GameTooltip:Hide() end)
     frame.ForwardButton = forwardButton
 
     local incompleteOnly = CreateFrame("CheckButton", nil, frame,
@@ -416,6 +428,9 @@ function CreateAchievementTreeFrame()
             LayoutAchievementTree(frame.layoutNodes, frame.layoutEdges,
                 frame.layoutRoot, true, frame.layoutStats,
                 frame.layoutTitleRoot)
+            if not frame.rewardCategoryMode and UpdateBreadcrumb then
+                UpdateBreadcrumb(frame)
+            end
         end
     end)
     scaleMinus:SetScript("OnClick", function()

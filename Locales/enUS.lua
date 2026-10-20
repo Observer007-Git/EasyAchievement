@@ -2,6 +2,10 @@ local _, Addon = ...
 local L = Addon.L
 
 L.ACHIEVEMENT_ENHANCEMENT = "EasyAchievement"
+L.ACHIEVEMENT_HISTORY_BACK = "Back to previous view"
+L.ACHIEVEMENT_HISTORY_FORWARD = "Forward to next view"
+L.ACHIEVEMENT_CATEGORY_PREVIOUS = "Previous achievement in this category"
+L.ACHIEVEMENT_CATEGORY_NEXT = "Next achievement in this category"
 L.ACHIEVEMENT_FAVORITE_ADD = "Favorite achievement"
 L.ACHIEVEMENT_FAVORITE_REMOVE = "Remove favorite"
 L.ACHIEVEMENT_FAVORITES = "Favorites"

@@ -42,6 +42,10 @@ function SanitizeAchievementRewardCategoryStates(value)
                     tonumber(state.scale) or 1)),
                 horizontal = math.max(0, tonumber(state.horizontal) or 0),
                 vertical = math.max(0, tonumber(state.vertical) or 0),
+                selectedAchievementID = SanitizeAchievementID(
+                    state.selectedAchievementID),
+                viewportWidth = tonumber(state.viewportWidth),
+                viewportHeight = tonumber(state.viewportHeight),
             }
         end
     end
@@ -59,17 +63,14 @@ SaveAchievementRewardCategoryState = function(frame)
     do
         states[category] = state
     end
-    states[mode.key] = {
-        scale = frame.treeScale or 1,
-        horizontal = frame.ScrollFrame:GetHorizontalScroll(),
-        vertical = frame.ScrollFrame:GetVerticalScroll(),
-    }
+    states[mode.key] = CaptureAchievementViewState(frame)
     Addon:SetSetting("achievementRewardCategoryStates", states)
 end
 
-local function RestoreCategoryState(frame, category)
+local function RestoreCategoryState(frame, category, snapshot)
     local states = Addon:GetSetting("achievementRewardCategoryStates") or {}
-    local state = states[category]
+    local state = snapshot or states[category]
+    frame.categoryRestoreState = AchievementData.CopyNavigationState(state)
     frame.restoringTreeState = true
     frame.treeScale = state and state.scale or 1
     frame.pendingHorizontalScroll = state and state.horizontal or 0
@@ -176,6 +177,11 @@ local function GetCategoryDefinition(category)
     end
 end
 
+function GetAchievementRewardCategoryLabel(category)
+    local definition = GetCategoryDefinition(category)
+    return definition and L[definition.labelKey]
+end
+
 local function RenderRewardCategory(frame, definition, achievementIDs)
     if frame.pendingRewardCategory ~= definition.key or not frame:IsShown() then
         return
@@ -203,47 +209,75 @@ local function RenderRewardCategory(frame, definition, achievementIDs)
         label = label,
         icon = 134400,
         achievementIDs = orderedAchievementIDs,
+        selectedAchievementID = frame.categoryRestoreState
+            and frame.categoryRestoreState.selectedAchievementID,
     }
     frame.EmptyText:SetText(L.ACHIEVEMENT_REWARD_CATEGORY_EMPTY)
     LayoutAchievementTree(nodes, {}, root, false,
         GetAchievementTreeStats(nodes), root)
+    local state = frame.categoryRestoreState
+    frame.categoryRestoreState = nil
+    if state and state.selectedAchievementID then
+        for _, node in ipairs(nodes) do
+            if node.id == state.selectedAchievementID then
+                local x, y = node.navigatorX or 0, node.navigatorY or 0
+                local scroll = frame.ScrollFrame
+                local horizontal = scroll:GetHorizontalScroll()
+                local vertical = scroll:GetVerticalScroll()
+                local changed = state.viewportWidth ~= scroll:GetWidth()
+                    or state.viewportHeight ~= scroll:GetHeight()
+                local outside = x < horizontal or y < vertical
+                    or x + (node.layoutWidth or NODE_SIZE)
+                        > horizontal + scroll:GetWidth()
+                    or y + NODE_SIZE > vertical + scroll:GetHeight()
+                if changed or outside then
+                    RevealAchievementNode(frame, node.id)
+                elseif node.button then
+                    node.button.RevealHighlightPulse:Stop()
+                    node.button.RevealGlow:SetAlpha(0.25)
+                    node.button.RevealHighlightPulse:Play()
+                end
+                break
+            end
+        end
+    end
+    SaveAchievementRewardCategoryState(frame)
+    SaveCurrentAchievementNavigation(frame)
 end
 
-ShowAchievementRewardCategory = function(category, navigationMode)
+ShowAchievementRewardCategory = function(category, navigationMode, snapshot)
     local definition = GetCategoryDefinition(category)
     if not definition then
         return
     end
     local frame = CreateAchievementTreeFrame()
+    if navigationMode ~= "history" then
+        SaveCurrentAchievementNavigation(frame)
+    end
     if frame.rewardCategoryMode then
         SaveAchievementRewardCategoryState(frame)
     elseif frame.sourceAchievementID then
         SaveAchievementTreeState(frame)
     end
     frame.history = frame.history or {}
-    if navigationMode ~= "history" and navigationMode ~= "return" then
-        local _, _, currentCategory = GetAchievementHistoryEntry(
-            frame.history[frame.historyIndex or 0])
-        if currentCategory ~= category then
-            for index = #frame.history, (frame.historyIndex or 0) + 1, -1 do
-                table.remove(frame.history, index)
-            end
-            frame.historyIndex = AchievementData.AppendHistory(
-                frame.history, { rewardCategory = category })
-        end
-    end
     frame.sourceAchievementID = nil
     frame.cardOnlyAchievementID = nil
     frame.rewardCategoryCardContext = nil
+    frame.breadcrumbCategory = nil
+    frame.breadcrumbIDs = nil
     frame.pendingRewardCategory = category
     frame.rewardCategoryMode = {
         key = category,
         label = L[definition.labelKey],
         icon = 134400,
     }
+    if navigationMode ~= "history" then
+        RecordAchievementNavigation(frame)
+    end
     if categoryIndexState == "ready" then
-        RestoreCategoryState(frame, category)
-        RenderRewardCategory(frame, definition, categoryIndex[category])
+        RestoreCategoryState(frame, category, snapshot and snapshot.viewState)
+        RenderRewardCategory(frame, definition,
+            snapshot and snapshot.achievementIDs or categoryIndex[category])
     else
         frame.EmptyText:SetText(L.ACHIEVEMENT_REWARD_CATEGORY_LOADING)
         local placeholder = {
@@ -256,8 +290,10 @@ ShowAchievementRewardCategory = function(category, navigationMode)
             GetAchievementTreeStats({}), placeholder)
         GetCategoryIndex(function(index)
             if frame.pendingRewardCategory == category and frame:IsShown() then
-                RestoreCategoryState(frame, category)
-                RenderRewardCategory(frame, definition, index[category])
+                RestoreCategoryState(frame, category,
+                    snapshot and snapshot.viewState)
+                RenderRewardCategory(frame, definition,
+                    snapshot and snapshot.achievementIDs or index[category])
             end
         end)
     end
@@ -278,11 +314,14 @@ OpenAchievementRewardCategoryCard = function(frame, achievementID)
     if not selectedIndex then
         return
     end
+    mode.selectedAchievementID = achievementID
+    SaveAchievementRewardCategoryState(frame)
     local context = {
         key = mode.key,
         label = mode.label,
         achievementIDs = mode.achievementIDs,
         index = selectedIndex,
+        listState = CaptureAchievementViewState(frame),
     }
     ShowAchievementTree(achievementID, "category", nil, true, context)
 end
@@ -297,6 +336,7 @@ NavigateAchievementRewardCategoryCard = function(frame, offset)
     if not achievementID then
         return
     end
+    context = AchievementData.CopyNavigationState(context)
     context.index = targetIndex
     ShowAchievementTree(achievementID, "category", nil, true, context)
 end
@@ -304,7 +344,24 @@ end
 ReturnToAchievementRewardCategory = function(frame)
     local context = frame and frame.rewardCategoryCardContext
     if context then
-        ShowAchievementRewardCategory(context.key, "return")
+        local selectedID = context.achievementIDs[context.index]
+        for index = (frame.historyIndex or 1) - 1, 1, -1 do
+            local entry = frame.history[index]
+            if type(entry) == "table" and entry.rewardCategory == context.key
+            then
+                entry.viewState = AchievementData.CopyNavigationState(
+                    context.listState or entry.viewState or {})
+                entry.viewState.selectedAchievementID = selectedID
+                NavigateAchievementHistory(frame, index - frame.historyIndex)
+                return
+            end
+        end
+        local state = AchievementData.CopyNavigationState(context.listState or {})
+        state.selectedAchievementID = selectedID
+        ShowAchievementRewardCategory(context.key, "return", {
+            achievementIDs = context.achievementIDs,
+            viewState = state,
+        })
     end
 end
 

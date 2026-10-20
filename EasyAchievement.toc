@@ -25,6 +25,7 @@ Modules/AchievementRewards.lua
 Modules/AchievementTreeLayout.lua
 Modules/AchievementUI.lua
 Modules/Achievements/Core.lua
+Modules/Achievements/Navigation.lua
 Modules/Achievements/Tooltip.lua
 Modules/Achievements/RewardPanel.lua
 Modules/Achievements/Cards.lua

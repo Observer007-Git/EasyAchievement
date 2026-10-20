@@ -40,7 +40,14 @@ function ConfigureAchievementCardChildLinks(objectivesFrame)
             elseif IsShiftKeyDown() then
                 InsertAchievementLink(self.id)
             else
-                ShowAchievementTree(self.id, nil, nil, true)
+                local frame = achievementTreeFrame
+                if frame and objectivesFrame:GetParent()
+                    == frame.AchievementCard
+                then
+                    OpenAchievementPathCard(frame, self.id)
+                else
+                    ShowAchievementTree(self.id, nil, nil, true)
+                end
             end
         end)
     end
@@ -377,6 +384,24 @@ function ShowAchievementCardInTree(frame, achievementID)
         end)
         forwardButton:Hide()
         frame.AchievementCardForwardButton = forwardButton
+
+        for _, button in ipairs({ backButton, forwardButton }) do
+            button:SetScript("OnEnter", function(self)
+                local previous = self == backButton
+                local label
+                if frame.rewardCategoryCardContext then
+                    label = previous and L.ACHIEVEMENT_CATEGORY_PREVIOUS
+                        or L.ACHIEVEMENT_CATEGORY_NEXT
+                else
+                    label = previous and L.ACHIEVEMENT_HISTORY_BACK
+                        or L.ACHIEVEMENT_HISTORY_FORWARD
+                end
+                GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
+                GameTooltip:SetText(label)
+                GameTooltip:Show()
+            end)
+            button:SetScript("OnLeave", function() GameTooltip:Hide() end)
+        end
 
         frame:EnableKeyboard(true)
         frame:SetPropagateKeyboardInput(true)

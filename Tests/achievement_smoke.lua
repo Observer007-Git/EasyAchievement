@@ -71,6 +71,9 @@ function Addon:RegisterEvent(event, callback)
     registeredEventHandlers[event] = callback
 end
 
+function Addon:SetSetting()
+end
+
 function Addon:GetSetting(key)
     if key == "enableAchievementEnhancement" then
         return settingValue
@@ -175,6 +178,7 @@ assert(loadfile("EasyAchievement/Modules/AchievementUI.lua"))(
     "EasyAchievement", Addon)
 local achievementUIModules = {
     "Core.lua",
+    "Navigation.lua",
     "Tooltip.lua",
     "RewardPanel.lua",
     "Cards.lua",
@@ -369,6 +373,12 @@ AchievementUI.ShowAchievementTree = function(id, mode, _, showCardOnly,
     }
 end
 local categoryFrame = {
+    ScrollFrame = {
+        GetWidth = function() return 600 end,
+        GetHeight = function() return 400 end,
+        GetHorizontalScroll = function() return 100 end,
+        GetVerticalScroll = function() return 0 end,
+    },
     rewardCategoryMode = {
         key = "mount",
         label = "Mounts",
@@ -386,6 +396,7 @@ AchievementUI.NavigateAchievementRewardCategoryCard(categoryFrame, -1)
 assert(categoryNavigation.id == 101
     and categoryNavigation.context.index == 1,
     "category card previous navigation used the wrong achievement")
+categoryFrame.rewardCategoryCardContext = categoryNavigation.context
 AchievementUI.NavigateAchievementRewardCategoryCard(categoryFrame, 1)
 assert(categoryNavigation.id == 202
     and categoryNavigation.context.index == 2,

@@ -1,6 +1,7 @@
 local expectedUIModules = {
     "Modules/AchievementUI.lua",
     "Modules/Achievements/Core.lua",
+    "Modules/Achievements/Navigation.lua",
     "Modules/Achievements/Tooltip.lua",
     "Modules/Achievements/RewardPanel.lua",
     "Modules/Achievements/Cards.lua",
@@ -102,7 +103,7 @@ assert(searchSource:find(
 assert(searchSource:find("SaveAchievementRewardCategoryState(frame)",
         1, true)
     and searchSource:find(
-        'and navigationMode ~= "category"', 1, true),
+        'RecordAchievementNavigation(frame, replace)', 1, true),
     "category card navigation does not preserve its separate list history")
 assert(searchSource:find("local collapsedHeight = 32", 1, true)
     and searchSource:find(
@@ -232,9 +233,7 @@ assert(rewardCategoriesSource:find(
     and not rewardCategoriesSource:find(
         "Addon.AchievementRewards.Get(achievementID)", 1, true)
     and rewardCategoriesSource:find(
-        "AchievementData.AppendHistory", 1, true)
-    and rewardCategoriesSource:find(
-        "{ rewardCategory = category }", 1, true)
+        "RecordAchievementNavigation(frame)", 1, true)
     and rewardCategoriesSource:find(
         'Addon:GetSetting("achievementRewardCategoryStates")', 1, true)
     and rewardCategoriesSource:find(
