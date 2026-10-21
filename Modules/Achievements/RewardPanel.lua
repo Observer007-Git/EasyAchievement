@@ -504,7 +504,7 @@ UpdateAchievementRewardPanel = function(frame, achievementID)
     rewardFrame.Description:SetText(compactDecor
         and fullDescription:gsub("[\r\n]+", "  ·  ") or fullDescription)
     rewardFrame.Description:SetShown(#rewardDescriptions > 0)
-    rewardFrame.Description:SetWordWrap(not compactDecor)
+    rewardFrame.Description:SetWordWrap(true)
     rewardFrame.DescriptionHover.fullText = fullDescription
     rewardFrame.DescriptionHover:SetShown(compactDecor
         and #rewardDescriptions > 0)
@@ -540,12 +540,9 @@ UpdateAchievementRewardPanel = function(frame, achievementID)
     local descriptionTop = 10 + nameHeight + (nameHeight > 0 and 6 or 0)
     rewardFrame.Description:ClearAllPoints()
     if compactDecor then
-        local descriptionWidth = showModel
-            and rewardFrame:GetWidth() + MODEL_SCENE_RIGHT_OFFSET
-                - MODEL_SCENE_LEFT_OFFSET - 40 or textWidth
-        rewardFrame.Description:SetWidth(descriptionWidth)
+        rewardFrame.Description:SetWidth(textWidth)
         rewardFrame.Description:SetPoint("TOP", rewardFrame, "TOP",
-            contentCenterOffset, -descriptionTop)
+            0, -descriptionTop)
     else
         rewardFrame.Description:SetPoint("TOPLEFT", rewardFrame, "TOPLEFT",
             20 + contentCenterOffset, -descriptionTop)

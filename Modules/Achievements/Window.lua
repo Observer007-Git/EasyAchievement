@@ -174,7 +174,7 @@ function CreateAchievementTreeFrame()
     frame.PortraitIcon = portraitIcon
 
     local headerRow = CreateFrame("Frame", nil, frame)
-    headerRow:SetPoint("TOP", frame, "TOP", 0, -22)
+    headerRow:SetPoint("TOP", frame, "TOP", 0, -24)
     headerRow:SetSize(1, 24)
     frame.HeaderRow = headerRow
 

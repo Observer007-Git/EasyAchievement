@@ -70,7 +70,8 @@ for _, kind in ipairs({ "mount", "pet", "toy", "decor", "appearance", "item" }) 
     reward = { text = "Reward summary", entries = {
         { name = string.rep("Long reward name ", 8),
             description = kind == "decor"
-                and "Achievement: Example\nCategory: Decor\nPrice: 1"
+                and ("Achievement: Example\nCategory: Decor\nPrice: 1 ")
+                    .. string.rep("Detailed reward information ", 4)
                 or "Reward description",
             rewardType = kind, icon = 123, itemID = 456,
             previewType = kind == "appearance" and "appearance"
@@ -97,12 +98,14 @@ for _, kind in ipairs({ "mount", "pet", "toy", "decor", "appearance", "item" }) 
         and iconPoint[4] < descriptionPoint[4] - panel.Description.height,
         "reward text is not centered above the icon or overlaps it")
     if kind == "decor" then
-        assert(panel.Description.wordWrap == false
+        assert(panel.Description.wordWrap == true
             and not panel.Description.text:find("\n", 1, true)
-            and panel.Description.width > panel.width
+            and panel.Description.width == panel.width - 40
+            and descriptionPoint[3] == 0
+            and panel.Description.height > 18
             and panel.DescriptionHover.shown
             and panel.DescriptionHover.fullText:find("\n", 1, true),
-            "decor details did not stay on one line with full text available")
+            "decor details did not wrap within the reward panel")
     else
         assert(panel.Description.wordWrap == true
             and not panel.DescriptionHover.shown,
