@@ -368,18 +368,56 @@ def compact_reward_values(reward_rows, reward_categories):
 def build_mount_items(input_dir, records):
     effect_spells = {integer(row["ID"]): integer(row["SpellID"])
         for row in read_rows(load_common(input_dir, "ItemEffect"))}
-    spell_mounts = {integer(row["SourceSpellID"]): integer(row["ID"])
-        for row in read_rows(load_localized(input_dir, "Mount", "enUS"))
-        if integer(row.get("SourceTypeEnum")) == 5}
+    mounts = [row for row in read_rows(load_localized(input_dir,
+        "Mount", "enUS")) if integer(row.get("ID"))]
+    spell_mounts = defaultdict(list)
+    for row in mounts:
+        spell_mounts[integer(row["SourceSpellID"])].append(row)
     reward_items = {direct or inferred for rows in records.values()
         for direct, inferred in rows if direct or inferred}
-    mount_items = {}
+    direct_achievements = defaultdict(list)
+    direct_items_by_title = defaultdict(set)
+    for row in read_rows(load_localized(input_dir, "Achievement", "enUS")):
+        achievement_id = integer(row["ID"])
+        item_id = integer(row["RewardItemID"])
+        if achievement_id in records and item_id in reward_items:
+            direct_achievements[item_id].append(row)
+            direct_items_by_title[normalized(row.get("Title_lang"))].add(item_id)
+    item_names = {integer(row["ID"]): normalized(row.get("Display_lang"))
+        for row in read_rows(load_localized(input_dir, "ItemSparse", "enUS"))
+        if integer(row["ID"]) in reward_items}
+    matched_mounts = defaultdict(set)
     for row in read_rows(load_common(input_dir, "ItemXItemEffect")):
         item_id = integer(row["ItemID"])
-        mount_id = spell_mounts.get(
-            effect_spells.get(integer(row["ItemEffectID"])))
-        if item_id in reward_items and mount_id:
-            mount_items[item_id] = mount_id
+        if item_id not in reward_items:
+            continue
+        spell_id = effect_spells.get(integer(row["ItemEffectID"]))
+        for mount in spell_mounts.get(spell_id, ()):
+            mount_name = normalized(mount.get("Name_lang"))
+            source_title = source_achievement_name(
+                mount.get("SourceText_lang"))
+            confirmed_direct = any(
+                mount_name and (mount_name == item_names.get(item_id)
+                    or mount_name in normalized(achievement.get("Reward_lang"))
+                    or source_title and source_title == normalized(
+                        achievement.get("Title_lang")))
+                for achievement in direct_achievements.get(item_id, ()))
+            if integer(mount.get("SourceTypeEnum")) == 5 or confirmed_direct:
+                matched_mounts[item_id].add(integer(mount["ID"]))
+    for row in mounts:
+        if integer(row.get("SourceTypeEnum")) != 5:
+            continue
+        mount_name = normalized(row.get("Name_lang"))
+        source_title = source_achievement_name(row.get("SourceText_lang"))
+        if not mount_name or not source_title:
+            continue
+        for item_id in direct_items_by_title.get(source_title, ()):
+            if item_names.get(item_id) == mount_name:
+                matched_mounts[item_id].add(integer(row["ID"]))
+    mount_items = {}
+    for item_id, mount_ids in matched_mounts.items():
+        if len(mount_ids) == 1:
+            mount_items[item_id] = next(iter(mount_ids))
     return mount_items
 
 
@@ -398,6 +436,16 @@ def build_preview_items(input_dir, records):
         load_localized(input_dir, "Creature", "enUS"))}
     previews = {key: {} for key in
         ("petItems", "decorItems", "toyItems", "appearanceItems")}
+    direct_items_by_title = defaultdict(set)
+    for row in read_rows(load_localized(input_dir, "Achievement", "enUS")):
+        achievement_id = integer(row["ID"])
+        item_id = integer(row["RewardItemID"])
+        if achievement_id in records and item_id in reward_items:
+            direct_items_by_title[normalized(row.get("Title_lang"))].add(item_id)
+    item_names = {integer(row["ID"]): normalized(row.get("Display_lang"))
+        for row in read_rows(load_localized(input_dir, "ItemSparse", "enUS"))
+        if integer(row["ID"]) in reward_items}
+    matched_pets = defaultdict(dict)
     for row in read_rows(load_localized(input_dir, "BattlePetSpecies", "enUS")):
         species_id = integer(row.get("ID"))
         if not species_id:
@@ -408,6 +456,17 @@ def build_preview_items(input_dir, records):
             integer(row.get("IconFileDataID"))]
         for item_id in spell_items.get(integer(row["SummonSpellID"]), ()):
             previews["petItems"][item_id] = values
+        if integer(row.get("SourceTypeEnum")) != 5:
+            continue
+        source_title = source_achievement_name(row.get("SourceText_lang"))
+        creature_name = normalized(creature.get("Name_lang"))
+        if source_title and creature_name:
+            for item_id in direct_items_by_title.get(source_title, ()):
+                if item_names.get(item_id) == creature_name:
+                    matched_pets[item_id][species_id] = values
+    for item_id, species in matched_pets.items():
+        if item_id not in previews["petItems"] and len(species) == 1:
+            previews["petItems"][item_id] = next(iter(species.values()))
     for row in read_rows(load_localized(input_dir, "HouseDecor", "enUS")):
         item_id = integer(row["ItemID"])
         if item_id in reward_items:

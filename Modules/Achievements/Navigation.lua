@@ -11,6 +11,7 @@ local Navigation = {}
 Addon.Navigation = Navigation
 UI.Navigation = Navigation
 local categoryVisitSerial = 0
+local treeCardVisitSerial = 0
 local BuildAchievementPath
 
 function Navigation.NewCategoryVisit()
@@ -20,9 +21,13 @@ end
 
 -- The page owns navigation meaning; frame fields are renderer-facing aliases.
 function Navigation.ApplyPage(frame, page)
+    if HideAchievementSettingsPage then
+        HideAchievementSettingsPage(frame)
+    end
     if Addon.AchievementRewards then
         Addon.AchievementRewards.CancelRequest()
     end
+    local wasOfficialBrowser = frame.officialBrowserState ~= nil
     page = Copy(page)
     frame.currentPage = page
     frame.sourceAchievementID = page.achievementID
@@ -30,10 +35,21 @@ function Navigation.ApplyPage(frame, page)
     frame.rewardCategoryMode = page.category
     frame.pendingRewardCategory = page.category and page.category.key or nil
     frame.rewardCategoryCardContext = page.categoryContext
+    frame.treeCardContext = page.treeCardContext
+    frame.officialContext = page.officialContext
+    frame.officialBrowserState = page.officialBrowser
     frame.rewardCategoryOrigin = page.categoryOrigin
     frame.breadcrumbIDs = page.breadcrumbIDs
     frame.breadcrumbCategory = page.breadcrumbCategory
     frame.navigationRevision = (frame.navigationRevision or 0) + 1
+    if UpdateAchievementRewardCategoryRail then
+        UpdateAchievementRewardCategoryRail(frame)
+    end
+    if UpdateOfficialAchievementBrowser
+        and (wasOfficialBrowser or page.officialBrowser)
+    then
+        UpdateOfficialAchievementBrowser(frame)
+    end
 end
 
 function Navigation.OpenCard(achievementID)
@@ -122,6 +138,9 @@ local function CaptureNavigation(frame)
             achievementIDs = Copy(page.category.achievementIDs),
             viewState = CaptureAchievementViewState(frame),
         }
+    elseif page.kind == "official-category" then
+        return { kind = "official-category",
+            officialBrowser = CaptureOfficialAchievementBrowser(frame) }
     elseif page.achievementID then
         return {
             kind = page.kind,
@@ -130,6 +149,10 @@ local function CaptureNavigation(frame)
             breadcrumbIDs = Copy(page.breadcrumbIDs),
             breadcrumbCategory = page.breadcrumbCategory,
             categoryContext = Copy(page.categoryContext),
+            treeCardContext = Copy(page.treeCardContext),
+            officialContext = Copy(page.officialContext),
+            officialBrowser = page.officialBrowser
+                and CaptureOfficialAchievementBrowser(frame),
             categoryOrigin = Copy(page.categoryOrigin),
             viewState = page.kind == "tree"
                 and CaptureAchievementViewState(frame) or nil,
@@ -160,14 +183,20 @@ function RecordAchievementNavigation(frame, replace)
         return
     end
     if type(current) == "table" and snapshot
+        and current.kind == snapshot.kind
         and current.achievementID == snapshot.achievementID
         and current.showCardOnly == snapshot.showCardOnly
         and current.rewardCategory == snapshot.rewardCategory
         and current.breadcrumbCategory == snapshot.breadcrumbCategory
         and current.visitID == snapshot.visitID
+        and (not current.officialBrowser and not snapshot.officialBrowser
+            or current.officialBrowser and snapshot.officialBrowser
+                and current.officialBrowser.categoryID
+                    == snapshot.officialBrowser.categoryID)
         and SamePath(current.breadcrumbIDs, snapshot.breadcrumbIDs)
         and SameOrigin(current.categoryOrigin, snapshot.categoryOrigin)
         and not current.categoryContext and not snapshot.categoryContext
+        and not current.treeCardContext and not snapshot.treeCardContext
     then
         frame.history[frame.historyIndex] = snapshot
         return
@@ -189,8 +218,16 @@ function NavigateAchievementHistory(frame, offset)
     local entry = Copy(frame.history[targetIndex])
     local achievementID, showCardOnly, rewardCategory =
         GetAchievementHistoryEntry(entry)
-    if not rewardCategory and not GetAchievementData(achievementID) then
+    if entry.kind ~= "official-category" and not rewardCategory
+        and not GetAchievementData(achievementID) then
         return false
+    end
+    if entry.kind == "official-category" and frame.officialContext
+        and frame.officialContext.categoryID
+            == entry.officialBrowser.categoryID
+    then
+        entry.officialBrowser.selectedAchievementID =
+            frame.sourceAchievementID
     end
     local context = frame.rewardCategoryCardContext or frame.rewardCategoryOrigin
     if rewardCategory and context and context.visitID
@@ -203,7 +240,10 @@ function NavigateAchievementHistory(frame, offset)
     end
     frame.historyIndex = targetIndex
     local opened
-    if rewardCategory then
+    if entry.kind == "official-category" then
+        opened = ShowOfficialAchievementCategory(
+            entry.officialBrowser.categoryID, false, "history", entry)
+    elseif rewardCategory then
         opened = ShowAchievementRewardCategory(rewardCategory, "history", entry)
     else
         opened = ShowAchievementTree(achievementID, "history",
@@ -296,14 +336,84 @@ BuildAchievementPath = function(frame, achievementID)
 end
 
 function OpenAchievementPathCard(frame, achievementID)
+    local treeContext = frame.treeCardContext
+    if frame.ScrollFrame:IsShown() and not frame.rewardCategoryMode then
+        local ids, selectedIndex = {}, nil
+        for _, node in ipairs(frame.fullNodes or {}) do
+            ids[#ids + 1] = node.id
+            if node.id == achievementID then selectedIndex = #ids end
+        end
+        if selectedIndex and #ids > 1 then
+            treeCardVisitSerial = treeCardVisitSerial + 1
+            local parentByID = {}
+            for _, edge in ipairs(frame.fullEdges or {}) do
+                parentByID[edge.child.id] = parentByID[edge.child.id]
+                    or edge.parent.id
+            end
+            treeContext = {
+                kind = "tree", rootID = frame.sourceAchievementID,
+                visitID = treeCardVisitSerial, achievementIDs = ids,
+                index = selectedIndex,
+                rootPath = Copy(frame.breadcrumbIDs),
+                parentByID = parentByID,
+            }
+        else
+            treeContext = nil
+        end
+    elseif treeContext then
+        treeContext = Copy(treeContext)
+        local selectedIndex
+        for index, id in ipairs(treeContext.achievementIDs) do
+            if id == achievementID then selectedIndex = index; break end
+        end
+        if selectedIndex then
+            treeContext.index = selectedIndex
+        else
+            treeContext = nil
+        end
+    end
     local path = BuildAchievementPath(frame, achievementID)
+    if treeContext and frame.treeCardContext then
+        path = Navigation.GetTreeCardPath(treeContext, achievementID)
+    end
     local origin = frame.rewardCategoryCardContext or frame.rewardCategoryOrigin
     local categoryContext = origin
         and origin.achievementIDs[origin.index] == achievementID and origin or nil
     ShowAchievementTree(achievementID, nil, path, true, categoryContext, {
         breadcrumbCategory = frame.breadcrumbCategory,
         categoryOrigin = not categoryContext and Copy(origin) or nil,
+        treeCardContext = treeContext,
     })
+end
+
+function Navigation.GetTreeCardPath(context, achievementID)
+    local suffix, currentID = {}, achievementID
+    while currentID and currentID ~= context.rootID do
+        table.insert(suffix, 1, currentID)
+        currentID = context.parentByID[currentID]
+    end
+    if currentID ~= context.rootID then
+        return { achievementID }
+    end
+    local path = Copy(context.rootPath or { context.rootID })
+    for _, id in ipairs(suffix) do path[#path + 1] = id end
+    return path
+end
+
+function NavigateAchievementTreeCard(frame, offset)
+    local context = frame and frame.treeCardContext
+    if not context then return end
+    local targetIndex = context.index + offset
+    local achievementID = context.achievementIDs[targetIndex]
+    if not achievementID then return end
+    context = Copy(context)
+    context.index = targetIndex
+    ShowAchievementTree(achievementID, "tree-card",
+        Navigation.GetTreeCardPath(context, achievementID), true, nil, {
+            treeCardContext = context,
+            breadcrumbCategory = frame.breadcrumbCategory,
+            categoryOrigin = Copy(frame.rewardCategoryOrigin),
+        })
 end
 
 Navigation.OpenPathCard = OpenAchievementPathCard

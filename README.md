@@ -30,9 +30,6 @@ EasyAchievement 是从 LiteTools 中独立拆分出的《魔兽世界》正式�
 3. 进入游戏后，点击屏幕上的成就盾牌图标打开面板。
 4. 鼠标移到盾牌图标上会展开快速搜索框。
 
-LiteTools 中仍保留原成就模块作为回退。安装本插件后，建议在 LiteTools
-中取消勾选“成就增强”，避免同时显示两套界面。
-
 ## 项目结构
 
 开发后运行 `zsh Tools/sync_to_wow.sh` 同步到正式服。同步白名单仅包含
@@ -65,7 +62,6 @@ EasyAchievement/
         ├── Tooltip.lua          # 成就提示信息
         ├── RewardPanel.lua      # 奖励及模型预览面板
         ├── Cards.lua            # 成就卡片和浮窗
-        ├── Favorites.lua        # 收藏与最近查看面板
         ├── Window.lua           # 主窗口和持久化界面状态
         ├── Navigator.lua        # 小地图导航与视口控制
         ├── Tree.lua             # 成就树节点、连线和布局呈现
@@ -96,8 +92,11 @@ RetroactiveDecorReward 表的物品、法术、来源及名称关联；明确的
 名称和描述仍由当前客户端语言提供。未就绪的信息在可见面板内最多自动重试三次，
 收藏和装饰目录更新后会重新刷新。
 
-在插件目录运行以下命令，会自动选取 wago.tools 最新正式服 `wow` 构建，下载
-英文与简体中文 DB2 表并重新生成数据库：
+在插件目录运行以下命令，会优先读取本机
+`/Applications/World of Warcraft/.build.info` 中已安装的正式服 `wow` 构建，
+下载对应的英文与简体中文 DB2 表并重新生成数据库。若未安装在该路径，
+可设置 `EASYACHIEVEMENT_WOW_ROOT` 指向游戏根目录；本机没有版本文件时，
+则选取 wago.tools 最新正式服构建：
 
 ```bash
 ./Tools/update_reward_database.sh

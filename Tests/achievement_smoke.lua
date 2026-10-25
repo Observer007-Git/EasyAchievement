@@ -1,5 +1,3 @@
-local settingCallback
-local settingValue = false
 local settingSanitizers = {}
 local menuCount = 0
 local menuActions = {}
@@ -63,12 +61,11 @@ function Addon.NumberSetting()
     end
 end
 
-function Addon:RegisterSetting(key, _, sanitizer, callback)
+function Addon:RegisterSetting(key, _, sanitizer)
     settingSanitizers[key] = sanitizer
-    if key == "enableAchievementEnhancement" then
-        settingCallback = callback
-    end
 end
+
+function Addon:RegisterSettingCallback() end
 
 function Addon:RegisterEvent(event, callback)
     registeredEventHandlers[event] = callback
@@ -78,9 +75,7 @@ function Addon:SetSetting()
 end
 
 function Addon:GetSetting(key)
-    if key == "enableAchievementEnhancement" then
-        return settingValue
-    elseif key == "achievementPopupIDs" then
+    if key == "achievementPopupIDs" then
         return {}
     end
 end
@@ -185,8 +180,8 @@ local achievementUIModules = {
     "Tooltip.lua",
     "RewardPanel.lua",
     "Cards.lua",
-    "Favorites.lua",
     "Window.lua",
+    "SettingsPage.lua",
     "Navigator.lua",
     "Tree.lua",
     "RewardCategories.lua",
@@ -198,7 +193,6 @@ for _, moduleName in ipairs(achievementUIModules) do
     assert(loadfile("EasyAchievement/Modules/Achievements/" .. moduleName))(
         "EasyAchievement", Addon)
 end
-assert(settingCallback)
 assert(settingSanitizers.achievementTreeStates,
     "tree-state sanitizer was not registered")
 assert(settingSanitizers.achievementRewardCategoryStates,
@@ -716,6 +710,26 @@ assert(#calescentReward.entries == 1
     and calescentReward.entries[1].rewardType == "mount"
     and calescentReward.entries[1].previewType == "model",
     "Calescent Shalewing model depends on the runtime item cache")
+C_MountJournal.GetMountInfoByID = function(mountID)
+    assert(mountID == 1614, "wrong Across the Isles mount ID")
+    return "雷触驼牛", nil, 789
+end
+local acrossTheIslesReward = GetAchievementRewardData(19486)
+assert(#acrossTheIslesReward.entries == 1
+    and acrossTheIslesReward.entries[1].mountID == 1614
+    and acrossTheIslesReward.entries[1].itemID == 192751
+    and acrossTheIslesReward.entries[1].previewType == "model",
+    "Across the Isles model depends on the runtime item lookup")
+C_MountJournal.GetMountInfoByID = function(mountID)
+    assert(mountID == 2339, "wrong Trashpile mount ID")
+    return "Jani's Trashpile", nil, 789
+end
+local trashpileReward = GetAchievementRewardData(40953)
+assert(#trashpileReward.entries == 1
+    and trashpileReward.entries[1].mountID == 2339
+    and trashpileReward.entries[1].itemID == 235515
+    and trashpileReward.entries[1].previewType == "model",
+    "direct mount reward with a non-achievement source type lost its model")
 C_Item.GetItemNameByID = originalItemName
 C_MountJournal.GetMountInfoByID = originalMountInfo
 C_MountJournal.GetMountInfoExtraByID = originalMountExtra
@@ -732,6 +746,16 @@ rewardEntry = reward.entries[1]
 assert(rewardEntry.name == "Reward Pet" and rewardEntry.displayID == 222
     and rewardEntry.previewType == "model", "pet reward was not resolved")
 C_PetJournal.GetPetInfoByItemID = function() end
+C_PetJournal.GetPetInfoBySpeciesID = function(speciesID)
+    assert(speciesID == 2158, "wrong Mailemental species ID")
+    return "Mailemental", 413580
+end
+local mailementalReward = GetAchievementRewardData(12431)
+assert(#mailementalReward.entries == 1
+    and mailementalReward.entries[1].itemID == 156721
+    and mailementalReward.entries[1].speciesID == 2158
+    and mailementalReward.entries[1].previewType == "model",
+    "Mailemental model depends on the runtime pet item lookup")
 C_ToyBox = {
     GetToyInfo = function() return 9001, "Reward Toy", 987 end,
 }
@@ -1182,8 +1206,6 @@ AchievementUI.UpdateAchievementRewardPanel = savedRewardPanelUpdate
 AchievementUI.UpdateAchievementRewardHeader = savedRewardHeaderUpdate
 C_Timer = savedTimer
 
-settingValue = true
-settingCallback(true)
 button.scripts.OnClick(button, "LeftButton", false)
 assert(button.originalClicks == 1, "left click was not preserved")
 button.scripts.OnClick(button, "RightButton", false)
@@ -1192,9 +1214,7 @@ assert(menuCount == 0, "native achievement received a context menu")
 assert(button.registeredClicks == nil,
     "native achievement click registration was modified")
 
-settingValue = false
-settingCallback(false)
 button.scripts.OnClick(button, "RightButton", false)
-assert(button.originalClicks == 3, "native click changed after disabling")
+assert(button.originalClicks == 3, "native right click behavior changed")
 
 print("native achievement UI untouched: ok")

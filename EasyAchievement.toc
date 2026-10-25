@@ -29,11 +29,12 @@ Modules/Achievements/Navigation.lua
 Modules/Achievements/Tooltip.lua
 Modules/Achievements/RewardPanel.lua
 Modules/Achievements/Cards.lua
-Modules/Achievements/Favorites.lua
 Modules/Achievements/Window.lua
 Modules/Achievements/Navigator.lua
 Modules/Achievements/Tree.lua
 Modules/Achievements/RewardCategories.lua
+Modules/Achievements/OfficialCategories.lua
 Modules/Achievements/Search.lua
 Modules/Achievements/Content.lua
 Modules/Achievements/Launcher.lua
+Modules/Achievements/SettingsPage.lua

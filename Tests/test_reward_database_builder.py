@@ -166,6 +166,81 @@ class RewardDatabaseBuilderTests(unittest.TestCase):
             ({"ID": 1733, "SourceTypeEnum": 2, "SourceSpellID": 1000},))
         self.assertEqual(BUILDER.build_mount_items(self.input_dir, records), {})
 
+    def test_direct_mount_without_item_effect_uses_matching_achievement(self):
+        records, _, _, _, _ = BUILDER.build_database(self.input_dir)
+        write_csv(self.input_dir / "common" / "ItemXItemEffect.csv",
+            ("ItemEffectID", "ItemID"),
+            ({"ItemEffectID": 2, "ItemID": 200},))
+        self.assertEqual(BUILDER.build_mount_items(self.input_dir, records),
+            {100: 1733})
+        write_csv(self.input_dir / "enUS" / "Mount.csv",
+            ("ID", "SourceTypeEnum", "SourceSpellID",
+             "SourceText_lang", "Name_lang"),
+            ({"ID": 1733, "SourceTypeEnum": 5,
+              "SourceSpellID": 1000,
+              "SourceText_lang": "Achievement: Mount Direct",
+              "Name_lang": "Different Mount"},))
+        self.assertEqual(BUILDER.build_mount_items(self.input_dir, records), {})
+        write_csv(self.input_dir / "enUS" / "Mount.csv",
+            ("ID", "SourceTypeEnum", "SourceSpellID",
+             "SourceText_lang", "Name_lang"),
+            ({"ID": 1733, "SourceTypeEnum": 5,
+              "SourceSpellID": 1000,
+              "SourceText_lang": "Achievement: Other Achievement",
+              "Name_lang": "Sky Steed"},))
+        self.assertEqual(BUILDER.build_mount_items(self.input_dir, records), {})
+
+    def test_direct_mount_effect_accepts_verified_nonachievement_source(self):
+        records, _, _, _, _ = BUILDER.build_database(self.input_dir)
+        write_csv(self.input_dir / "enUS" / "Mount.csv",
+            ("ID", "SourceTypeEnum", "SourceSpellID",
+             "SourceText_lang", "Name_lang"),
+            ({"ID": 1733, "SourceTypeEnum": 2,
+              "SourceSpellID": 1000,
+              "SourceText_lang": "Vendor: Example",
+              "Name_lang": "Sky Steed"},))
+        self.assertEqual(BUILDER.build_mount_items(self.input_dir, records),
+            {100: 1733})
+        write_csv(self.input_dir / "enUS" / "Mount.csv",
+            ("ID", "SourceTypeEnum", "SourceSpellID",
+             "SourceText_lang", "Name_lang"),
+            ({"ID": 1733, "SourceTypeEnum": 2,
+              "SourceSpellID": 1000,
+              "SourceText_lang": "Vendor: Example",
+              "Name_lang": "Unrelated Mount"},))
+        self.assertEqual(BUILDER.build_mount_items(self.input_dir, records), {})
+
+    def test_direct_pet_without_summon_spell_uses_matching_achievement(self):
+        for locale in BUILDER.LOCALES:
+            achievement_path = self.input_dir / locale / "Achievement.csv"
+            achievements = list(BUILDER.read_rows(achievement_path))
+            achievements.append({"ID": 11, "RewardItemID": 201,
+                "Title_lang": "Post Haste", "Reward_lang": "Pet: Mailemental",
+                "Faction": -1})
+            write_csv(achievement_path, achievements[0], achievements)
+            item_path = self.input_dir / locale / "ItemSparse.csv"
+            items = list(BUILDER.read_rows(item_path))
+            items.append({"ID": 201, "Display_lang": "Mailemental"})
+            write_csv(item_path, items[0], items)
+            creature_path = self.input_dir / locale / "Creature.csv"
+            creatures = list(BUILDER.read_rows(creature_path))
+            creatures.append({"ID": 132366, "Name_lang": "Mailemental",
+                "DisplayID_0": 82391})
+            write_csv(creature_path, creatures[0], creatures)
+            species_path = self.input_dir / locale / "BattlePetSpecies.csv"
+            species = list(BUILDER.read_rows(species_path))
+            species.append({"ID": 2158, "SummonSpellID": 0,
+                "SourceTypeEnum": 5,
+                "SourceText_lang": "Achievement: Post Haste",
+                "CreatureID": 132366, "CardUIModelSceneID": 6,
+                "IconFileDataID": 413580})
+            write_csv(species_path,
+                list(species[0]) + ["SourceTypeEnum"], species)
+        records, _, _, _, _ = BUILDER.build_database(self.input_dir)
+        previews = BUILDER.build_preview_items(self.input_dir, records)
+        self.assertEqual(previews["petItems"][201],
+            [2158, 82391, 6, 413580])
+
     def test_workbook_export_rows_keep_source_fields_and_all_rewards(self):
         payload = EXPORTER.build_payload(self.input_dir, "test-build")
         rows = payload["rows"]

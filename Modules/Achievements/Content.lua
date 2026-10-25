@@ -5,13 +5,18 @@ Addon.AchievementContent = Content
 UI.Content = Content
 
 function Content.Relayout(frame)
-    if not frame or not frame.layoutNodes then return end
+    if not frame or frame.settingsPageShown or not frame.layoutNodes then
+        return
+    end
     UI.LayoutAchievementTree(frame.layoutNodes, frame.layoutEdges,
         frame.layoutRoot, true, frame.layoutStats, frame.layoutTitleRoot)
 end
 
 function Content.Refresh(frame, reason, achievementID)
     if not frame or not frame:IsShown() then return end
+    if UI.RefreshOfficialAchievementBrowser then
+        UI.RefreshOfficialAchievementBrowser(frame, reason)
+    end
     if frame.rewardCategoryMode then
         -- Keep the frozen order and node/widget identities while data changes.
         for _, node in ipairs(frame.layoutNodes or {}) do

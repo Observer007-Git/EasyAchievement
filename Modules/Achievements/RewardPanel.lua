@@ -14,6 +14,11 @@ AchievementRewards = assert(Addon.AchievementRewards,
     "EasyAchievement achievement reward service was not loaded")
 GetAchievementRewardData = AchievementRewards.Request
 
+function GetAchievementCardRewardOffset(frame, achievementID, data)
+    return -(GetAchievementRewardPanelWidth(frame) / 2 + 6)
+        + (frame.officialBrowserState and 108 or 0)
+end
+
 local MODEL_SCENE_LEFT_OFFSET = -200
 local MODEL_SCENE_RIGHT_OFFSET = 24
 local MODEL_SCENE_CENTER_OFFSET =
@@ -93,6 +98,7 @@ local function FitMountRewardModel(modelScene, actor)
     end
     camera:SetZoomDistance(fitDistance)
     modelScene:OnMouseWheel(-1)
+    modelScene:OnMouseWheel(-1)
     if camera.SnapAllInterpolatedValues then
         camera:SnapAllInterpolatedValues()
     end
@@ -112,13 +118,11 @@ AchievementRewards.SetIndexReadyCallback(function(achievementID)
     end
     UpdateAchievementRewardHeader(frame, frame.sourceAchievementID)
     if frame.AchievementCard and frame.AchievementCard:IsShown() then
-        local shown = UpdateAchievementRewardPanel(frame,
-            frame.sourceAchievementID)
-        local offsetX = shown and
-            -(achievementRewardFrame:GetWidth() / 2 + 6) or 0
+        UpdateAchievementRewardPanel(frame, frame.sourceAchievementID)
         frame.AchievementCard:ClearAllPoints()
         frame.AchievementCard:SetPoint("CENTER", frame, "CENTER",
-            offsetX, -45)
+            GetAchievementCardRewardOffset(frame, frame.sourceAchievementID),
+            -45)
         frame.AchievementCardHeader:ClearAllPoints()
         frame.AchievementCardHeader:SetPoint("BOTTOM",
             frame.AchievementCard, "TOP", 0, 10)
@@ -136,107 +140,109 @@ function CreateAchievementRewardFrame()
     frame:SetSize(380, 250)
     frame:EnableMouse(true)
 
-    local itemIcon = frame:CreateTexture(nil, "ARTWORK")
-    itemIcon:SetPoint("TOPLEFT", frame, "TOPLEFT", 20, -10)
-    itemIcon:SetSize(48, 48)
-    itemIcon:SetTexCoord(0.06, 0.94, 0.06, 0.94)
-    frame.ItemIcon = itemIcon
+    local infoCard = CreateFrame("Frame", nil, frame)
+    infoCard:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -8, 12)
+    infoCard:SetSize(224, 150)
+    infoCard:SetFrameLevel(frame:GetFrameLevel() + 15)
+    local infoBorder = infoCard:CreateTexture(nil, "BORDER")
+    infoBorder:SetAllPoints()
+    SetTextureAtlas(infoBorder, "generic-frame-chamfered-12d-2o")
+    frame.InfoCard = infoCard
 
-    local collectionBorder = frame:CreateTexture(nil, "OVERLAY")
-    collectionBorder:SetPoint("CENTER", itemIcon, "CENTER")
-    collectionBorder:SetSize(56, 56)
-    if not SetTextureAtlas(collectionBorder,
-        "collections-itemborder-collected")
-    then
-        collectionBorder:SetTexture("Interface\\Common\\WhiteIconFrame")
-    end
-    collectionBorder:Hide()
-    frame.CollectionBorder = collectionBorder
-
-    local petBorder = frame:CreateTexture(nil, "OVERLAY")
-    petBorder:SetPoint("CENTER", itemIcon, "CENTER")
-    petBorder:SetSize(56, 56)
-    if not SetTextureAtlas(petBorder,
-        "PetJournal-BattleSlot-IconBorder")
-    then
-        petBorder:SetTexture("Interface\\Common\\WhiteIconFrame")
-    end
-    petBorder:Hide()
-    frame.PetBorder = petBorder
-
-    local toyButton = CreateFrame("Button", nil, frame)
-    toyButton:SetPoint("CENTER", itemIcon, "CENTER", 0, 0)
-    toyButton:SetSize(56, 56)
-    local toyIcon = toyButton:CreateTexture(nil, "ARTWORK")
-    toyIcon:SetPoint("CENTER", toyButton, "CENTER", 0, 1)
-    toyIcon:SetSize(42, 42)
-    toyIcon:SetTexCoord(0.04347826, 0.95652173,
-        0.04347826, 0.95652173)
-    toyButton.Icon = toyIcon
-    local toyBorder = toyButton:CreateTexture(nil, "OVERLAY")
-    toyBorder:SetPoint("CENTER")
-    toyBorder:SetSize(56, 56)
-    toyBorder:SetAtlas("collections-itemborder-collected", false)
-    toyButton.Border = toyBorder
-    local toyHighlight = toyButton:CreateTexture(nil, "HIGHLIGHT")
-    toyHighlight:SetPoint("CENTER", toyButton, "CENTER", 0, 2)
-    toyHighlight:SetSize(48, 48)
-    toyHighlight:SetTexture("Interface\\Buttons\\ButtonHilight-Square")
-    toyHighlight:SetBlendMode("ADD")
-    local function ShowToyRewardTooltip(self)
-        if not self.itemID then
-            return
-        end
-        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-        local shown
-        if GameTooltip.SetToyByItemID then
-            shown = GameTooltip:SetToyByItemID(self.itemID)
-        elseif GameTooltip.SetItemByID then
-            shown = GameTooltip:SetItemByID(self.itemID)
-        end
-        GameTooltip:Show()
-        self.UpdateTooltip = shown and ShowToyRewardTooltip or nil
-    end
-    toyButton:SetScript("OnEnter", ShowToyRewardTooltip)
-    toyButton:SetScript("OnLeave", function(self)
-        self.UpdateTooltip = nil
-        GameTooltip:Hide()
-    end)
-    toyButton:Hide()
-    frame.ToyButton = toyButton
-
-    local itemName = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    itemName:SetPoint("TOPLEFT", itemIcon, "TOPRIGHT", 10, -2)
-    itemName:SetPoint("RIGHT", frame, "RIGHT", -28, 0)
-    itemName:SetJustifyH("LEFT")
+    local itemName = infoCard:CreateFontString(nil, "OVERLAY",
+        "GameFontNormalHuge3")
+    itemName:SetPoint("TOP", infoCard, "TOP", 0, -14)
+    itemName:SetWidth(204)
+    itemName:SetJustifyH("CENTER")
     itemName:SetJustifyV("TOP")
     itemName:SetWordWrap(true)
     itemName:SetHeight(18)
+    itemName:SetTextColor(1, 1, 1)
     frame.ItemName = itemName
 
-    local description = frame:CreateFontString(nil, "OVERLAY",
-        "GameFontHighlightSmall")
-    description:SetPoint("TOPLEFT", frame, "TOPLEFT", 20, -65)
-    description:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -20, -65)
-    description:SetHeight(88)
+    local rewardTypeText = infoCard:CreateFontString(nil, "OVERLAY",
+        "SystemFont_Small2")
+    rewardTypeText:SetPoint("TOP", infoCard, "TOP", 0, -48)
+    rewardTypeText:SetJustifyH("CENTER")
+    rewardTypeText:SetTextColor(1, 0.82, 0)
+    frame.RewardTypeText = rewardTypeText
+
+    local description = infoCard:CreateFontString(nil, "OVERLAY",
+        "SystemFont_Small2")
+    description:SetPoint("TOPLEFT", infoCard, "TOPLEFT", 10, -68)
+    description:SetPoint("TOPRIGHT", infoCard, "TOPRIGHT", -10, -68)
+    description:SetHeight(40)
+    description:SetTextColor(1, 0.82, 0)
     description:SetJustifyH("CENTER")
     description:SetJustifyV("TOP")
     description:SetWordWrap(true)
     frame.Description = description
 
-    local descriptionHover = CreateFrame("Frame", nil, frame)
-    descriptionHover:SetAllPoints(description)
-    descriptionHover:EnableMouse(true)
-    descriptionHover:SetScript("OnEnter", function(self)
+    local detailsButton = CreateFrame("Button", nil, infoCard,
+        "UIPanelButtonTemplate")
+    detailsButton:SetPoint("BOTTOM", infoCard, "BOTTOM", 0, 8)
+    detailsButton:SetSize(96, 22)
+    detailsButton:SetText(L.ACHIEVEMENT_REWARD_DETAILS)
+    frame.DetailsButton = detailsButton
+
+    local details = CreateFrame("Frame", nil, frame)
+    details:SetPoint("BOTTOMRIGHT", infoCard, "TOPRIGHT", 0, 4)
+    details:SetSize(224, 150)
+    details:SetFrameLevel(infoCard:GetFrameLevel() + 5)
+    local detailsBorder = details:CreateTexture(nil, "BORDER")
+    detailsBorder:SetAllPoints()
+    SetTextureAtlas(detailsBorder, "generic-frame-chamfered-12d-2o")
+    local detailsText = details:CreateFontString(nil, "OVERLAY",
+        "SystemFont_Small2")
+    detailsText:SetPoint("TOPLEFT", details, "TOPLEFT", 12, -12)
+    detailsText:SetWidth(200)
+    detailsText:SetJustifyH("LEFT")
+    detailsText:SetWordWrap(true)
+    detailsText:SetTextColor(1, 0.82, 0)
+    details.DetailsText = detailsText
+    details:Hide()
+    frame.DetailsPanel = details
+    detailsButton:SetScript("OnClick", function()
+        details:SetShown(not details:IsShown())
+    end)
+
+    local textPreview = CreateFrame("Frame", nil, frame)
+    textPreview:SetSize(300, 100)
+    textPreview:SetPoint("CENTER", frame, "CENTER")
+    local toyButton = CreateFrame("Button", nil, textPreview)
+    toyButton:SetPoint("TOP", textPreview, "TOP")
+    toyButton:SetSize(72, 72)
+    local toyIcon = toyButton:CreateTexture(nil, "ARTWORK")
+    toyIcon:SetAllPoints()
+    local toyBorder = toyButton:CreateTexture(nil, "OVERLAY")
+    toyBorder:SetPoint("CENTER", toyIcon, "CENTER", -1, 1)
+    toyBorder:SetSize(98, 98)
+    toyBorder:SetTexture("Interface\\AchievementFrame\\UI-Achievement-IconFrame")
+    toyBorder:SetTexCoord(0, 0.5625, 0, 0.5625)
+    toyButton:SetScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-        GameTooltip:SetText(self.fullText, 1, 1, 1, true)
+        if self.itemID then
+            GameTooltip:SetToyByItemID(self.itemID)
+        else
+            GameTooltip:SetText(self.itemName or "")
+            if self.description and self.description ~= "" then
+                GameTooltip:AddLine(self.description, 1, 0.82, 0, true)
+            end
+        end
         GameTooltip:Show()
     end)
-    descriptionHover:SetScript("OnLeave", function()
-        GameTooltip:Hide()
-    end)
-    descriptionHover:Hide()
-    frame.DescriptionHover = descriptionHover
+    toyButton:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    textPreview.ToyButton = toyButton
+    textPreview.ToyIcon = toyIcon
+    local previewText = textPreview:CreateFontString(nil, "OVERLAY",
+        "GameFontNormalLarge")
+    previewText:SetPoint("TOP", toyIcon, "BOTTOM", 0, -12)
+    previewText:SetWidth(300)
+    previewText:SetJustifyH("CENTER")
+    previewText:SetWordWrap(true)
+    textPreview.Text = previewText
+    textPreview:Hide()
+    frame.TextPreview = textPreview
 
     local modelScene = CreateFrame("ModelScene", nil, frame,
         "ModelSceneMixinTemplate")
@@ -266,14 +272,20 @@ function CreateAchievementRewardFrame()
 
     local modelControls = CreateFrame("Frame", nil, modelScene,
         "ModelSceneControlFrameTemplate")
-    modelControls:SetPoint("BOTTOM", frame, "BOTTOM", 0, 18)
+    modelControls:SetPoint("BOTTOM", frame, "BOTTOM", 0, 65)
     modelControls:SetFrameLevel(modelScene:GetFrameLevel() + 10)
     modelControls:SetModelScene(modelScene)
     modelControls:Show()
     frame.ModelControls = modelControls
 
+    local rewardSelector = CreateFrame("Frame", nil, frame)
+    rewardSelector:SetSize(110, 24)
+    rewardSelector:SetPoint("TOP", frame, "TOP", 0, -6)
+    rewardSelector:SetFrameLevel(modelScene:GetFrameLevel() + 20)
+    frame.RewardSelector = rewardSelector
+
     local function SelectAdjacentReward(self, direction)
-        local rewardFrame = self:GetParent()
+        local rewardFrame = self:GetParent():GetParent()
         local entryCount = rewardFrame.entryCount or 0
         local entryIndex = math.max(1, math.min(entryCount,
             (rewardFrame.entryIndex or 1) + direction))
@@ -288,9 +300,8 @@ function CreateAchievementRewardFrame()
             rewardFrame.achievementID)
     end
 
-    local previousButton = CreateFrame("Button", nil, frame)
+    local previousButton = CreateFrame("Button", nil, rewardSelector)
     previousButton:SetSize(24, 24)
-    previousButton:SetFrameLevel(modelScene:GetFrameLevel() + 20)
     previousButton:SetNormalTexture(
         "Interface\\Buttons\\UI-SpellbookIcon-PrevPage-Up")
     previousButton:SetPushedTexture(
@@ -305,9 +316,8 @@ function CreateAchievementRewardFrame()
     previousButton:Hide()
     frame.PreviousReward = previousButton
 
-    local nextButton = CreateFrame("Button", nil, frame)
+    local nextButton = CreateFrame("Button", nil, rewardSelector)
     nextButton:SetSize(24, 24)
-    nextButton:SetFrameLevel(modelScene:GetFrameLevel() + 20)
     nextButton:SetNormalTexture(
         "Interface\\Buttons\\UI-SpellbookIcon-NextPage-Up")
     nextButton:SetPushedTexture(
@@ -322,9 +332,9 @@ function CreateAchievementRewardFrame()
     nextButton:Hide()
     frame.NextReward = nextButton
 
-    local entryCounter = frame:CreateFontString(nil, "OVERLAY",
+    local entryCounter = rewardSelector:CreateFontString(nil, "OVERLAY",
         "GameFontHighlightSmall")
-    entryCounter:SetPoint("BOTTOM", frame, "BOTTOM", 0, 54)
+    entryCounter:SetPoint("CENTER")
     entryCounter:Hide()
     frame.EntryCounter = entryCounter
     previousButton:SetPoint("RIGHT", entryCounter, "LEFT", -4, 0)
@@ -347,8 +357,11 @@ function ConfigureAchievementRewardFrame(rewardFrame, hostFrame)
     rewardFrame:SetParent(hostFrame)
     rewardFrame:SetFrameStrata(hostFrame:GetFrameStrata())
     rewardFrame:SetFrameLevel(hostFrame:GetFrameLevel() + 20)
+    rewardFrame.InfoCard:SetFrameLevel(rewardFrame:GetFrameLevel() + 25)
+    rewardFrame.DetailsPanel:SetFrameLevel(
+        rewardFrame.InfoCard:GetFrameLevel() + 5)
     rewardFrame:SetWidth(GetAchievementRewardPanelWidth(hostFrame))
-    rewardFrame:SetPoint("TOPRIGHT", hostFrame, "TOPRIGHT", -24, -115)
+    rewardFrame:SetPoint("TOPRIGHT", hostFrame, "TOPRIGHT", -24, -135)
     rewardFrame:SetPoint("BOTTOMRIGHT", hostFrame,
         "BOTTOMRIGHT", -24, 26)
 end
@@ -389,7 +402,12 @@ local function ConfigureRewardModel(rewardFrame, entry, showAppearance, modelKey
             useNativeForm = not inAlternateForm
         end
         SetupPlayerForModelScene(scene, nil, entry.appearanceSourceIDs,
-            false, true, false, useNativeForm)
+            false, false, false, useNativeForm)
+    elseif entry.rewardType == "decor" and scene.GetPlayerActor then
+        local playerActor = scene:GetPlayerActor()
+        if playerActor and playerActor.Undress then
+            playerActor:Undress()
+        end
     end
     local actor
     if showAppearance then
@@ -427,13 +445,47 @@ local function ConfigureRewardModel(rewardFrame, entry, showAppearance, modelKey
         end
     end
     actor:Show()
-    if isMount then FitMountRewardModel(scene, actor) end
+    if isMount then
+        FitMountRewardModel(scene, actor)
+    else
+        scene:OnMouseWheel(-1)
+    end
 end
 
 UpdateAchievementRewardPanel = function(frame, achievementID)
     local reward = GetAchievementRewardData(achievementID)
-    if not frame or not reward or #reward.entries == 0
-    then
+    if not frame or not reward then
+        if achievementRewardFrame then
+            achievementRewardFrame:Hide()
+        end
+        return false
+    end
+
+    local entries = reward.entries or {}
+    local textRewardType
+    if reward.text and reward.text ~= "" then
+        if RewardDatabase.HasCategory(achievementID, "title") then
+            textRewardType = "title"
+        elseif #entries == 0 and RewardDatabase.HasCategory(achievementID,
+            "other")
+        then
+            textRewardType = "other"
+        end
+    end
+    if textRewardType then
+        local withText = {}
+        for index, entry in ipairs(entries) do
+            withText[index] = entry
+        end
+        withText[#withText + 1] = {
+            name = reward.text,
+            rewardType = textRewardType,
+            previewType = "text",
+            uniqueKey = "text:" .. textRewardType,
+        }
+        entries = withText
+    end
+    if #entries == 0 then
         if achievementRewardFrame then
             achievementRewardFrame:Hide()
         end
@@ -441,7 +493,6 @@ UpdateAchievementRewardPanel = function(frame, achievementID)
     end
 
     local rewardFrame = CreateAchievementRewardFrame()
-    local entries = reward.entries or {}
     if rewardFrame.achievementID ~= achievementID then
         rewardFrame.entryIndex = 1
         rewardFrame.entryKey = nil
@@ -474,40 +525,32 @@ UpdateAchievementRewardPanel = function(frame, achievementID)
     end
     rewardFrame.achievementID = achievementID
     rewardFrame.rewardItemIDs = rewardItemIDs
-    local showToy = primaryEntry ~= nil
-        and primaryEntry.rewardType == "toy"
-    rewardFrame.ItemIcon:SetTexture(nil)
-    if primaryEntry and primaryEntry.iconAtlas then
-        rewardFrame.ItemIcon:SetAtlas(primaryEntry.iconAtlas, false)
-    elseif primaryEntry then
-        rewardFrame.ItemIcon:SetTexture(primaryEntry.icon)
-        rewardFrame.ItemIcon:SetTexCoord(0.06, 0.94, 0.06, 0.94)
-    end
-    rewardFrame.ItemIcon:SetShown(primaryEntry ~= nil
-        and not showToy
-        and (primaryEntry.icon ~= nil or primaryEntry.iconAtlas ~= nil))
-    local rewardType = primaryEntry and primaryEntry.rewardType
-    rewardFrame.CollectionBorder:SetShown(rewardFrame.ItemIcon:IsShown()
-        and (rewardType == "mount" or rewardType == "decor"
-            or rewardType == "appearance"))
-    rewardFrame.PetBorder:SetShown(rewardFrame.ItemIcon:IsShown()
-        and rewardType == "pet")
-    rewardFrame.ToyButton.itemID = showToy and primaryEntry.itemID or nil
-    rewardFrame.ToyButton.Icon:SetTexture(showToy and primaryEntry.icon
-        or nil)
-    rewardFrame.ToyButton:SetShown(showToy and primaryEntry.icon ~= nil)
     rewardFrame.ItemName:SetText(table.concat(rewardNames, "  +  "))
-    rewardFrame.ItemName:SetHeight(18)
     rewardFrame.ItemName:SetShown(#rewardNames > 0)
     local fullDescription = table.concat(rewardDescriptions, "\n\n")
-    local compactDecor = primaryEntry.rewardType == "decor"
-    rewardFrame.Description:SetText(compactDecor
-        and fullDescription:gsub("[\r\n]+", "  ·  ") or fullDescription)
+    local summary = fullDescription:match("([^\r\n]+)") or ""
+    rewardFrame.Description:SetText(summary)
     rewardFrame.Description:SetShown(#rewardDescriptions > 0)
     rewardFrame.Description:SetWordWrap(true)
-    rewardFrame.DescriptionHover.fullText = fullDescription
-    rewardFrame.DescriptionHover:SetShown(compactDecor
-        and #rewardDescriptions > 0)
+    local rewardTypeKey = "ACHIEVEMENT_REWARD_TYPE_"
+        .. string.upper(primaryEntry.rewardType or "other")
+    rewardFrame.RewardTypeText:SetText(L[rewardTypeKey]
+        or L.ACHIEVEMENT_REWARD_TYPE_OTHER)
+    local hasDetails = fullDescription ~= ""
+        and (fullDescription ~= summary or #fullDescription > 100)
+    local rewardType = primaryEntry.rewardType
+    local textOnly = rewardType == "title" or rewardType == "other"
+        or rewardType == "item" and RewardDatabase.HasCategory(
+            achievementID, "other")
+    local centeredPreview = rewardType == "toy" or textOnly
+    local showDetails = hasDetails
+        and rewardType ~= "mount" and rewardType ~= "pet"
+        and not centeredPreview
+    rewardFrame.DetailsButton:SetShown(showDetails)
+    rewardFrame.DetailsPanel:Hide()
+    rewardFrame.DetailsPanel.DetailsText:SetText(fullDescription)
+    rewardFrame.DetailsPanel:SetHeight(math.max(40,
+        rewardFrame.DetailsPanel.DetailsText:GetStringHeight() + 24))
     local showAppearance = previewEntry
         and previewEntry.previewType == "appearance"
         and #(previewEntry.appearanceSourceIDs or {}) > 0
@@ -526,39 +569,65 @@ UpdateAchievementRewardPanel = function(frame, achievementID)
     end
     local contentCenterOffset = showModel and MODEL_SCENE_CENTER_OFFSET or 0
     ConfigureAchievementRewardFrame(rewardFrame, frame)
-    local textWidth = math.max(1, rewardFrame:GetWidth() - 40)
-    rewardFrame.ItemName:ClearAllPoints()
-    rewardFrame.ItemName:SetWidth(textWidth)
-    rewardFrame.ItemName:SetHeight(0)
-    rewardFrame.ItemName:SetJustifyH("CENTER")
-    rewardFrame.ItemName:SetJustifyV("TOP")
-    rewardFrame.ItemName:SetPoint("TOP", rewardFrame, "TOP",
-        contentCenterOffset, -10)
-    local nameHeight = #rewardNames > 0
-        and math.max(18, rewardFrame.ItemName:GetStringHeight()) or 0
-    rewardFrame.ItemName:SetHeight(nameHeight)
-    local descriptionTop = 10 + nameHeight + (nameHeight > 0 and 6 or 0)
-    rewardFrame.Description:ClearAllPoints()
-    if compactDecor then
-        rewardFrame.Description:SetWidth(textWidth)
-        rewardFrame.Description:SetPoint("TOP", rewardFrame, "TOP",
-            0, -descriptionTop)
-    else
-        rewardFrame.Description:SetPoint("TOPLEFT", rewardFrame, "TOPLEFT",
-            20 + contentCenterOffset, -descriptionTop)
-        rewardFrame.Description:SetPoint("TOPRIGHT", rewardFrame, "TOPRIGHT",
-            -20 + contentCenterOffset, -descriptionTop)
+    rewardFrame.InfoCard:SetShown(not centeredPreview)
+    rewardFrame.TextPreview:SetShown(centeredPreview)
+    if centeredPreview then
+        local preview = rewardFrame.TextPreview
+        local showToyIcon = rewardType == "toy"
+            and (primaryEntry.icon or primaryEntry.iconAtlas)
+        preview.ToyButton:SetShown(not not showToyIcon)
+        if showToyIcon then
+            preview.ToyButton.itemID = primaryEntry.itemID
+            preview.ToyButton.itemName = primaryEntry.name
+            preview.ToyButton.description = primaryEntry.description
+            if not primaryEntry.iconAtlas
+                or not SetTextureAtlas(preview.ToyIcon,
+                    primaryEntry.iconAtlas)
+            then
+                preview.ToyIcon:SetTexture(primaryEntry.icon)
+                preview.ToyIcon:SetTexCoord(0.06, 0.94, 0.06, 0.94)
+            end
+        end
+        if rewardType == "toy" then
+            preview.Text:SetText(primaryEntry.description or reward.text
+                or "")
+        else
+            preview.Text:SetText(reward.text or primaryEntry.description
+                or primaryEntry.name or "")
+        end
+        preview.Text:ClearAllPoints()
+        if showToyIcon then
+            preview.Text:SetPoint("TOP", preview.ToyButton, "BOTTOM",
+                0, -12)
+        else
+            preview.Text:SetPoint("TOP", preview, "TOP")
+        end
+        preview.Text:SetHeight(0)
+        local textHeight = math.max(20, preview.Text:GetStringHeight())
+        preview.Text:SetHeight(textHeight)
+        preview:SetHeight(textHeight + (showToyIcon and 84 or 0))
     end
-    rewardFrame.Description:SetHeight(0)
-    local descriptionHeight = #rewardDescriptions > 0
-        and rewardFrame.Description:GetStringHeight() or 0
-    rewardFrame.Description:SetHeight(descriptionHeight)
-    local iconTop = descriptionTop + descriptionHeight + 8
-    rewardFrame.ItemIcon:ClearAllPoints()
-    rewardFrame.ItemIcon:SetPoint("TOP", rewardFrame, "TOP",
-        contentCenterOffset, -iconTop)
-    local extraHeight = math.max(0, iconTop + 48 - 108)
     local hasMultipleEntries = #entries > 1
+    rewardFrame.ItemName:ClearAllPoints()
+    rewardFrame.ItemName:SetPoint("TOP", rewardFrame.InfoCard,
+        "TOP", 0, -14)
+    rewardFrame.ItemName:SetWidth(204)
+    rewardFrame.ItemName:SetHeight(0)
+    local nameHeight = math.max(28, rewardFrame.ItemName:GetStringHeight())
+    rewardFrame.ItemName:SetHeight(nameHeight)
+    rewardFrame.ItemName:SetJustifyH("CENTER")
+    rewardFrame.RewardTypeText:ClearAllPoints()
+    rewardFrame.RewardTypeText:SetPoint("TOP", rewardFrame.InfoCard,
+        "TOP", 0, -(14 + nameHeight + 6))
+    rewardFrame.Description:ClearAllPoints()
+    local summaryTop = math.max(68, 14 + nameHeight + 24)
+    rewardFrame.Description:SetPoint("TOPLEFT", rewardFrame.InfoCard,
+        "TOPLEFT", 10, -summaryTop)
+    rewardFrame.Description:SetPoint("TOPRIGHT", rewardFrame.InfoCard,
+        "TOPRIGHT", -10, -summaryTop)
+    rewardFrame.Description:SetHeight(40)
+    rewardFrame.InfoCard:SetHeight(math.max(showDetails and 148 or 120,
+        summaryTop + 40 + (showDetails and 32 or 12)))
     rewardFrame.PreviousReward:SetShown(hasMultipleEntries)
     rewardFrame.PreviousReward:SetEnabled(rewardFrame.entryIndex > 1)
     rewardFrame.NextReward:SetShown(hasMultipleEntries)
@@ -566,20 +635,16 @@ UpdateAchievementRewardPanel = function(frame, achievementID)
     rewardFrame.EntryCounter:SetShown(hasMultipleEntries)
     rewardFrame.EntryCounter:SetText(string.format("%d / %d",
         rewardFrame.entryIndex, #entries))
-    rewardFrame.EntryCounter:ClearAllPoints()
-    local counterCenterOffset = showModel and -126 - extraHeight
-        or -170 - extraHeight
-    rewardFrame.EntryCounter:SetPoint("CENTER", rewardFrame, "TOP",
-        contentCenterOffset, counterCenterOffset)
+    rewardFrame.RewardSelector:ClearAllPoints()
+    rewardFrame.RewardSelector:SetPoint("TOP", rewardFrame, "TOP",
+        contentCenterOffset, -6)
     if showModel then
-        rewardFrame:SetSize(460, 540 + extraHeight)
+        rewardFrame:SetSize(460, 540)
         rewardFrame.ModelScene:ClearAllPoints()
-        local modelTopOffset = hasMultipleEntries
-            and -146 - extraHeight or -118 - extraHeight
         rewardFrame.ModelScene:SetPoint("TOPLEFT", rewardFrame,
-            "TOPLEFT", MODEL_SCENE_LEFT_OFFSET, modelTopOffset)
+            "TOPLEFT", MODEL_SCENE_LEFT_OFFSET, -10)
         rewardFrame.ModelScene:SetPoint("BOTTOMRIGHT", rewardFrame,
-            "BOTTOMRIGHT", MODEL_SCENE_RIGHT_OFFSET, -20)
+            "BOTTOMRIGHT", MODEL_SCENE_RIGHT_OFFSET, 48)
         rewardFrame.ModelScene:Show()
         if resetModel then
             ConfigureRewardModel(rewardFrame, previewEntry, showAppearance, modelKey)
@@ -587,10 +652,10 @@ UpdateAchievementRewardPanel = function(frame, achievementID)
         rewardFrame.ModelControls:Show()
         rewardFrame.ModelControls:ClearAllPoints()
         rewardFrame.ModelControls:SetPoint("BOTTOM", rewardFrame, "BOTTOM",
-            contentCenterOffset, 18)
+            contentCenterOffset, 65)
         rewardFrame.ModelControls:UpdateLayout()
     else
-        rewardFrame:SetSize(380, primaryEntry and 250 + extraHeight or 180)
+        rewardFrame:SetSize(380, 250)
         rewardFrame.ModelControls:Hide()
         rewardFrame.ModelScene:Hide()
     end

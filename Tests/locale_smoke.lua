@@ -64,6 +64,11 @@ local traditionalChinese = LoadLocale(
 
 AssertCompatible(english, simplifiedChinese, "zhCN", true)
 AssertCompatible(english, traditionalChinese, "zhTW", false)
+assert(simplifiedChinese.ACHIEVEMENT_LAUNCHER_HIDE
+        == "隐藏屏幕图标（/eat 或小地图再次启用）"
+    and english.ACHIEVEMENT_LAUNCHER_HIDE:find("/eat", 1, true)
+    and traditionalChinese.ACHIEVEMENT_LAUNCHER_HIDE:find("/eat", 1, true),
+    "launcher hide option must explain how to reopen it in every locale")
 
 local toc = assert(io.open("EasyAchievement/EasyAchievement.toc", "r"))
 local runtimePaths = {}

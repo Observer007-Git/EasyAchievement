@@ -7,7 +7,6 @@ if setfenv then
 else
     _ENV = UI
 end
-
 local CATEGORY_DEFINITIONS = {
     { key = "mount", labelKey = "ACHIEVEMENT_REWARD_CATEGORY_MOUNT",
         icon = "Interface\\Icons\\MountJournalPortrait" },
@@ -195,7 +194,138 @@ function GetAchievementRewardCategoryIcon(category)
     return definition and definition.icon, definition and definition.iconAtlas
 end
 
-local function RenderRewardCategory(frame, definition, achievementIDs)
+function UpdateAchievementRewardCategoryRail(frame)
+    if not frame or not frame.RewardCategoryRailButtons then
+        return
+    end
+    local category = frame.settingsPageShown and "settings"
+        or frame.officialBrowserState and "all"
+        or frame.rewardCategoryMode and frame.rewardCategoryMode.key
+        or frame.rewardCategoryCardContext
+            and frame.rewardCategoryCardContext.key
+        or frame.rewardCategoryOrigin and frame.rewardCategoryOrigin.key
+        or frame.breadcrumbCategory
+    for key, button in pairs(frame.RewardCategoryRailButtons) do
+        if button.Selected then
+            button.Selected:SetShown(key == category)
+            button.SelectedBottom:SetShown(key == category)
+        end
+    end
+end
+
+function CreateAchievementRewardCategoryRail(frame)
+    local bar = CreateFrame("Frame", nil, frame)
+    bar:SetPoint("TOPLEFT", frame, "TOPLEFT", 0, -31)
+    bar:SetPoint("TOPRIGHT", frame, "TOPRIGHT", 0, -31)
+    bar:SetHeight(32)
+    bar:SetFrameLevel(frame:GetFrameLevel() + 102)
+    local background = bar:CreateTexture(nil, "BACKGROUND")
+    background:SetPoint("BOTTOMLEFT", bar, "BOTTOMLEFT", 2, -4)
+    background:SetPoint("BOTTOMRIGHT", bar, "BOTTOMRIGHT", -2, -4)
+    background:SetHeight(46)
+    SetTextureAtlas(background, "shop-header-menu-bg-middle")
+    frame.RewardCategoryRail = bar
+    frame.RewardCategoryRailButtons = {}
+    local scroll = CreateFrame("ScrollFrame", nil, bar)
+    scroll:SetPoint("TOPLEFT", bar, "TOPLEFT", 55, 0)
+    scroll:SetPoint("BOTTOMRIGHT", bar, "BOTTOMRIGHT",
+        -GetAchievementSearchBoxWidth(frame.SearchBox) - 36, -6)
+    scroll:EnableMouseWheel(true)
+    local content = CreateFrame("Frame", nil, scroll)
+    content:SetSize(1, 38)
+    scroll:SetScrollChild(content)
+    scroll:SetScript("OnMouseWheel", function(self, delta)
+        self:SetHorizontalScroll(math.max(0, math.min(
+            self:GetHorizontalScrollRange(),
+            self:GetHorizontalScroll() - delta * 90)))
+    end)
+    bar.Scroll = scroll
+    local tabs = { { key = "all", label = L.ACHIEVEMENT_ALL_TAB } }
+    for _, definition in ipairs(CATEGORY_DEFINITIONS) do
+        tabs[#tabs + 1] = { key = definition.key,
+            label = string.format(L.ACHIEVEMENT_REWARD_TAB,
+                L[definition.labelKey]) }
+    end
+    tabs[#tabs + 1] = { key = "settings", label = L.ACHIEVEMENT_SETTINGS_TAB }
+    for index, tab in ipairs(tabs) do
+        local button = CreateFrame("Button", nil, content)
+        button:SetHeight(32)
+        local divider = button:CreateTexture(nil, "ARTWORK")
+        divider:SetPoint("RIGHT", button, "RIGHT", index == #tabs and -1 or 1, 0)
+        SetTextureAtlas(divider, "shop-header-menu-bg-divider", true)
+        local selectedAtlas = index == 1 and "shop-header-menu-selected-left"
+            or index == #tabs and "shop-header-menu-selected-right"
+            or "shop-header-menu-selected-middle"
+        local selectedLineAtlas = index == 1
+            and "shop-header-menu-selected-line-left"
+            or index == #tabs and "shop-header-menu-selected-line-right"
+            or "shop-header-menu-selected-line-middle"
+        local highlight = button:CreateTexture(nil, "HIGHLIGHT")
+        highlight:SetPoint("TOPLEFT", button, "TOPLEFT", -1, 0)
+        highlight:SetPoint("BOTTOMRIGHT", button, "BOTTOMRIGHT", 1, 0)
+        SetTextureAtlas(highlight, selectedAtlas)
+        highlight:SetBlendMode("ADD")
+        highlight:SetAlpha(0.5)
+        local pushed = button:CreateTexture(nil, "ARTWORK")
+        pushed:SetAllPoints()
+        SetTextureAtlas(pushed, selectedAtlas)
+        button:SetPushedTexture(pushed)
+        local selected = button:CreateTexture(nil, "ARTWORK")
+        selected:SetPoint("TOPLEFT", button, "TOPLEFT", -1, 0)
+        selected:SetPoint("BOTTOMRIGHT", button, "BOTTOMRIGHT", 1, 0)
+        SetTextureAtlas(selected, selectedAtlas)
+        selected:SetBlendMode("ADD")
+        selected:Hide()
+        button.Selected = selected
+        local selectedBottom = button:CreateTexture(nil, "OVERLAY")
+        selectedBottom:SetPoint("LEFT", button, "BOTTOMLEFT", 0, -2)
+        selectedBottom:SetPoint("RIGHT", button, "BOTTOMRIGHT", 0, -2)
+        selectedBottom:SetHeight(6)
+        SetTextureAtlas(selectedBottom, selectedLineAtlas)
+        selectedBottom:Hide()
+        button.SelectedBottom = selectedBottom
+        local label = button:CreateFontString(nil, "OVERLAY",
+            "GameFontNormalMed2")
+        label:SetPoint("CENTER", button, "CENTER", 0, 2)
+        label:SetTextColor(1, 1, 1)
+        label:SetText(tab.label)
+        button.Label = label
+        button:SetScript("OnClick", function()
+            if tab.key == "all" then
+                ShowOfficialAchievementCategory(0)
+            elseif tab.key == "settings" then
+                ShowAchievementSettingsPage(frame)
+            else
+                ShowAchievementRewardCategory(tab.key)
+            end
+        end)
+        frame.RewardCategoryRailButtons[tab.key] = button
+        button:SetPoint("TOPLEFT", content, "TOPLEFT", 1, 0)
+    end
+    local function LayoutTabs()
+        local width = math.max(66, scroll:GetWidth() / #tabs)
+        for _, tab in ipairs(tabs) do
+            width = math.max(width,
+                frame.RewardCategoryRailButtons[tab.key].Label:GetStringWidth()
+                    + 18)
+        end
+        content:SetWidth(width * #tabs + 2)
+        for index, tab in ipairs(tabs) do
+            local button = frame.RewardCategoryRailButtons[tab.key]
+            button:ClearAllPoints()
+            button:SetPoint("TOPLEFT", content, "TOPLEFT",
+                1 + (index - 1) * width, 0)
+            button:SetWidth(width)
+        end
+    end
+    bar:SetScript("OnSizeChanged", LayoutTabs)
+    LayoutTabs()
+    frame.AllAchievementsButton = frame.RewardCategoryRailButtons.all
+    UpdateAchievementRewardCategoryRail(frame)
+end
+
+local function RenderRewardCategory(frame, definition, achievementIDs,
+    revealSelection)
     if frame.pendingRewardCategory ~= definition.key or not frame:IsShown() then
         return
     end
@@ -233,7 +363,7 @@ local function RenderRewardCategory(frame, definition, achievementIDs)
         GetAchievementTreeStats(nodes), root)
     local state = frame.categoryRestoreState
     frame.categoryRestoreState = nil
-    if state and state.selectedAchievementID then
+    if revealSelection and state and state.selectedAchievementID then
         for _, node in ipairs(nodes) do
             if node.id == state.selectedAchievementID then
                 local x, y = node.navigatorX or 0, node.navigatorY or 0
@@ -293,7 +423,8 @@ ShowAchievementRewardCategory = function(category, navigationMode, snapshot)
     if categoryIndexState == "ready" then
         RestoreCategoryState(frame, category, snapshot and snapshot.viewState)
         RenderRewardCategory(frame, definition,
-            snapshot and snapshot.achievementIDs or categoryIndex[category])
+            snapshot and snapshot.achievementIDs or categoryIndex[category],
+            navigationMode == "return" or navigationMode == "history")
     else
         frame.EmptyText:SetText(L.ACHIEVEMENT_REWARD_CATEGORY_LOADING)
         local placeholder = {
@@ -311,7 +442,8 @@ ShowAchievementRewardCategory = function(category, navigationMode, snapshot)
                 RestoreCategoryState(frame, category,
                     snapshot and snapshot.viewState)
                 RenderRewardCategory(frame, definition,
-                    snapshot and snapshot.achievementIDs or index[category])
+                    snapshot and snapshot.achievementIDs or index[category],
+                    navigationMode == "return" or navigationMode == "history")
             end
         end)
     end
@@ -383,19 +515,4 @@ ReturnToAchievementRewardCategory = function(frame)
             viewState = state,
         })
     end
-end
-
-OpenAchievementRewardCategoryMenu = function(owner)
-    if not MenuUtil or not MenuUtil.CreateContextMenu then
-        return
-    end
-    MenuUtil.CreateContextMenu(owner, function(_, rootDescription)
-        rootDescription:CreateTitle(L.ACHIEVEMENT_REWARD_CATEGORY_VIEW)
-        for _, definition in ipairs(CATEGORY_DEFINITIONS) do
-            local category = definition.key
-            rootDescription:CreateButton(L[definition.labelKey], function()
-                ShowAchievementRewardCategory(category)
-            end)
-        end
-    end)
 end

@@ -1,6 +1,8 @@
 local settings = {}
 local addon = {
-    L = { ACHIEVEMENT_REWARD_CATEGORY_MOUNT = "Mounts" },
+    L = setmetatable({ ACHIEVEMENT_REWARD_CATEGORY_MOUNT = "Mounts",
+        ACHIEVEMENT_REWARD_TAB = "Reward %s" },
+        { __index = function(_, key) return key end }),
     Config = {
         Tree = { MinScale = 0.2, MaxScale = 1.5 },
         State = { MaxTreeStates = 50, MaxHistoryEntries = 100 },
@@ -70,6 +72,18 @@ for _, name in ipairs({ "Navigation", "Window", "RewardCategories", "Search",
         "EasyAchievement", addon)
 end
 ui.CreateAchievementTreeFrame = function() return frame end
+frame.RewardCategoryRailButtons = {}
+for _, key in ipairs({ "all", "mount", "pet", "toy", "decor", "title",
+    "appearance", "other", "settings" }) do
+    frame.RewardCategoryRailButtons[key] = {
+        Selected = {
+            SetShown = function(self, shown) self.shown = shown end,
+        },
+        SelectedBottom = {
+            SetShown = function(self, shown) self.shown = shown end,
+        },
+    }
+end
 local updateBreadcrumb = ui.UpdateBreadcrumb
 ui.UpdateBreadcrumb = function() end
 local revealedID
@@ -94,12 +108,19 @@ ui.LayoutAchievementTree = function(nodes, edges, root, preserve)
 end
 
 ui.ShowAchievementTree(10)
+assert(not frame.RewardCategoryRailButtons.mount.Selected.shown,
+    "reward rail selected a category on a normal tree page")
 scroll.x, scroll.y, frame.treeScale = 120, 30, 0.7
 frame.collapsedNodes = { [12] = true }
 ui.ShowAchievementRewardCategory("mount")
 assert(#frame.history == 2 and frame.historyIndex == 2)
+assert(frame.RewardCategoryRailButtons.mount.Selected.shown
+    and not frame.RewardCategoryRailButtons.pet.Selected.shown,
+    "reward rail did not highlight the active category")
 scroll.x = 100
 ui.OpenAchievementRewardCategoryCard(frame, 105)
+assert(frame.RewardCategoryRailButtons.mount.Selected.shown,
+    "reward rail lost the category while viewing its card")
 assert(#frame.history == 3 and frame.historyIndex == 3,
     "entering a category card did not create a history entry")
 assert(frame.history[2].viewState.horizontal == 100)
@@ -185,6 +206,39 @@ function addon.NumberSetting() return function(value) return value end end
 function addon.BooleanSetting(value) return not not value end
 assert(loadfile("EasyAchievement/Modules/Achievements/Launcher.lua"))(
     "EasyAchievement", addon)
+local shield = {
+    SetTexture = function(self, file) self.file = file end,
+    SetTexCoord = function(self, ...) self.coords = { ... } end,
+    SetSize = function(self, width, height)
+        self.width, self.height = width, height
+    end,
+}
+assert(ui.SetAchievementShieldAtlas(shield, 40)
+    and shield.file == 4035524
+    and shield.coords[1] == 811 / 1024
+    and shield.coords[2] == 891 / 1024
+    and shield.coords[3] == 36 / 1024
+    and shield.coords[4] == 94 / 1024
+    and shield.width == 40 and shield.height == 29,
+    "launcher shield crop did not remove transparent atlas padding")
+assert(not ui.SetAchievementShieldAtlas({
+    SetTexture = function() error("texture unavailable") end,
+}, 40), "launcher shield crop did not allow the atlas fallback")
+local shine = {
+    SetTexture = shield.SetTexture,
+    SetTexCoord = shield.SetTexCoord,
+    SetSize = shield.SetSize,
+    SetAllPoints = function(self, target) self.anchor = target end,
+    SetVertexColor = function(self, ...) self.color = { ... } end,
+    SetBlendMode = function(self, mode) self.blend = mode end,
+    SetAlpha = function(self, alpha) self.alpha = alpha end,
+}
+local iconParent = { CreateTexture = function() return shine end }
+assert(ui.CreateAchievementShieldBrightness(iconParent, shield, 40)
+    == shine and shine.anchor == shield and shine.file == 4035524
+    and shine.color[2] == 0.95 and shine.blend == "ADD"
+    and shine.alpha == 0.85,
+    "launcher shield brightness overlay is not aligned with the icon")
 ui.ShowAchievementRewardCategory("mount")
 scroll.x = 100
 previousIndex, previousCount = frame.historyIndex, #frame.history
@@ -223,6 +277,10 @@ local function Widget()
             return function() return 60 end
         elseif key == "GetWidth" then
             return function() return 900 end
+        elseif key == "GetFrameLevel" then
+            return function() return 1 end
+        elseif key == "SetShown" then
+            return function(self, shown) self.shown = shown end
         elseif key == "SetTexture" then
             return function(self, texture) self.texture = texture end
         elseif key:match("^Create") then
@@ -232,10 +290,24 @@ local function Widget()
     end })
 end
 ui.CreateFrame = Widget
+ui.GetAchievementSearchBoxWidth = function() return 180 end
 ui.SetTextureAtlas = function(texture, atlas)
     texture.atlas = atlas
     return true
 end
+frame.GetFrameLevel = function() return 1 end
+ui.CreateAchievementRewardCategoryRail(frame)
+local railCount = 0
+for _, button in pairs(frame.RewardCategoryRailButtons) do
+    railCount = railCount + 1
+    assert(button.scripts.OnClick, "reward category rail button has no action")
+end
+assert(railCount == 9 and frame.RewardCategoryRail,
+    "top navigation omitted achievement, reward, or settings tabs")
+frame.RewardCategoryRailButtons.toy.scripts.OnClick()
+assert(frame.rewardCategoryMode.key == "toy"
+    and frame.RewardCategoryRailButtons.toy.Selected.shown,
+    "reward tab did not use the normal category navigation")
 ui.IsShiftKeyDown = function() return false end
 local layoutTree = ui.LayoutAchievementTree
 assert(loadfile("EasyAchievement/Modules/Achievements/Tree.lua"))(
@@ -497,4 +569,75 @@ assert(dataBefore.button == nil and dataBefore.depth == 1
 ui.Content.Refresh(frame, "favorite")
 assert(frame.layoutNodes == nodesBefore and scroll.x == 200)
 ui.GetAchievementData = originalGet
+ui.ShowAchievementTree(50)
+ui.OpenAchievementNodeCard(frame, 52)
+local treeContext = frame.treeCardContext
+assert(treeContext and treeContext.kind == "tree"
+    and treeContext.rootID == 50 and treeContext.index == 3
+    and table.concat(treeContext.achievementIDs, ",") == "50,51,52"
+    and treeContext.parentByID[52] == 51,
+    "tree node card did not retain its source tree order")
+local treeCardHistoryIndex = frame.historyIndex
+ui.NavigateAchievementTreeCard(frame, -1)
+assert(frame.sourceAchievementID == 51
+    and frame.treeCardContext.index == 2
+    and frame.historyIndex == treeCardHistoryIndex
+    and table.concat(frame.breadcrumbIDs, ",") == "50,51",
+    "tree card step changed history or lost the tree path")
+ui.NavigateAchievementHistory(frame, -1)
+assert(frame.sourceAchievementID == 50 and not frame.treeCardContext,
+    "back from a tree card did not restore the tree view")
+ui.NavigateAchievementHistory(frame, 1)
+assert(frame.sourceAchievementID == 51
+    and frame.treeCardContext.index == 2,
+    "forward did not restore the tree card list selection")
+ui.Navigation.OpenCard(51)
+assert(not frame.treeCardContext,
+    "directly opened card inherited the tree card list")
+ui.CaptureOfficialAchievementBrowser = function(target)
+    return addon.AchievementData.CopyNavigationState(
+        target.officialBrowserState)
+end
+ui.UpdateOfficialAchievementBrowser = function() end
+ui.ShowOfficialAchievementCategory = function(categoryID, _, _, entry)
+    ui.Navigation.ApplyPage(frame, { kind = "official-category",
+        officialBrowser = entry.officialBrowser })
+    frame:Show()
+    return frame.officialBrowserState.categoryID == categoryID
+end
+local officialHistoryCount = #frame.history
+ui.Navigation.ApplyPage(frame, { kind = "official-category",
+    officialBrowser = { categoryID = 1, expanded = { [1] = true } } })
+ui.RecordAchievementNavigation(frame)
+ui.Navigation.ApplyPage(frame, { kind = "official-category",
+    officialBrowser = { categoryID = 2, expanded = { [1] = true,
+        [2] = true } } })
+ui.RecordAchievementNavigation(frame)
+assert(#frame.history == officialHistoryCount + 2,
+    "different official categories collapsed into one history entry")
+assert(ui.NavigateAchievementHistory(frame, -1)
+    and frame.officialBrowserState.categoryID == 1
+    and frame.officialBrowserState.expanded[1],
+    "official category back did not restore its expansion state")
+assert(ui.NavigateAchievementHistory(frame, 1)
+    and frame.officialBrowserState.categoryID == 2,
+    "official category forward did not restore its selection")
+local reopenHistoryCount, reopenHistoryIndex = #frame.history, frame.historyIndex
+frame:Hide()
+ui.OpenAchievementPanel()
+assert(frame:IsShown() and frame.currentPage.kind == "official-category"
+    and frame.officialBrowserState.categoryID == 2
+    and frame.officialBrowserState.expanded[2]
+    and #frame.history == reopenHistoryCount
+    and frame.historyIndex == reopenHistoryIndex,
+    "reopening the panel lost official category position or changed history")
+ui.ShowAchievementRewardCategory("mount")
+frame.rewardCategoryMode.selectedAchievementID = 105
+ui.SaveAchievementRewardCategoryState(frame)
+scroll.width = scroll.width + 1
+revealedID = nil
+ui.ShowAchievementRewardCategory("mount")
+assert(frame.rewardCategoryMode.selectedAchievementID == 105
+    and revealedID == nil,
+    "ordinary top-category switching replayed the old selection pulse")
 print("navigation visits, snapshots, related trees and in-place refresh: ok")

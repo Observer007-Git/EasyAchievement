@@ -9,6 +9,15 @@ USER_AGENT="EasyAchievement reward database updater"
 
 BUILD=${1:-}
 if [[ -z "${BUILD}" ]]; then
+    WOW_ROOT=${EASYACHIEVEMENT_WOW_ROOT:-/Applications/World of Warcraft}
+    BUILD_INFO="${WOW_ROOT}/.build.info"
+    if [[ -f "${BUILD_INFO}" ]]; then
+        BUILD=$("${PYTHON_BIN}" "${SCRIPT_DIR}/detect_retail_build.py" \
+            "${BUILD_INFO}")
+        echo "Using installed retail build ${BUILD}"
+    fi
+fi
+if [[ -z "${BUILD}" ]]; then
     mkdir -p "${CACHE_DIR}"
     BUILDS_JSON="${CACHE_DIR}/builds.json"
     curl -L --fail --silent --show-error --retry 3 \

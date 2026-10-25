@@ -20,6 +20,10 @@ function AcquireNodeButton(frame, index)
     button = CreateFrame("Button", nil, frame.Content)
     button:SetSize(NODE_SIZE, NODE_SIZE)
     button:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+    button:EnableMouseWheel(true)
+    button:SetScript("OnMouseWheel", function(_, delta)
+        ZoomAchievementTreeWithWheel(frame, delta)
+    end)
 
     local rootGlow = button:CreateTexture(nil, "BACKGROUND", nil, -2)
     rootGlow:SetPoint("CENTER")
@@ -284,6 +288,28 @@ function AcquireNodeButton(frame, index)
     return button
 end
 
+ZoomAchievementTreeWithWheel = function(frame, delta)
+    if not frame or not frame:IsShown() or not frame.ScrollFrame:IsShown()
+        or frame.rewardCategoryMode or frame.cardOnlyAchievementID
+        or frame.AchievementCard and frame.AchievementCard:IsShown()
+        or not frame.layoutNodes or #frame.layoutNodes == 0
+        or not delta or delta == 0
+    then
+        return
+    end
+    local current = frame.ScaleSlider:GetValue()
+    local steps = math.floor(current / TREE_SCALE_STEP + 0.5)
+        + (delta > 0 and 5 or -5)
+    local value = math.max(MIN_TREE_SCALE,
+        math.min(MAX_TREE_SCALE, steps * TREE_SCALE_STEP))
+    if value ~= current then
+        frame.deferTreeStateSave = true
+        frame.ScaleSlider:SetValue(value)
+        frame.deferTreeStateSave = nil
+        SaveAchievementTreeState(frame)
+    end
+end
+
 function AcquireLine(frame, index)
     local line = frame.lines[index]
     if not line then
@@ -336,7 +362,6 @@ LayoutAchievementTree = function(nodes, edges, root, preserveScroll, stats,
         or frame.cardOnlyAchievementID
     ClearHoveredLines(frame)
     frame.Stats:Show()
-    frame.Legend:SetShown(not categoryMode)
     if frame.RootAncestorButton then
         frame.RootAncestorButton:Hide()
     end
@@ -352,9 +377,12 @@ LayoutAchievementTree = function(nodes, edges, root, preserveScroll, stats,
         frame.AchievementCardCategoryPosition:Hide()
         frame.AchievementCardCategoryReturnButton:Hide()
     end
+    if frame.AchievementCardList then
+        frame.AchievementCardList:Hide()
+    end
     frame.CardScaleControls:Show()
     frame.TreeScaleControls:Show()
-    frame.FitButton:Show()
+    frame.FitButton:Hide()
     frame.ScrollFrame:Show()
     frame.updatingLayout = true
     frame.layoutNodes = nodes
@@ -370,21 +398,43 @@ LayoutAchievementTree = function(nodes, edges, root, preserveScroll, stats,
     local showIncompleteFilter = not categoryMode and stats.incomplete > 0
     frame.IncompleteOnly:SetShown(showIncompleteFilter)
     frame.IncompleteOnlyLabel:SetShown(showIncompleteFilter)
+    frame.breadcrumbLeftOffset = frame.officialBrowserState
+        and frame.OfficialCategoryBrowser
+        and 34 + frame.OfficialCategoryBrowser.pane:GetWidth()
+        or 82
+    local showATT = not categoryMode and CanOpenAchievementATTGuide()
+    frame.ATTButton:ClearAllPoints()
+    frame.ATTButton:SetPoint("RIGHT", frame, "TOPRIGHT", -24, -113)
+    frame.ATTButton.achievementID = titleRoot.id
+    frame.ATTButton:SetShown(showATT)
+    frame.TreeScaleControls:ClearAllPoints()
+    if showATT then
+        frame.TreeScaleControls:SetPoint("RIGHT", frame.ATTButton,
+            "LEFT", -8, 0)
+    else
+        frame.TreeScaleControls:SetPoint("RIGHT", frame,
+            "TOPRIGHT", -24, -113)
+    end
+    frame.Breadcrumb:ClearAllPoints()
+    frame.Breadcrumb:SetPoint("LEFT", frame, "TOPLEFT",
+        frame.breadcrumbLeftOffset, -113)
+    frame.Breadcrumb:SetPoint("RIGHT", showIncompleteFilter
+        and frame.IncompleteOnly or frame.TreeScaleControls,
+        "LEFT", -8, 0)
     local portraitIcon = frame.PortraitIcon
     local hasCategoryAtlas = categoryMode and categoryMode.iconAtlas
         and SetTextureAtlas(portraitIcon, categoryMode.iconAtlas)
     portraitIcon:ClearAllPoints()
     if hasCategoryAtlas then
-        portraitIcon:SetPoint("CENTER", -2, -1)
-        portraitIcon:SetSize(60, 60)
+        portraitIcon:SetPoint("CENTER", -1, -2)
+        portraitIcon:SetSize(58, 58)
     else
-        portraitIcon:SetPoint("CENTER", -2, -3)
-        portraitIcon:SetSize(54, 54)
+        portraitIcon:SetPoint("CENTER", -1, -2)
+        portraitIcon:SetSize(58, 58)
         portraitIcon:SetTexture(categoryMode and categoryMode.icon
             or titleRoot.icon)
         portraitIcon:SetTexCoord(0.06, 0.94, 0.06, 0.94)
     end
-    frame.ATTButton:SetShown(not categoryMode and CanOpenAchievementATTGuide())
     local completionPercent = stats.total > 0
         and math.floor(stats.completed * 100 / stats.total + 0.5) or 0
     if categoryMode then
@@ -698,6 +748,10 @@ LayoutAchievementTree = function(nodes, edges, root, preserveScroll, stats,
         or 0
     frame.HorizontalScroll:SetMinMaxValues(0, horizontalMaximum)
     frame.HorizontalScroll:SetShown(horizontalMaximum > 0.5)
+    local hasExtraSpace = viewportWidth - calculatedLayout.requiredWidth
+        > math.max(48, viewportWidth * 0.1)
+    frame.FitButton.Arrow:SetRotation(hasExtraSpace and math.pi or 0)
+    frame.FitButton:SetShown(horizontalMaximum > 0.5 or hasExtraSpace)
     frame.HorizontalScroll:SetValue(math.min(desiredHorizontal,
         horizontalMaximum))
     local verticalMaximum = math.max(0, contentHeight - viewportHeight)

@@ -53,7 +53,7 @@ function UpdateBreadcrumb(frame)
     end
     local layout = AchievementData.GetBreadcrumbLayout(widths,
         math.max(60, ruler:GetWidth()))
-    local offset = 128
+    local offset = frame.breadcrumbLeftOffset or 82
     for index, item in ipairs(layout) do
         local entry = entries[item.index]
         local button = frame.BreadcrumbButtons[index]
@@ -115,7 +115,7 @@ function UpdateBreadcrumb(frame)
         local width = item.width
         button:SetWidth(width)
         button:ClearAllPoints()
-        button:SetPoint("LEFT", frame, "TOPLEFT", offset, -97)
+        button:SetPoint("LEFT", frame, "TOPLEFT", offset, -113)
         button:SetScript("OnClick", function(self, mouseButton)
             if entry then
                 Activate(entry, mouseButton)
@@ -327,6 +327,12 @@ ShowAchievementTree = function(achievementID, navigationMode, breadcrumbIDs,
             kind = showCardOnly and "card" or "tree",
             achievementID = achievementID,
             categoryContext = rewardCategoryCardContext,
+            treeCardContext = navigationEntry
+                and navigationEntry.treeCardContext,
+            officialContext = navigationEntry
+                and navigationEntry.officialContext,
+            officialBrowser = navigationEntry
+                and navigationEntry.officialBrowser,
             categoryOrigin = navigationEntry and navigationEntry.categoryOrigin,
             breadcrumbIDs = breadcrumbIDs or { achievementID },
             breadcrumbCategory = navigationEntry
@@ -348,6 +354,18 @@ ShowAchievementTree = function(achievementID, navigationMode, breadcrumbIDs,
             local replace = navigationMode == "category"
                 and previousCategoryContext and rewardCategoryCardContext
                 and previousCategoryContext.visitID == rewardCategoryCardContext.visitID
+                or navigationMode == "tree-card"
+                    and frame.history and frame.history[frame.historyIndex]
+                    and frame.history[frame.historyIndex].treeCardContext
+                    and navigationEntry and navigationEntry.treeCardContext
+                    and frame.history[frame.historyIndex].treeCardContext.visitID
+                        == navigationEntry.treeCardContext.visitID
+                or navigationMode == "official-card"
+                    and frame.history and frame.history[frame.historyIndex]
+                    and frame.history[frame.historyIndex].officialContext
+                    and navigationEntry and navigationEntry.officialContext
+                    and frame.history[frame.historyIndex].officialContext.categoryID
+                        == navigationEntry.officialContext.categoryID
             RecordAchievementNavigation(frame, replace)
         end
         RenderAchievementPage(frame, nodes, edges, root, false,
@@ -464,9 +482,10 @@ OpenAchievementContextMenu = function(button, achievementID, openCard, openTree)
     end)
 end
 
-function CreateAchievementLauncherSearch(anchor)
+function CreateAchievementLauncherSearch(anchor, icon)
     local panel = CreateFrame("Frame", nil, UIParent)
     local anchorHeight = math.max(1, anchor:GetHeight() or 42)
+    local inputOffsetX = (anchor:GetWidth() + icon:GetWidth()) / 2 + 1
     local collapsedHeight = 32
     local searchHeight = collapsedHeight
     local anchorOffsetY = (collapsedHeight - anchorHeight) / 2
@@ -481,7 +500,7 @@ function CreateAchievementLauncherSearch(anchor)
 
     local search = CreateFrame("EditBox", nil, panel,
         "SearchBoxNineSliceTemplate")
-    search:SetPoint("TOPLEFT", 4, -searchTopInset)
+    search:SetPoint("TOPLEFT", 0, -searchTopInset)
     search:SetPoint("TOPRIGHT", -4, -searchTopInset)
     search:SetHeight(searchHeight)
     search:SetAutoFocus(false)
@@ -490,13 +509,60 @@ function CreateAchievementLauncherSearch(anchor)
     if search.SetInstructions then
         search:SetInstructions(L.ACHIEVEMENT_TREE_SEARCH)
     end
+    if search.searchIcon then search.searchIcon:Hide() end
+    if search.SetTextInsets then search:SetTextInsets(0, 22, 0, 0) end
+    if search.Instructions then
+        search.Instructions:ClearAllPoints()
+        search.Instructions:SetPoint("TOPLEFT", search, "TOPLEFT", 0, 0)
+        search.Instructions:SetPoint("BOTTOMRIGHT", search,
+            "BOTTOMRIGHT", -22, 0)
+    end
+    local searchBackground = search.Background
+    searchBackground:SetParent(anchor)
+    searchBackground:ClearAllPoints()
+    searchBackground:SetPoint("TOPLEFT", anchor, "TOPLEFT")
+    searchBackground:SetSize(inputOffsetX + panel:GetWidth(), anchorHeight)
+    searchBackground:Hide()
+    panel:HookScript("OnHide", function()
+        searchBackground:Hide()
+    end)
 
     local resultsBackground = panel:CreateTexture(nil, "BACKGROUND")
-    resultsBackground:SetPoint("TOPLEFT", search, "BOTTOMLEFT", 0,
-        -resultsGap)
-    resultsBackground:SetPoint("BOTTOMRIGHT", panel, "BOTTOMRIGHT", -4, 0)
+    resultsBackground:SetPoint("TOPLEFT", search, "BOTTOMLEFT",
+        -inputOffsetX, -resultsGap)
+    resultsBackground:SetPoint("BOTTOMRIGHT", panel, "BOTTOMRIGHT", 0, 4)
     resultsBackground:SetColorTexture(0.025, 0.025, 0.025, 0.96)
+    local roundedBottom = panel:CreateTexture(nil, "BACKGROUND", nil, -1)
+    roundedBottom:SetPoint("BOTTOMLEFT", resultsBackground,
+        "BOTTOMLEFT", 0, -4)
+    roundedBottom:SetSize(inputOffsetX + panel:GetWidth(), anchorHeight)
+    if not SetTextureAtlas(roundedBottom, searchBackground:GetAtlas()) then
+        roundedBottom:SetTexture(searchBackground:GetTexture())
+        roundedBottom:SetTexCoord(searchBackground:GetTexCoord())
+    end
+    roundedBottom:Hide()
+    local resultsEdges = {}
+    for _, side in ipairs({ "LEFT", "RIGHT" }) do
+        local edge = panel:CreateTexture(nil, "BORDER")
+        edge:SetPoint("TOP" .. side, resultsBackground, "TOP" .. side)
+        edge:SetPoint("BOTTOM" .. side, resultsBackground,
+            "BOTTOM" .. side)
+        edge:SetWidth(1)
+        edge:SetColorTexture(0.38, 0.35, 0.29, 0.9)
+        edge:Hide()
+        resultsEdges[#resultsEdges + 1] = edge
+    end
     resultsBackground:Hide()
+    local function ShowResults(shown)
+        resultsBackground:SetShown(shown)
+        roundedBottom:SetShown(shown)
+        for _, edge in ipairs(resultsEdges) do
+            edge:SetShown(shown)
+        end
+    end
+    local function SetPanelHeight(height)
+        panel:SetHeight(height)
+    end
 
     local rows = {}
     local resultIDs = {}
@@ -520,25 +586,37 @@ function CreateAchievementLauncherSearch(anchor)
     end
     for index = 1, 6 do
         local row = CreateFrame("Button", nil, panel)
-        row:SetPoint("TOPLEFT", search, "BOTTOMLEFT", 0,
-            -resultsGap - (index - 1) * 28)
-        row:SetPoint("TOPRIGHT", search, "BOTTOMRIGHT", 0,
-            -resultsGap - (index - 1) * 28)
+        row:SetPoint("TOPLEFT", resultsBackground, "TOPLEFT", 0,
+            -(index - 1) * 28)
+        row:SetPoint("TOPRIGHT", resultsBackground, "TOPRIGHT", 0,
+            -(index - 1) * 28)
         row:SetHeight(28)
         row:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+        local separatorBase = row:CreateTexture(nil, "OVERLAY")
+        separatorBase:SetPoint("TOPLEFT", row, "TOPLEFT")
+        separatorBase:SetPoint("TOPRIGHT", row, "TOPRIGHT")
+        separatorBase:SetHeight(1)
+        separatorBase:SetColorTexture(0.38, 0.28, 0.12, 0.65)
+        local separator = row:CreateTexture(nil, "OVERLAY")
+        separator:SetPoint("LEFT", row, "TOPLEFT")
+        separator:SetPoint("RIGHT", row, "TOPRIGHT")
+        separator:SetHeight(8)
+        if not SetTextureAtlas(separator, "AftLevelup-GlowLine") then
+            separator:SetColorTexture(0.38, 0.28, 0.12, 0.85)
+        end
         local highlight = row:CreateTexture(nil, "HIGHLIGHT")
         highlight:SetAllPoints()
-        if not SetTextureAtlas(highlight, "search-highlight") then
-            highlight:SetColorTexture(0.85, 0.65, 0.2, 0.25)
-        end
+        highlight:SetTexture("Interface\\QuestFrame\\UI-QuestTitleHighlight")
+        highlight:SetBlendMode("ADD")
+        highlight:SetAlpha(0.75)
         local icon = row:CreateTexture(nil, "ARTWORK")
-        icon:SetPoint("LEFT", 4, 0)
+        icon:SetPoint("LEFT", (anchor:GetWidth() - 20) / 2, 0)
         icon:SetSize(20, 20)
         icon:SetTexCoord(0, 1, 0, 1)
         row.Icon = icon
         local name = row:CreateFontString(nil, "OVERLAY",
             "GameFontHighlightSmall")
-        name:SetPoint("LEFT", icon, "RIGHT", 6, 0)
+        name:SetPoint("LEFT", row, "LEFT", inputOffsetX, 0)
         name:SetPoint("RIGHT", -8, 0)
         name:SetJustifyH("LEFT")
         name:SetWordWrap(false)
@@ -562,10 +640,30 @@ function CreateAchievementLauncherSearch(anchor)
         rows[index] = row
     end
 
-    local message = panel:CreateFontString(nil, "OVERLAY",
+    local messageRow = CreateFrame("Frame", nil, panel)
+    messageRow:SetPoint("TOPLEFT", resultsBackground, "TOPLEFT")
+    messageRow:SetPoint("TOPRIGHT", resultsBackground, "TOPRIGHT")
+    messageRow:SetHeight(28)
+    messageRow:EnableMouse(false)
+    local messageSeparatorBase = messageRow:CreateTexture(nil, "OVERLAY")
+    messageSeparatorBase:SetPoint("TOPLEFT", messageRow, "TOPLEFT")
+    messageSeparatorBase:SetPoint("TOPRIGHT", messageRow, "TOPRIGHT")
+    messageSeparatorBase:SetHeight(1)
+    messageSeparatorBase:SetColorTexture(0.38, 0.28, 0.12, 0.65)
+    local messageSeparator = messageRow:CreateTexture(nil, "OVERLAY")
+    messageSeparator:SetPoint("LEFT", messageRow, "TOPLEFT")
+    messageSeparator:SetPoint("RIGHT", messageRow, "TOPRIGHT")
+    messageSeparator:SetHeight(8)
+    if not SetTextureAtlas(messageSeparator, "AftLevelup-GlowLine") then
+        messageSeparator:SetColorTexture(0.38, 0.28, 0.12, 0.85)
+    end
+    local message = messageRow:CreateFontString(nil, "OVERLAY",
         "GameFontDisableSmall")
-    message:SetPoint("TOP", search, "BOTTOM", 0, -9)
-    message:Hide()
+    message:SetPoint("LEFT", messageRow, "LEFT", inputOffsetX, 0)
+    message:SetPoint("RIGHT", messageRow, "RIGHT", -8, 0)
+    message:SetJustifyH("LEFT")
+    message:SetWordWrap(false)
+    messageRow:Hide()
 
     local function RenderResults()
         local shown = 0
@@ -589,12 +687,11 @@ function CreateAchievementLauncherSearch(anchor)
             rows[index].achievementID = nil
             rows[index].node = nil
         end
-        message:SetShown(shown == 0)
+        messageRow:SetShown(shown == 0)
         message:SetText(L.ACHIEVEMENT_SEARCH_NO_RESULTS)
-        resultsBackground:Show()
-        panel:SetHeight(shown > 0 and searchTopInset + searchHeight
-            + resultsGap + shown * 28 + resultsBottomPadding
-            or collapsedHeight + 24)
+        ShowResults(true)
+        SetPanelHeight(searchTopInset + searchHeight + resultsGap
+            + math.max(shown, 1) * 28 + resultsBottomPadding)
     end
 
     local function RefreshResults()
@@ -632,9 +729,9 @@ function CreateAchievementLauncherSearch(anchor)
             for _, row in ipairs(rows) do
                 row:Hide()
             end
-            message:Hide()
-            resultsBackground:Hide()
-            panel:SetHeight(collapsedHeight)
+            messageRow:Hide()
+            ShowResults(false)
+            SetPanelHeight(collapsedHeight)
             return
         end
         local finished = SetOwnedAchievementSearch(panel, query)
@@ -642,9 +739,10 @@ function CreateAchievementLauncherSearch(anchor)
             RefreshResults()
         else
             message:SetText(L.ACHIEVEMENT_SEARCHING)
-            message:Show()
-            resultsBackground:Show()
-            panel:SetHeight(collapsedHeight + 24)
+            messageRow:Show()
+            ShowResults(true)
+            SetPanelHeight(searchTopInset + searchHeight + resultsGap
+                + 28 + resultsBottomPadding)
         end
     end)
     search:SetScript("OnEscapePressed", HidePanel)
@@ -664,8 +762,22 @@ function CreateAchievementLauncherSearch(anchor)
 
     local function ScheduleHide()
         C_Timer.After(0.12, function()
+            local overResults = searchBackground:IsShown()
+                and searchBackground.IsMouseOver
+                and searchBackground:IsMouseOver()
+            overResults = overResults or resultsBackground:IsShown()
+                and resultsBackground.IsMouseOver
+                and resultsBackground:IsMouseOver()
+            if not overResults then
+                for _, row in ipairs(rows) do
+                    if row:IsShown() and row:IsMouseOver() then
+                        overResults = true
+                        break
+                    end
+                end
+            end
             if panel:IsShown() and not panel:IsMouseOver()
-                and not anchor:IsMouseOver()
+                and not anchor:IsMouseOver() and not overResults
             then
                 HidePanel()
             end
@@ -676,18 +788,22 @@ function CreateAchievementLauncherSearch(anchor)
 
     function panel:ShowAnimated()
         self:ClearAllPoints()
-        self:SetPoint("TOPLEFT", anchor, "TOPRIGHT", 3,
+        self:SetPoint("TOPLEFT", anchor, "TOPLEFT", inputOffsetX,
             anchorOffsetY)
         self.animationStartedAt = GetTime()
         self:SetAlpha(0)
+        searchBackground:SetWidth(anchor:GetWidth())
+        searchBackground:SetAlpha(0)
+        searchBackground:Show()
         self:Show()
         self:SetScript("OnUpdate", function(searchPanel)
             local progress = math.min(1,
                 (GetTime() - searchPanel.animationStartedAt) / 0.15)
             searchPanel:SetAlpha(progress)
-            searchPanel:ClearAllPoints()
-            searchPanel:SetPoint("TOPLEFT", anchor, "TOPRIGHT",
-                3 - (1 - progress) * 8, anchorOffsetY)
+            searchBackground:SetWidth(anchor:GetWidth()
+                + (inputOffsetX + searchPanel:GetWidth()
+                    - anchor:GetWidth()) * progress)
+            searchBackground:SetAlpha(progress)
             if progress >= 1 then
                 searchPanel:SetScript("OnUpdate", nil)
                 search:SetFocus()

@@ -17,6 +17,29 @@ local DEFAULT_MINIMAP_ANGLE = 225
 local achievementLauncherSettings
 local achievementMinimapButton
 
+-- The shield occupies pixels (811, 36)-(891, 94) of texture file 4035524.
+function SetAchievementShieldAtlas(texture, width)
+    if not pcall(texture.SetTexture, texture, 4035524) then
+        return false
+    end
+    texture:SetTexCoord(811 / 1024, 891 / 1024, 36 / 1024, 94 / 1024)
+    texture:SetSize(width, width * 58 / 80)
+    return true
+end
+
+function CreateAchievementShieldBrightness(parent, icon, width)
+    local shine = parent:CreateTexture(nil, "ARTWORK", nil, 1)
+    if not SetAchievementShieldAtlas(shine, width) then
+        shine:Hide()
+        return nil
+    end
+    shine:SetAllPoints(icon)
+    shine:SetVertexColor(1, 0.95, 0.25)
+    shine:SetBlendMode("ADD")
+    shine:SetAlpha(0.85)
+    return shine
+end
+
 local function GetAchievementLauncherScale()
     return math.max(MIN_LAUNCHER_SCALE,
         math.min(MAX_LAUNCHER_SCALE,
@@ -24,27 +47,74 @@ local function GetAchievementLauncherScale()
 end
 
 local function ShouldShowAchievementLauncher()
-    return Addon:GetSetting("enableAchievementEnhancement")
-        and not Addon:GetSetting("achievementLauncherHidden")
+    return not Addon:GetSetting("achievementLauncherHidden")
         and GetAchievementLauncherScale() > 0
 end
 
-function OpenAchievementPanel()
-    if achievementFavoritesPanel then
-        achievementFavoritesPanel:Hide()
+function ShowAchievementEmptyPage(frame)
+    Navigation.ApplyPage(frame, { kind = "empty" })
+    for _, nodeButton in ipairs(frame.nodeButtons) do
+        nodeButton:Hide()
     end
+    for _, line in ipairs(frame.lines) do
+        line:Hide()
+    end
+    if frame.AchievementCard then
+        frame.AchievementCard:Hide()
+        frame.AchievementCardHeader:Hide()
+        frame.AchievementCardTreeButton:Hide()
+        frame.AchievementCardBackButton:Hide()
+        frame.AchievementCardForwardButton:Hide()
+        frame.AchievementCardCategoryPosition:Hide()
+        frame.AchievementCardCategoryReturnButton:Hide()
+    end
+    if frame.AchievementCardList then frame.AchievementCardList:Hide() end
+    UpdateAchievementHeader(frame, L.ACHIEVEMENT_ENHANCEMENT, "")
+    UpdateAchievementRewardHeader(frame, nil)
+    frame.ATTButton:Hide()
+    frame.BackButton:Hide()
+    frame.ForwardButton:Hide()
+    frame.IncompleteOnly:Hide()
+    frame.IncompleteOnlyLabel:Hide()
+    frame.TreeScaleControls:Hide()
+    frame.CardScaleControls:Hide()
+    frame.FitButton:Hide()
+    frame.Navigator:Hide()
+    frame.Breadcrumb:Hide()
+    for _, button in ipairs(frame.BreadcrumbButtons or {}) do
+        button:Hide()
+    end
+    frame.ScrollFrame:Show()
+    frame.HorizontalScroll:Hide()
+    frame.EmptyText:SetText(L.ACHIEVEMENT_LAUNCHER_EMPTY)
+    frame.EmptyText:Show()
+    if achievementRewardFrame then
+        achievementRewardFrame:Hide()
+    end
+    frame:Show()
+    frame:Raise()
+end
+
+function OpenAchievementPanel()
     local currentFrame = achievementTreeFrame
+    local officialCategory = currentFrame and currentFrame.currentPage
+        and currentFrame.currentPage.kind == "official-category"
     if currentFrame and (currentFrame.sourceAchievementID
-        or currentFrame.rewardCategoryMode)
+        or currentFrame.rewardCategoryMode or officialCategory)
     then
         if not currentFrame:IsShown() then
             SaveCurrentAchievementNavigation(currentFrame)
-            currentFrame:Show()
-            if currentFrame.rewardCategoryMode then
+            if officialCategory then
+                local state = CaptureOfficialAchievementBrowser(currentFrame)
+                ShowOfficialAchievementCategory(state.categoryID, false,
+                    "history", { officialBrowser = state })
+            elseif currentFrame.rewardCategoryMode then
+                currentFrame:Show()
                 ShowAchievementRewardCategory(currentFrame.rewardCategoryMode.key,
                     "history", AchievementData.CopyNavigationState(
                         currentFrame.history[currentFrame.historyIndex]))
             else
+                currentFrame:Show()
                 ShowAchievementTree(currentFrame.sourceAchievementID, "refresh")
             end
         end
@@ -59,27 +129,7 @@ function OpenAchievementPanel()
         return
     end
 
-    local frame = CreateAchievementTreeFrame()
-    Navigation.ApplyPage(frame, { kind = "empty" })
-    for _, nodeButton in ipairs(frame.nodeButtons) do
-        nodeButton:Hide()
-    end
-    for _, line in ipairs(frame.lines) do
-        line:Hide()
-    end
-    UpdateAchievementHeader(frame, L.ACHIEVEMENT_ENHANCEMENT, "")
-    UpdateAchievementRewardHeader(frame, nil)
-    frame.ATTButton:Hide()
-    frame.IncompleteOnly:Hide()
-    frame.IncompleteOnlyLabel:Hide()
-    frame.TreeScaleControls:Hide()
-    frame.EmptyText:SetText(L.ACHIEVEMENT_LAUNCHER_EMPTY)
-    frame.EmptyText:Show()
-    if achievementRewardFrame then
-        achievementRewardFrame:Hide()
-    end
-    frame:Show()
-    frame:Raise()
+    ShowAchievementEmptyPage(CreateAchievementTreeFrame())
 end
 
 local function RefreshLauncherSettings()
@@ -95,9 +145,6 @@ local function RefreshLauncherSettings()
             Addon:GetSetting("achievementLauncherHidden"))
         achievementLauncherSettings.ShowMinimap:SetChecked(
             Addon:GetSetting("achievementShowMinimapIcon"))
-    end
-    if RefreshAchievementLauncherSettingsPanel then
-        RefreshAchievementLauncherSettingsPanel()
     end
 end
 
@@ -119,6 +166,7 @@ local function CreateAchievementLauncherSettings(owner)
         achievementLauncherSettings:ClearAllPoints()
         achievementLauncherSettings:SetPoint("TOPLEFT", owner, "TOPRIGHT",
             4, 0)
+        achievementLauncherSettings.Owner = owner
         return achievementLauncherSettings
     end
 
@@ -129,6 +177,20 @@ local function CreateAchievementLauncherSettings(owner)
     panel:SetClampedToScreen(true)
     panel:EnableMouse(true)
     panel:SetPoint("TOPLEFT", owner, "TOPRIGHT", 4, 0)
+    panel.Owner = owner
+    panel:SetScript("OnShow", function(self)
+        self:RegisterEvent("GLOBAL_MOUSE_DOWN")
+    end)
+    panel:SetScript("OnHide", function(self)
+        self:UnregisterEvent("GLOBAL_MOUSE_DOWN")
+    end)
+    panel:SetScript("OnEvent", function(self, event)
+        if event == "GLOBAL_MOUSE_DOWN" and not self:IsMouseOver()
+            and not self.Owner:IsMouseOver()
+        then
+            self:Hide()
+        end
+    end)
     local background = panel:CreateTexture(nil, "BACKGROUND")
     background:SetAllPoints()
     background:SetColorTexture(0.035, 0.035, 0.035, 0.98)
@@ -187,6 +249,9 @@ local function CreateAchievementLauncherSettings(owner)
             self:GetChecked() == true)
     end)
     panel.ShowMinimap = showMinimap
+    panel:SetWidth(math.max(220,
+        math.ceil(math.max(hideLauncher.Label:GetStringWidth(),
+            showMinimap.Label:GetStringWidth())) + 46))
     panel:Hide()
     table.insert(UISpecialFrames, panel:GetName())
     achievementLauncherSettings = panel
@@ -248,11 +313,17 @@ local function CreateAchievementMinimapButton()
     local icon = button:CreateTexture(nil, "ARTWORK")
     icon:SetPoint("CENTER")
     icon:SetSize(20, 20)
-    if not SetTextureAtlas(icon, "UI-Achievement-Shield-NoPoints") then
-        icon:SetTexture("Interface\\AchievementFrame\\UI-Achievement-Shields")
-        icon:SetTexCoord(0, 0.5, 0, 0.5)
+    if not SetAchievementShieldAtlas(icon, 24) then
+        if not SetTextureAtlas(icon,
+            "UI-Achievement-Shield-Desaturated") then
+            icon:SetTexture("Interface\\AchievementFrame\\UI-Achievement-Shields")
+            icon:SetTexCoord(0, 0.5, 0, 0.5)
+        end
     end
+    icon:SetVertexColor(1, 0.9, 0.2)
     icon:AddMaskTexture(mask)
+    local shine = CreateAchievementShieldBrightness(button, icon, 24)
+    if shine then shine:AddMaskTexture(mask) end
     local border = button:CreateTexture(nil, "OVERLAY")
     border:SetPoint("TOPLEFT")
     border:SetSize(54, 54)
@@ -306,8 +377,7 @@ function UpdateAchievementLauncherVisibility()
     end
     if achievementMinimapButton then
         achievementMinimapButton:SetShown(
-            Addon:GetSetting("enableAchievementEnhancement")
-                and Addon:GetSetting("achievementShowMinimapIcon"))
+            Addon:GetSetting("achievementShowMinimapIcon"))
     end
     RefreshLauncherSettings()
 end
@@ -318,6 +388,10 @@ function ApplyAchievementLauncherScale(value)
     if achievementLauncher and scale > 0 then
         achievementLauncher:SetScale(scale)
         achievementLauncher.QuickSearch:SetScale(scale)
+        if Addon.Anchors then
+            Addon.Anchors:Position(achievementLauncher,
+                "achievementLauncherPosition", 0.035, 0.65)
+        end
     end
     UpdateAchievementLauncherVisibility()
 end
@@ -351,41 +425,37 @@ function CreateAchievementLauncher()
 
     local icon = button:CreateTexture(nil, "ARTWORK")
     icon:SetPoint("CENTER")
-    icon:SetSize(34, 34)
-    if not SetTextureAtlas(icon, "UI-Achievement-Shield-NoPoints") then
-        icon:SetTexture("Interface\\AchievementFrame\\UI-Achievement-Shields")
-        icon:SetTexCoord(0, 0.5, 0, 0.5)
+    icon:SetSize(32, 41)
+    if not SetTextureAtlas(icon, "UI-HUD-MicroMenu-Achievements-Up")
+        and not SetTextureAtlas(icon,
+            "UI-HUD-MicroMenu-Achievements-Up-2x")
+    then
+        if not SetAchievementShieldAtlas(icon, 40) then
+            icon:SetTexture("Interface\\AchievementFrame\\UI-Achievement-Shields")
+            icon:SetTexCoord(0, 0.5, 0, 0.5)
+        end
+        icon:SetVertexColor(1, 0.9, 0.2)
     end
     button.Icon = icon
 
     local hoverIcon = button:CreateTexture(nil, "OVERLAY")
     hoverIcon:SetPoint("CENTER")
-    hoverIcon:SetSize(34, 34)
+    hoverIcon:SetSize(32, 41)
     if not SetTextureAtlas(hoverIcon,
-        "UI-Achievement-Shield-NoPoints")
+        "UI-HUD-MicroMenu-Achievements-Mouseover")
+        and not SetTextureAtlas(hoverIcon,
+            "UI-HUD-MicroMenu-Achievements-Mouseover-2x")
     then
-        hoverIcon:SetTexture(
-            "Interface\\AchievementFrame\\UI-Achievement-Shields")
-        hoverIcon:SetTexCoord(0, 0.5, 0, 0.5)
+        if not SetAchievementShieldAtlas(hoverIcon, 40) then
+            hoverIcon:SetTexture(
+                "Interface\\AchievementFrame\\UI-Achievement-Shields")
+            hoverIcon:SetTexCoord(0, 0.5, 0, 0.5)
+        end
+        hoverIcon:SetVertexColor(1, 0.9, 0.2)
     end
-    hoverIcon:SetBlendMode("ADD")
-    hoverIcon:SetAlpha(0.15)
     hoverIcon:Hide()
     button.HoverIcon = hoverIcon
-    local hoverPulse = hoverIcon:CreateAnimationGroup()
-    hoverPulse:SetLooping("REPEAT")
-    local hoverFadeIn = hoverPulse:CreateAnimation("Alpha")
-    hoverFadeIn:SetFromAlpha(0.15)
-    hoverFadeIn:SetToAlpha(0.75)
-    hoverFadeIn:SetDuration(0.4)
-    hoverFadeIn:SetOrder(1)
-    local hoverFadeOut = hoverPulse:CreateAnimation("Alpha")
-    hoverFadeOut:SetFromAlpha(0.75)
-    hoverFadeOut:SetToAlpha(0.15)
-    hoverFadeOut:SetDuration(0.4)
-    hoverFadeOut:SetOrder(2)
-    button.HoverPulse = hoverPulse
-    button.QuickSearch = CreateAchievementLauncherSearch(button)
+    button.QuickSearch = CreateAchievementLauncherSearch(button, icon)
 
     button:SetScript("OnDragStart", function(self)
         self.wasDragged = true
@@ -420,12 +490,12 @@ function CreateAchievementLauncher()
         OpenAchievementPanel()
     end)
     button:SetScript("OnEnter", function(self)
+        self.Icon:Hide()
         self.HoverIcon:Show()
-        self.HoverPulse:Play()
         self.QuickSearch:ShowAnimated()
     end)
     button:SetScript("OnLeave", function(self)
-        self.HoverPulse:Stop()
+        self.Icon:Show()
         self.HoverIcon:Hide()
         self.QuickSearch:ScheduleHide()
     end)
@@ -433,45 +503,6 @@ function CreateAchievementLauncher()
     ApplyAchievementLauncherScale(
         Addon:GetSetting("achievementLauncherScale"))
     return button
-end
-
-function ApplyAchievementEnhancement(enabled)
-    if enabled then
-        local launcher = CreateAchievementLauncher()
-        CreateAchievementMinimapButton()
-        if launcher then
-            ApplyAchievementLauncherScale(
-                Addon:GetSetting("achievementLauncherScale"))
-        end
-        for _, popupID in ipairs(
-            Addon:GetSetting("achievementPopupIDs") or {})
-        do
-            ShowAchievementPopup(popupID, false)
-        end
-    else
-        if achievementLauncher then
-            achievementLauncher:Hide()
-            achievementLauncher.QuickSearch:HideSearch()
-        end
-        if achievementLauncherSettings then
-            achievementLauncherSettings:Hide()
-        end
-        if achievementMinimapButton then
-            achievementMinimapButton:Hide()
-        end
-        if achievementTreeFrame then
-            achievementTreeFrame:Hide()
-        end
-        if achievementFavoritesPanel then
-            achievementFavoritesPanel:Hide()
-        end
-        for _, popup in ipairs(achievementPopupFrames) do
-            popup:Hide()
-        end
-        if achievementRewardFrame then
-            achievementRewardFrame:Hide()
-        end
-    end
 end
 
 function RefreshAchievementPopup()
@@ -492,11 +523,6 @@ function RefreshVisibleCriteriaProgress()
 
     local frame = achievementTreeFrame
     Content.Refresh(frame, "progress")
-    if achievementFavoritesPanel and achievementFavoritesPanel:IsShown()
-        and RefreshFavoritesPanel
-    then
-        RefreshFavoritesPanel()
-    end
 end
 
 function OnCriteriaUpdate()
@@ -555,8 +581,6 @@ local function OnRewardCollectionChanged(event)
     end)
 end
 
-Addon:RegisterSetting("enableAchievementEnhancement", true,
-    Addon.BooleanSetting, ApplyAchievementEnhancement)
 Addon:RegisterSetting("achievementTreeWidth", DEFAULT_FRAME_WIDTH,
     Addon.NumberSetting(MIN_FRAME_WIDTH, MAX_FRAME_WIDTH, 1))
 Addon:RegisterSetting("achievementTreeHeight", DEFAULT_FRAME_HEIGHT,
@@ -607,8 +631,17 @@ Addon:RegisterEvent("NEW_MOUNT_ADDED", OnRewardCollectionChanged)
 Addon:RegisterEvent("TRANSMOG_COLLECTION_UPDATED", OnRewardCollectionChanged)
 Addon:RegisterEvent("TOYS_UPDATED", OnRewardCollectionChanged)
 Addon:RegisterEvent("PLAYER_LOGIN", function()
-    ApplyAchievementEnhancement(
-        Addon:GetSetting("enableAchievementEnhancement"))
+    local launcher = CreateAchievementLauncher()
+    CreateAchievementMinimapButton()
+    if launcher then
+        ApplyAchievementLauncherScale(
+            Addon:GetSetting("achievementLauncherScale"))
+    end
+    for _, popupID in ipairs(
+        Addon:GetSetting("achievementPopupIDs") or {})
+    do
+        ShowAchievementPopup(popupID, false)
+    end
 end)
 
 _G.SLASH_EASYACHIEVEMENT1 = "/eat"

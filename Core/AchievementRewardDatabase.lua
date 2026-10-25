@@ -21,10 +21,6 @@ local function HasBit(mask, value)
     return mask % (value * 2) >= value
 end
 
-function Database.GetBuild()
-    return raw.build
-end
-
 function Database.GetMountID(itemID)
     return raw.mountItems and raw.mountItems[itemID]
 end
