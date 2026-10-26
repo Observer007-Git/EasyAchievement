@@ -311,8 +311,8 @@ local function CreateAchievementMinimapButton()
     mask:SetSize(26, 26)
     background:AddMaskTexture(mask)
     local icon = button:CreateTexture(nil, "ARTWORK")
-    icon:SetPoint("CENTER")
-    icon:SetSize(26, 33)
+    icon:SetPoint("CENTER", mask, "CENTER", 1, 0)
+    icon:SetSize(23, 30)
     if not SetTextureAtlas(icon,
         "UI-HUD-MicroMenu-Achievements-Mouseover")
         and not SetTextureAtlas(icon,

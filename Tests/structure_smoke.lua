@@ -130,7 +130,9 @@ assert(launcherSource:find('"UI-HUD-MicroMenu-Achievements-Up"', 1, true)
 local minimapSource = launcherSource:match(
     "local function CreateAchievementMinimapButton%(%)%s*(.-)%s*function UpdateAchievementLauncherVisibility")
 assert(minimapSource
-    and minimapSource:find('icon:SetSize(26, 33)', 1, true)
+    and minimapSource:find('icon:SetPoint("CENTER", mask, "CENTER", 1, 0)',
+        1, true)
+    and minimapSource:find('icon:SetSize(23, 30)', 1, true)
     and minimapSource:find(
         '"UI-HUD-MicroMenu-Achievements-Mouseover"',
         1, true)

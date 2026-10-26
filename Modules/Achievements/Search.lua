@@ -772,10 +772,13 @@ function CreateAchievementLauncherSearch(anchor, icon)
         else
             resultFooter:Hide()
         end
+        local resultHeight = math.max(shown, 1) * 28
+            + resultsBottomPadding
+            + (resultFooter:IsShown() and 22 or 0)
+        roundedBottom:SetHeight(math.min(anchorHeight, resultHeight))
         ShowResults(true)
         SetPanelHeight(searchTopInset + searchHeight + resultsGap
-            + math.max(shown, 1) * 28 + resultsBottomPadding
-            + (resultFooter:IsShown() and 22 or 0))
+            + resultHeight)
     end
 
     local function RefreshResults(includeAchievements)
