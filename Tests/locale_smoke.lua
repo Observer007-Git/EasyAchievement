@@ -59,16 +59,12 @@ end
 local english = LoadLocale("EasyAchievement/Locales/enUS.lua", "enUS")
 local simplifiedChinese = LoadLocale(
     "EasyAchievement/Locales/zhCN.lua", "zhCN")
-local traditionalChinese = LoadLocale(
-    "EasyAchievement/Locales/zhTW.lua", "zhTW")
 
 AssertCompatible(english, simplifiedChinese, "zhCN", true)
-AssertCompatible(english, traditionalChinese, "zhTW", false)
 assert(simplifiedChinese.ACHIEVEMENT_LAUNCHER_HIDE
         == "隐藏屏幕图标（/eat 或小地图再次启用）"
-    and english.ACHIEVEMENT_LAUNCHER_HIDE:find("/eat", 1, true)
-    and traditionalChinese.ACHIEVEMENT_LAUNCHER_HIDE:find("/eat", 1, true),
-    "launcher hide option must explain how to reopen it in every locale")
+    and english.ACHIEVEMENT_LAUNCHER_HIDE:find("/eat", 1, true),
+    "launcher hide option must explain how to reopen it in both locales")
 
 local toc = assert(io.open("EasyAchievement/EasyAchievement.toc", "r"))
 local runtimePaths = {}
@@ -79,6 +75,17 @@ for line in toc:lines() do
     end
 end
 toc:close()
+
+local localePaths = {}
+for _, path in ipairs(runtimePaths) do
+    if path:find("/Locales/", 1, true) then
+        localePaths[#localePaths + 1] = path
+    end
+end
+assert(#localePaths == 2
+    and localePaths[1] == "EasyAchievement/Locales/enUS.lua"
+    and localePaths[2] == "EasyAchievement/Locales/zhCN.lua",
+    "runtime should load only English and simplified Chinese locales")
 
 for _, path in ipairs(runtimePaths) do
     local file = assert(io.open(path, "r"))

@@ -127,6 +127,19 @@ assert(launcherSource:find('"UI-HUD-MicroMenu-Achievements-Up"', 1, true)
     and launcherSource:find('self.Icon:Hide()', 1, true)
     and launcherSource:find('self.Icon:Show()', 1, true),
     "screen launcher icon must use native up and mouseover atlases")
+local minimapSource = launcherSource:match(
+    "local function CreateAchievementMinimapButton%(%)%s*(.-)%s*function UpdateAchievementLauncherVisibility")
+assert(minimapSource
+    and minimapSource:find('icon:SetSize(26, 33)', 1, true)
+    and minimapSource:find(
+        '"UI-HUD-MicroMenu-Achievements-Mouseover"',
+        1, true)
+    and minimapSource:find('icon:AddMaskTexture(mask)', 1, true)
+    and not minimapSource:find('hoverIcon', 1, true)
+    and tocSource:find(
+        '## IconAtlas: UI-HUD-MicroMenu-Achievements-Mouseover',
+        1, true),
+    "minimap and addon-list icons must use the mouseover atlas by default")
 
 local searchSource = ReadSource("Modules/Achievements/Search.lua")
 assert(searchSource:find("OpenAchievementATTGuide(achievementID)", 1, true),

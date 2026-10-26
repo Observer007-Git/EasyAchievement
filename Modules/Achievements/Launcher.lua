@@ -312,18 +312,19 @@ local function CreateAchievementMinimapButton()
     background:AddMaskTexture(mask)
     local icon = button:CreateTexture(nil, "ARTWORK")
     icon:SetPoint("CENTER")
-    icon:SetSize(20, 20)
-    if not SetAchievementShieldAtlas(icon, 24) then
-        if not SetTextureAtlas(icon,
-            "UI-Achievement-Shield-Desaturated") then
+    icon:SetSize(26, 33)
+    if not SetTextureAtlas(icon,
+        "UI-HUD-MicroMenu-Achievements-Mouseover")
+        and not SetTextureAtlas(icon,
+            "UI-HUD-MicroMenu-Achievements-Mouseover-2x")
+    then
+        if not SetAchievementShieldAtlas(icon, 26) then
             icon:SetTexture("Interface\\AchievementFrame\\UI-Achievement-Shields")
             icon:SetTexCoord(0, 0.5, 0, 0.5)
         end
+        icon:SetVertexColor(1, 0.9, 0.2)
     end
-    icon:SetVertexColor(1, 0.9, 0.2)
     icon:AddMaskTexture(mask)
-    local shine = CreateAchievementShieldBrightness(button, icon, 24)
-    if shine then shine:AddMaskTexture(mask) end
     local border = button:CreateTexture(nil, "OVERLAY")
     border:SetPoint("TOPLEFT")
     border:SetSize(54, 54)

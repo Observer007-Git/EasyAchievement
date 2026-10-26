@@ -1,15 +1,13 @@
 ## Interface: 120105
 ## Title: EasyAchievement
 ## Title-zhCN: EasyAchievement 成就助手
-## Title-zhTW: EasyAchievement 成就助手
 ## Notes: An independent achievement tree, card, reward preview, favorites, and search addon.
 ## Notes-zhCN: 独立的成就树、卡片、奖励预览、收藏与搜索插件。
-## Notes-zhTW: 獨立的成就樹、卡片、獎勵預覽、收藏與搜尋插件。
 ## Author: Observer007
 ## Version: 1.0.0
 ## SavedVariables: EasyAchievementDB
 ## OptionalDeps: AllTheThings
-## IconAtlas: UI-Achievement-Shield-NoPoints
+## IconAtlas: UI-HUD-MicroMenu-Achievements-Mouseover
 
 Core/Database.lua
 Data/AchievementRewardDatabase.lua
@@ -18,7 +16,6 @@ Core/AchievementRewardDatabase.lua
 Core/AchievementData.lua
 Locales/enUS.lua
 Locales/zhCN.lua
-Locales/zhTW.lua
 Core/Anchors.lua
 Modules/AchievementTreeData.lua
 Modules/AchievementRewards.lua

@@ -1,4 +1,4 @@
-local _, Addon = ...
+local addonName, Addon = ...
 local UI = assert(Addon.AchievementUI)
 if setfenv then setfenv(1, UI) else _ENV = UI end
 
@@ -120,9 +120,9 @@ local function BuildSettingsPage(frame)
 
     for index, option in ipairs(OPTIONS) do
         local row = CreateFrame("Button", nil, page)
-        row:SetSize(212, 34)
+        row:SetSize(212, 28)
         row:SetPoint("TOPLEFT", page, "TOPLEFT", 4,
-            -8 - (index - 1) * 38)
+            -8 - (index - 1) * 30)
         local selected = row:CreateTexture(nil, "ARTWORK")
         selected:SetAllPoints()
         SetTextureAtlas(selected, "Options_List_Active")
@@ -224,6 +224,24 @@ local function BuildSettingsPage(frame)
         end)
         rows[option.key] = row
     end
+    local gameVersion = page:CreateFontString(nil, "OVERLAY",
+        "GameFontHighlightSmall")
+    gameVersion:SetPoint("BOTTOMLEFT", page, "BOTTOMLEFT", 16, 48)
+    gameVersion:SetText(string.format(L.ACHIEVEMENT_GAME_VERSION,
+        GetBuildInfo()))
+    page.GameVersion = gameVersion
+    local dataVersion = page:CreateFontString(nil, "OVERLAY",
+        "GameFontHighlightSmall")
+    dataVersion:SetPoint("BOTTOMLEFT", page, "BOTTOMLEFT", 16, 30)
+    dataVersion:SetText(string.format(L.ACHIEVEMENT_DATA_VERSION,
+        Addon.AchievementRewardDatabase.build))
+    page.DataVersion = dataVersion
+    local addonVersion = page:CreateFontString(nil, "OVERLAY",
+        "GameFontHighlightSmall")
+    addonVersion:SetPoint("BOTTOMLEFT", page, "BOTTOMLEFT", 16, 12)
+    addonVersion:SetText(string.format(L.ACHIEVEMENT_ADDON_VERSION,
+        C_AddOns.GetAddOnMetadata(addonName, "Version")))
+    page.AddonVersion = addonVersion
     page.selectedKey = "card"
     page.SettingsRows = rows
     RefreshPreview(frame)

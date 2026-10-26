@@ -69,7 +69,6 @@ local HOUSING_ACHIEVEMENT_LABELS = {
     ptBR = "Conquista:",
     ruRU = "Достижение:",
     zhCN = "成就：",
-    zhTW = "成就：",
 }
 
 local function GetDecorSourceAchievementName(sourceText)

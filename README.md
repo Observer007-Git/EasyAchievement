@@ -49,8 +49,7 @@ EasyAchievement/
 │   └── Anchors.lua              # 屏幕位置的保存与恢复
 ├── Locales/
 │   ├── enUS.lua                 # 英文核心语言和所有文本的回退值
-│   ├── zhCN.lua                 # 简体中文核心语言（完整覆盖）
-│   └── zhTW.lua                 # 可选繁体中文覆盖（未覆盖键回退英文）
+│   └── zhCN.lua                 # 简体中文核心语言（完整覆盖）
 └── Modules/
     ├── AchievementTreeData.lua  # 成就关系索引、构树和过滤
     ├── AchievementRewards.lua   # 奖励识别与异步住宅目录索引
@@ -174,7 +173,6 @@ luac -p Core/AchievementData.lua
 luac -p Config/Defaults.lua
 luac -p Locales/enUS.lua
 luac -p Locales/zhCN.lua
-luac -p Locales/zhTW.lua
 luac -p Modules/AchievementTreeData.lua
 luac -p Modules/AchievementRewards.lua
 luac -p Modules/AchievementTreeLayout.lua

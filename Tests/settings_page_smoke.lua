@@ -8,9 +8,12 @@ local settings = {
 local addon = { L = setmetatable({
     ACHIEVEMENT_LAUNCHER_REOPEN_HINT =
         "Click the minimap icon or type /eat to open the panel again",
+    ACHIEVEMENT_GAME_VERSION = "Game version: %s",
+    ACHIEVEMENT_DATA_VERSION = "Data version: %s",
+    ACHIEVEMENT_ADDON_VERSION = "Addon version: V%s",
 }, { __index = function(_, key)
     return key
-end }) }
+end }), AchievementRewardDatabase = { build = "12.1.5.70575" } }
 function addon:GetSetting(key) return settings[key] end
 function addon:SetSetting(key, value)
     settings[key] = value
@@ -90,6 +93,11 @@ function methods:SetAlpha(alpha) self.alpha = alpha end
 ui.CreateFrame = function() return Widget() end
 ui.UIParent = Widget()
 local page = Widget()
+GetBuildInfo = function() return "12.1.5", "60861" end
+C_AddOns = { GetAddOnMetadata = function(name, key)
+    assert(name == "EasyAchievement" and key == "Version")
+    return "1.0.0"
+end }
 local frame = { SettingsPanel = page, ScrollFrame = Widget(),
     GetFrameLevel = function() return 1 end }
 for _, name in ipairs({ "HorizontalScroll", "BackButton", "ForwardButton",
@@ -117,6 +125,10 @@ assert(page.CardPreview.initializedID == 6,
     "settings card preview must initialize after native UI loading")
 assert(page.LauncherPreview.atlas == "UI-HUD-MicroMenu-Achievements-Up",
     "launcher preview did not use the screen icon atlas")
+assert(page.GameVersion.text == "Game version: 12.1.5"
+    and page.DataVersion.text == "Data version: 12.1.5.70575"
+    and page.AddonVersion.text == "Addon version: V1.0.0",
+    "settings footer did not show the game and TOC versions")
 addon:SetSetting("achievementCardScale", 0.7)
 assert(page.CardPreview.scale == 0.7,
     "card preview did not react to live scale changes")
