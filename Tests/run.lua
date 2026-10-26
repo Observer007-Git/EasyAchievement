@@ -6,6 +6,7 @@ dofile("EasyAchievement/Tests/tree_wheel_smoke.lua")
 dofile("EasyAchievement/Tests/reward_layout_smoke.lua")
 dofile("EasyAchievement/Tests/settings_page_smoke.lua")
 dofile("EasyAchievement/Tests/settings_resize_smoke.lua")
+dofile("EasyAchievement/Tests/map_search_smoke.lua")
 dofile("EasyAchievement/Tests/reward_loading_smoke.lua")
 dofile("EasyAchievement/Tests/structure_smoke.lua")
 

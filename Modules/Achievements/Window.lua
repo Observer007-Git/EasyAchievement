@@ -11,8 +11,11 @@ else
 end
 
 LayoutAchievementHeader = function(frame)
-    frame.HeaderRow:SetWidth(math.max(1, frame:GetWidth() - 150))
+    frame.HeaderRow:SetWidth(math.max(1, frame:GetWidth() - 76))
     frame.Title:SetWidth(math.max(1, frame:GetWidth() - 340))
+    frame.StatsRuler:SetText(frame.Stats:GetText() or "")
+    frame.Stats:SetWidth(math.max(125,
+        math.ceil(frame.StatsRuler:GetStringWidth()) + 8))
     frame.Stats:ClearAllPoints()
     frame.Stats:SetPoint("RIGHT", frame, "TOPRIGHT", -38, -12)
 end
@@ -180,6 +183,10 @@ function CreateAchievementTreeFrame()
     stats:SetJustifyV("MIDDLE")
     stats:SetTextColor(0.85, 0.85, 0.85)
     frame.Stats = stats
+    local statsRuler = headerRow:CreateFontString(nil, "ARTWORK",
+        "GameFontHighlightSmall")
+    statsRuler:Hide()
+    frame.StatsRuler = statsRuler
 
     local settingsPanel = CreateFrame("Frame", nil, frame)
     settingsPanel:SetPoint("TOPLEFT", frame, "TOPLEFT", 24, -135)
@@ -455,17 +462,22 @@ function CreateAchievementTreeFrame()
     local searchFooter = searchResults:CreateFontString(nil, "OVERLAY",
         "GameFontDisableSmall")
     searchFooter:SetPoint("BOTTOM", 0, 6)
+    local footerFont, footerSize, footerFlags = searchFooter:GetFont()
     searchFooter:Hide()
 
     local searchRows = {}
-    local function OpenSearchResult(achievementID)
-        if not IsAchievementValid(achievementID) then
-            return
-        end
+    local function OpenSearchResult(entry)
+        if not entry then return end
+        if entry.kind == "achievement" and
+            not IsAchievementValid(entry.id) then return end
         searchResults:Hide()
         searchBox:ClearFocus()
         searchBox:SetText("")
-        Navigation.OpenCard(achievementID)
+        if entry.kind == "achievement" then
+            Navigation.OpenCard(entry.id)
+        else
+            Addon.MapSearch.Activate(entry)
+        end
     end
     local function SetSearchSelection(index)
         local shown = frame.searchShownCount or 0
@@ -518,6 +530,12 @@ function CreateAchievementTreeFrame()
             "Interface\\AchievementFrame\\UI-Achievement-IconFrame")
         iconBorder:SetTexCoord(0, 0.5625, 0, 0.5625)
         row.IconBorder = iconBorder
+        local mapIconBorder = row:CreateTexture(nil, "OVERLAY")
+        mapIconBorder:SetPoint("TOPLEFT", icon, "TOPLEFT", -4, 4)
+        mapIconBorder:SetPoint("BOTTOMRIGHT", icon, "BOTTOMRIGHT", 4, -4)
+        mapIconBorder:SetTexture("Interface\\SPELLBOOK\\RotationIconFrame")
+        mapIconBorder:Hide()
+        row.MapIconBorder = mapIconBorder
         local name = row:CreateFontString(nil, "OVERLAY",
             "GameFontHighlightSmall")
         name:SetPoint("LEFT", icon, "RIGHT", 6, 0)
@@ -531,19 +549,21 @@ function CreateAchievementTreeFrame()
         row.Points = points
         row:SetScript("OnEnter", function(self)
             SetSearchSelection(self.resultIndex)
-            ShowAchievementTooltip(self)
+            if self.node then ShowAchievementTooltip(self) end
         end)
         row:SetScript("OnLeave", function()
             GameTooltip:Hide()
         end)
         row:RegisterForClicks("LeftButtonUp", "RightButtonUp")
         row:SetScript("OnClick", function(self, mouseButton)
-            if mouseButton == "RightButton" then
+            if self.entry and self.entry.kind ~= "achievement" then
+                OpenSearchResult(self.entry)
+            elseif mouseButton == "RightButton" then
                 OpenAchievementContextMenu(self, self.achievementID)
             elseif IsShiftKeyDown() then
                 InsertAchievementLink(self.achievementID)
             else
-                OpenSearchResult(self.achievementID)
+                OpenSearchResult(self.entry)
             end
         end)
         row:Hide()
@@ -554,6 +574,7 @@ function CreateAchievementTreeFrame()
         for _, row in ipairs(searchRows) do
             row:Hide()
             row.node = nil
+            row.entry = nil
         end
         frame.searchShownCount = 0
         frame.searchSelectedIndex = nil
@@ -565,10 +586,12 @@ function CreateAchievementTreeFrame()
     end
 
     local function RenderSearchResults()
-        local ids = frame.searchAchievementIDs or {}
-        local total = #ids
+        local entries = frame.searchEntries or {}
+        local total = #entries
         if total == 0 then
-            ShowSearchMessage(L.ACHIEVEMENT_SEARCH_NO_RESULTS)
+            ShowSearchMessage(frame.searchMapBuilding
+                and L.ACHIEVEMENT_SEARCHING
+                or L.ACHIEVEMENT_SEARCH_NO_RESULTS)
             return
         end
         local maximumOffset = math.max(0,
@@ -581,30 +604,68 @@ function CreateAchievementTreeFrame()
         local shown = 0
         searchMessage:Hide()
         for resultIndex = first, last do
-            local data = GetAchievementData(ids[resultIndex])
-            if data then
+            local entry = entries[resultIndex]
+            local data = entry.kind == "achievement"
+                and GetAchievementData(entry.id)
+            if data or entry.kind ~= "achievement" then
                 shown = shown + 1
                 local row = searchRows[shown]
                 row.resultIndex = shown
-                row.achievementID = data.id
+                row.entry = entry
+                row.achievementID = data and data.id
                 row.node = data
-                row.Icon:SetTexture(data.icon)
-                row.Icon:SetDesaturated(not data.completed)
-                row.IconBorder:SetDesaturated(not data.completed)
-                row.Name:SetText(data.name)
-                SetAchievementTextColor(row.Name, data.completed, false, 0.82)
-                row.Points:SetText(tostring(data.points or 0))
+                local resultAtlas = entry.kind == "map"
+                    and "poi-islands-table"
+                    or entry.kind == "coordinate"
+                        and "Waypoint-MapPin-Minimap-Tracked"
+                if resultAtlas and SetTextureAtlas(row.Icon,
+                    resultAtlas) then
+                    row.Icon:SetSize(20, 20)
+                else
+                    row.Icon:SetTexture(data and data.icon or entry.icon)
+                    row.Icon:SetTexCoord(0, 1, 0, 1)
+                end
+                row.Icon:SetDesaturated(data and not data.completed or false)
+                row.IconBorder:SetDesaturated(data and not data.completed or false)
+                row.IconBorder:SetShown(entry.kind == "achievement")
+                row.MapIconBorder:SetShown(entry.kind == "map"
+                    or entry.kind == "coordinate")
+                row.Name:SetText(data and data.name or entry.kind == "map"
+                    and string.format(L.ACHIEVEMENT_SEARCH_MAP, entry.name)
+                    or string.format(L.ACHIEVEMENT_SEARCH_COORDINATE,
+                        entry.x, entry.y))
+                if data then
+                    SetAchievementTextColor(row.Name, data.completed,
+                        false, 0.82)
+                else
+                    row.Name:SetTextColor(1, 0.82, 0)
+                end
+                row.Points:SetText(data and tostring(data.points or 0) or "")
                 row:Show()
             end
         end
         for index = shown + 1, #searchRows do
             searchRows[index]:Hide()
             searchRows[index].node = nil
+            searchRows[index].entry = nil
         end
         frame.searchShownCount = shown
         if total > MAX_ACHIEVEMENT_SEARCH_RESULTS then
             searchFooter:SetText(string.format(L.ACHIEVEMENT_SEARCH_RESULTS,
                 first, last, total))
+            if footerFont and footerSize then
+                searchFooter:SetFont(footerFont, footerSize, footerFlags)
+                local textWidth = searchFooter.GetUnboundedStringWidth
+                    and searchFooter:GetUnboundedStringWidth()
+                    or searchFooter:GetStringWidth()
+                local availableWidth = math.max(1,
+                    searchResults:GetWidth() - 12)
+                if textWidth > availableWidth then
+                    searchFooter:SetFont(footerFont,
+                        footerSize * availableWidth / textWidth,
+                        footerFlags)
+                end
+            end
             searchFooter:Show()
         else
             searchFooter:Hide()
@@ -615,14 +676,15 @@ function CreateAchievementTreeFrame()
         SetSearchSelection(1)
     end
 
-    local function RefreshSearchResults()
+    local function RefreshSearchResults(includeAchievements)
         local query = searchBox:GetText() or ""
         local minimumLength = MIN_CHARACTER_SEARCH or 3
         if #query < minimumLength then
             searchResults:Hide()
             return
         end
-        local ids = {}
+        local entries, mapBuilding = Addon.MapSearch.Find(query, 3)
+        frame.searchMapBuilding = mapBuilding
         local seen = {}
         local function AddResult(achievementID)
             if seen[achievementID] or not IsAchievementValid(achievementID)
@@ -635,16 +697,17 @@ function CreateAchievementTreeFrame()
                 return
             end
             seen[achievementID] = true
-            ids[#ids + 1] = achievementID
+            entries[#entries + 1] = { kind = "achievement",
+                id = achievementID }
         end
-        local exactID = tonumber(query)
-        if exactID then
-            AddResult(math.floor(exactID))
+        if includeAchievements then
+            local exactID = tonumber(query)
+            if exactID then AddResult(math.floor(exactID)) end
+            for index = 1, GetNumFilteredAchievements() or 0 do
+                AddResult(GetFilteredAchievementID(index))
+            end
         end
-        for index = 1, GetNumFilteredAchievements() or 0 do
-            AddResult(GetFilteredAchievementID(index))
-        end
-        frame.searchAchievementIDs = ids
+        frame.searchEntries = entries
         frame.searchResultOffset = 0
         RenderSearchResults()
     end
@@ -661,18 +724,23 @@ function CreateAchievementTreeFrame()
             return
         end
         frame.searchResultOffset = 0
+        if Addon.MapSearch.ParseCoordinates(frame.searchText) then
+            ReleaseAchievementSearch(frame)
+            RefreshSearchResults(false)
+            return
+        end
         local finished = SetOwnedAchievementSearch(frame, frame.searchText)
         if finished then
-            RefreshSearchResults()
+            RefreshSearchResults(true)
         else
-            ShowSearchMessage(L.ACHIEVEMENT_SEARCHING)
+            RefreshSearchResults(false)
         end
     end)
     searchBox:SetScript("OnEnterPressed", function()
         local index = frame.searchSelectedIndex or 1
         local row = searchRows[index]
         if row and row:IsShown() then
-            OpenSearchResult(row.achievementID)
+            OpenSearchResult(row.entry)
         end
     end)
     searchBox:SetScript("OnEscapePressed", function(self)
@@ -691,7 +759,7 @@ function CreateAchievementTreeFrame()
     end)
     searchBox:HookScript("OnEditFocusGained", function()
         if #(searchBox:GetText() or "") >= (MIN_CHARACTER_SEARCH or 3)
-            and frame.searchAchievementIDs
+            and frame.searchEntries
         then
             RenderSearchResults()
         end
@@ -707,12 +775,12 @@ function CreateAchievementTreeFrame()
         end
     end)
     searchResults:SetScript("OnMouseWheel", function(_, delta)
-        local ids = frame.searchAchievementIDs or {}
-        if #ids <= MAX_ACHIEVEMENT_SEARCH_RESULTS then
+        local entries = frame.searchEntries or {}
+        if #entries <= MAX_ACHIEVEMENT_SEARCH_RESULTS then
             return
         end
         local page = MAX_ACHIEVEMENT_SEARCH_RESULTS
-        local maximumOffset = math.max(0, #ids - page)
+        local maximumOffset = math.max(0, #entries - page)
         frame.searchResultOffset = math.max(0, math.min(maximumOffset,
             (frame.searchResultOffset or 0) - delta * page))
         RenderSearchResults()
@@ -728,7 +796,14 @@ function CreateAchievementTreeFrame()
         if event == "ACHIEVEMENT_SEARCH_UPDATED" and self:IsShown()
             and achievementSearchOwner == self
         then
-            RefreshSearchResults()
+            RefreshSearchResults(true)
+        end
+    end)
+    Addon.MapSearch.Subscribe(function()
+        if frame.SearchBox and frame.SearchBox:HasFocus()
+            and #(frame.SearchBox:GetText() or "") >=
+                (MIN_CHARACTER_SEARCH or 3) then
+            RefreshSearchResults(achievementSearchOwner == frame)
         end
     end)
     frame.SearchBox = searchBox

@@ -175,6 +175,7 @@ end
 frame.history, frame.historyIndex = {}, 0
 ui.CreateAchievementTreeFrame = function() return frame end
 ui.UpdateAchievementRewardHeader = function() end
+ui.LayoutAchievementHeader = function() end
 ui.UpdateAchievementHeader = function(_, title, stats)
     frame.title, frame.stats = title, stats
 end

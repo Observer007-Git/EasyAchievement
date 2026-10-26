@@ -496,6 +496,7 @@ function CreateAchievementLauncherSearch(anchor, icon)
     panel:SetFrameStrata("DIALOG")
     panel:SetClampedToScreen(true)
     panel:EnableMouse(true)
+    panel:EnableMouseWheel(true)
     panel:Hide()
 
     local search = CreateFrame("EditBox", nil, panel,
@@ -565,17 +566,21 @@ function CreateAchievementLauncherSearch(anchor, icon)
     end
 
     local rows = {}
-    local resultIDs = {}
+    local resultEntries = {}
+    local resultOffset = 0
+    local mapBuilding = false
     local function HidePanel()
         ReleaseAchievementSearch(panel)
         search:ClearFocus()
         panel:Hide()
     end
     local function OpenResult(row, mouseButton)
-        if not row.achievementID then
-            return
-        end
-        if mouseButton == "RightButton" then
+        if not row.entry then return end
+        if row.entry.kind ~= "achievement" then
+            local entry = row.entry
+            HidePanel()
+            Addon.MapSearch.Activate(entry)
+        elseif mouseButton == "RightButton" then
             OpenAchievementContextMenu(row, row.achievementID)
         elseif IsShiftKeyDown() then
             InsertAchievementLink(row.achievementID)
@@ -584,7 +589,7 @@ function CreateAchievementLauncherSearch(anchor, icon)
             Navigation.OpenCard(row.achievementID)
         end
     end
-    for index = 1, 6 do
+    for index = 1, MAX_ACHIEVEMENT_SEARCH_RESULTS do
         local row = CreateFrame("Button", nil, panel)
         row:SetPoint("TOPLEFT", resultsBackground, "TOPLEFT", 0,
             -(index - 1) * 28)
@@ -592,6 +597,10 @@ function CreateAchievementLauncherSearch(anchor, icon)
             -(index - 1) * 28)
         row:SetHeight(28)
         row:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+        row:EnableMouseWheel(true)
+        row:SetScript("OnMouseWheel", function(_, delta)
+            panel:GetScript("OnMouseWheel")(panel, delta)
+        end)
         local separatorBase = row:CreateTexture(nil, "OVERLAY")
         separatorBase:SetPoint("TOPLEFT", row, "TOPLEFT")
         separatorBase:SetPoint("TOPRIGHT", row, "TOPRIGHT")
@@ -614,6 +623,21 @@ function CreateAchievementLauncherSearch(anchor, icon)
         icon:SetSize(20, 20)
         icon:SetTexCoord(0, 1, 0, 1)
         row.Icon = icon
+        local achievementIconBorder = row:CreateTexture(nil, "OVERLAY")
+        achievementIconBorder:SetPoint("CENTER", icon, "CENTER",
+            -0.33, 0.67)
+        achievementIconBorder:SetSize(27, 27)
+        achievementIconBorder:SetTexture(
+            "Interface\\AchievementFrame\\UI-Achievement-IconFrame")
+        achievementIconBorder:SetTexCoord(0, 0.5625, 0, 0.5625)
+        achievementIconBorder:Hide()
+        row.AchievementIconBorder = achievementIconBorder
+        local mapIconBorder = row:CreateTexture(nil, "OVERLAY")
+        mapIconBorder:SetPoint("TOPLEFT", icon, "TOPLEFT", -4, 4)
+        mapIconBorder:SetPoint("BOTTOMRIGHT", icon, "BOTTOMRIGHT", 4, -4)
+        mapIconBorder:SetTexture("Interface\\SPELLBOOK\\RotationIconFrame")
+        mapIconBorder:Hide()
+        row.MapIconBorder = mapIconBorder
         local name = row:CreateFontString(nil, "OVERLAY",
             "GameFontHighlightSmall")
         name:SetPoint("LEFT", row, "LEFT", inputOffsetX, 0)
@@ -664,21 +688,58 @@ function CreateAchievementLauncherSearch(anchor, icon)
     message:SetJustifyH("LEFT")
     message:SetWordWrap(false)
     messageRow:Hide()
+    local resultFooter = panel:CreateFontString(nil, "OVERLAY",
+        "GameFontDisableSmall")
+    resultFooter:SetPoint("BOTTOM", resultsBackground, "BOTTOM", 0, 4)
+    local footerFont, footerSize, footerFlags = resultFooter:GetFont()
+    resultFooter:Hide()
 
     local function RenderResults()
+        local total = #resultEntries
+        local maximumOffset = math.max(0,
+            total - MAX_ACHIEVEMENT_SEARCH_RESULTS)
+        resultOffset = math.max(0, math.min(resultOffset, maximumOffset))
+        local first = resultOffset + 1
+        local last = math.min(total,
+            resultOffset + MAX_ACHIEVEMENT_SEARCH_RESULTS)
         local shown = 0
-        for _, achievementID in ipairs(resultIDs) do
-            local data = GetAchievementData(achievementID)
-            if data and shown < #rows then
+        for resultIndex = first, last do
+            local entry = resultEntries[resultIndex]
+            local data = entry.kind == "achievement"
+                and GetAchievementData(entry.id)
+            if data or entry.kind ~= "achievement" then
                 shown = shown + 1
                 local row = rows[shown]
-                row.achievementID = data.id
+                row.entry = entry
+                row.achievementID = data and data.id
                 row.node = data
-                row.Icon:SetTexture(data.icon)
-                row.Icon:SetDesaturated(not data.completed)
-                row.Name:SetText(data.name)
-                SetAchievementTextColor(row.Name,
-                    data.completed, false, 0.82)
+                local resultAtlas = entry.kind == "map"
+                    and "poi-islands-table"
+                    or entry.kind == "coordinate"
+                        and "Waypoint-MapPin-Minimap-Tracked"
+                if resultAtlas and SetTextureAtlas(row.Icon,
+                    resultAtlas) then
+                    row.Icon:SetSize(20, 20)
+                else
+                    row.Icon:SetTexture(data and data.icon or entry.icon)
+                    row.Icon:SetTexCoord(0, 1, 0, 1)
+                end
+                row.Icon:SetDesaturated(data and not data.completed or false)
+                row.AchievementIconBorder:SetShown(data ~= nil)
+                row.AchievementIconBorder:SetDesaturated(data
+                    and not data.completed or false)
+                row.MapIconBorder:SetShown(entry.kind == "map"
+                    or entry.kind == "coordinate")
+                row.Name:SetText(data and data.name or entry.kind == "map"
+                    and string.format(L.ACHIEVEMENT_SEARCH_MAP, entry.name)
+                    or string.format(L.ACHIEVEMENT_SEARCH_COORDINATE,
+                        entry.x, entry.y))
+                if data then
+                    SetAchievementTextColor(row.Name,
+                        data.completed, false, 0.82)
+                else
+                    row.Name:SetTextColor(1, 0.82, 0)
+                end
                 row:Show()
             end
         end
@@ -686,22 +747,44 @@ function CreateAchievementLauncherSearch(anchor, icon)
             rows[index]:Hide()
             rows[index].achievementID = nil
             rows[index].node = nil
+            rows[index].entry = nil
         end
         messageRow:SetShown(shown == 0)
-        message:SetText(L.ACHIEVEMENT_SEARCH_NO_RESULTS)
+        message:SetText(mapBuilding and L.ACHIEVEMENT_SEARCHING
+            or L.ACHIEVEMENT_SEARCH_NO_RESULTS)
+        if total > MAX_ACHIEVEMENT_SEARCH_RESULTS then
+            resultFooter:SetText(string.format(L.ACHIEVEMENT_SEARCH_RESULTS,
+                first, last, total))
+            if footerFont and footerSize then
+                resultFooter:SetFont(footerFont, footerSize, footerFlags)
+                local textWidth = resultFooter.GetUnboundedStringWidth
+                    and resultFooter:GetUnboundedStringWidth()
+                    or resultFooter:GetStringWidth()
+                local availableWidth = math.max(1,
+                    resultsBackground:GetWidth() - 12)
+                if textWidth > availableWidth then
+                    resultFooter:SetFont(footerFont,
+                        footerSize * availableWidth / textWidth,
+                        footerFlags)
+                end
+            end
+            resultFooter:Show()
+        else
+            resultFooter:Hide()
+        end
         ShowResults(true)
         SetPanelHeight(searchTopInset + searchHeight + resultsGap
-            + math.max(shown, 1) * 28 + resultsBottomPadding)
+            + math.max(shown, 1) * 28 + resultsBottomPadding
+            + (resultFooter:IsShown() and 22 or 0))
     end
 
-    local function RefreshResults()
-        resultIDs = {}
+    local function RefreshResults(includeAchievements)
         local seen = {}
         local query = search:GetText() or ""
+        resultEntries, mapBuilding = Addon.MapSearch.Find(query, 3)
         local exactID = tonumber(query)
         local function AddResult(achievementID)
-            if #resultIDs >= #rows or seen[achievementID]
-                or not IsAchievementValid(achievementID)
+            if seen[achievementID] or not IsAchievementValid(achievementID)
             then
                 return
             end
@@ -709,43 +792,54 @@ function CreateAchievementLauncherSearch(anchor, icon)
                 GetAchievementInfo(achievementID))
             if not isStatistic then
                 seen[achievementID] = true
-                resultIDs[#resultIDs + 1] = achievementID
+                resultEntries[#resultEntries + 1] = {
+                    kind = "achievement", id = achievementID }
             end
         end
-        if exactID then
-            AddResult(math.floor(exactID))
-        end
-        for index = 1, GetNumFilteredAchievements() or 0 do
-            AddResult(GetFilteredAchievementID(index))
+        if includeAchievements then
+            if exactID then AddResult(math.floor(exactID)) end
+            for index = 1, GetNumFilteredAchievements() or 0 do
+                AddResult(GetFilteredAchievementID(index))
+            end
         end
         RenderResults()
     end
 
     search:HookScript("OnTextChanged", function(self)
         local query = self:GetText() or ""
+        resultOffset = 0
         if #query < (MIN_CHARACTER_SEARCH or 3) then
             ReleaseAchievementSearch(panel)
-            resultIDs = {}
+            resultEntries = {}
             for _, row in ipairs(rows) do
                 row:Hide()
             end
             messageRow:Hide()
+            resultFooter:Hide()
             ShowResults(false)
             SetPanelHeight(collapsedHeight)
             return
         end
+        if Addon.MapSearch.ParseCoordinates(query) then
+            ReleaseAchievementSearch(panel)
+            RefreshResults(false)
+            return
+        end
         local finished = SetOwnedAchievementSearch(panel, query)
         if finished then
-            RefreshResults()
+            RefreshResults(true)
         else
-            message:SetText(L.ACHIEVEMENT_SEARCHING)
-            messageRow:Show()
-            ShowResults(true)
-            SetPanelHeight(searchTopInset + searchHeight + resultsGap
-                + 28 + resultsBottomPadding)
+            RefreshResults(false)
         end
     end)
     search:SetScript("OnEscapePressed", HidePanel)
+    panel:SetScript("OnMouseWheel", function(_, delta)
+        if #resultEntries <= MAX_ACHIEVEMENT_SEARCH_RESULTS then return end
+        local maximumOffset = #resultEntries - MAX_ACHIEVEMENT_SEARCH_RESULTS
+        resultOffset = math.max(0, math.min(maximumOffset,
+            resultOffset - delta * MAX_ACHIEVEMENT_SEARCH_RESULTS))
+        RenderResults()
+    end)
     search:SetScript("OnEnterPressed", function()
         if rows[1]:IsShown() then
             OpenResult(rows[1], "LeftButton")
@@ -756,7 +850,13 @@ function CreateAchievementLauncherSearch(anchor, icon)
         if panel:IsShown() and achievementSearchOwner == panel
             and #(search:GetText() or "") >= (MIN_CHARACTER_SEARCH or 3)
         then
-            RefreshResults()
+            RefreshResults(true)
+        end
+    end)
+    Addon.MapSearch.Subscribe(function()
+        if panel:IsShown() and #(search:GetText() or "") >=
+            (MIN_CHARACTER_SEARCH or 3) then
+            RefreshResults(achievementSearchOwner == panel)
         end
     end)
 

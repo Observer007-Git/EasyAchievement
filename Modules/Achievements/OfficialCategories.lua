@@ -388,6 +388,7 @@ local function RefreshOverview(browser)
     end
     browser.frame.Stats:SetText(string.format(
         L.ACHIEVEMENT_EARNED_PROGRESS, completed, total))
+    LayoutAchievementHeader(browser.frame)
 end
 
 local function RefreshRight(browser)

@@ -14,6 +14,7 @@ Data/AchievementRewardDatabase.lua
 Config/Defaults.lua
 Core/AchievementRewardDatabase.lua
 Core/AchievementData.lua
+Core/MapSearch.lua
 Locales/enUS.lua
 Locales/zhCN.lua
 Core/Anchors.lua

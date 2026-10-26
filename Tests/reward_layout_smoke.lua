@@ -21,6 +21,7 @@ function methods:IsShown() return self.shown end
 function methods:Show() self.shown = true end
 function methods:Hide() self.shown = false end
 function methods:SetText(value) self.text = value end
+function methods:GetText() return self.text end
 function methods:GetStringWidth() return #self.text * 8 end
 function methods:GetStringHeight()
     if self.wordWrap == false then return self.text ~= "" and 18 or 0 end
@@ -69,6 +70,12 @@ assert(loadfile("EasyAchievement/Modules/Achievements/RewardPanel.lua"))(
 local host, panel = Widget(), Widget()
 host.width = 900
 host.Title, host.Stats, host.HeaderRow = Widget(), Widget(), Widget()
+host.StatsRuler = Widget()
+host.Stats:SetText("Achievements Earned: 3023/6562")
+ui.LayoutAchievementHeader(host)
+assert(host.Stats.width > 125
+    and host.HeaderRow.width == host.width - 76,
+    "header stats must fit their text inside the top border")
 for _, name in ipairs({ "ItemName", "Description",
     "ModelScene", "ModelControls",
     "PreviousReward", "NextReward", "EntryCounter", "InfoCard",
