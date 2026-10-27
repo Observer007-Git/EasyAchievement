@@ -332,7 +332,10 @@ local function RenderRewardCategory(frame, definition, achievementIDs,
     local nodes = {}
     local orderedAchievementIDs = {}
     for _, achievementID in ipairs(achievementIDs or {}) do
-        local node = AchievementData.CreateNode(GetAchievementData(achievementID))
+        local catalog = Addon.AchievementCatalog
+        local visible = not catalog or catalog.IsVisible(achievementID)
+        local node = visible and AchievementData.CreateNode(
+            GetAchievementData(achievementID))
         if node then
             node.depth = 1
             node.hasChildren = false

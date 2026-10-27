@@ -428,12 +428,15 @@ OpenAchievementContextMenu = function(button, achievementID, openCard, openTree)
     end
 
     local data = GetAchievementData(achievementID)
+        or GetCatalogAchievementData(achievementID)
     if not data then
         return
     end
 
     MenuUtil.CreateContextMenu(button, function(_, rootDescription)
         rootDescription:CreateTitle(data.name)
+        local nativeAchievement = not IsAchievementValid
+            or IsAchievementValid(achievementID)
         local favoriteLabel = IsAchievementFavorite(achievementID)
             and L.ACHIEVEMENT_FAVORITE_REMOVE
             or L.ACHIEVEMENT_FAVORITE_ADD
@@ -442,9 +445,14 @@ OpenAchievementContextMenu = function(button, achievementID, openCard, openTree)
         end)
         local trackingLabel = IsAchievementTracked(achievementID)
             and L.ACHIEVEMENT_UNTRACK or L.ACHIEVEMENT_TRACK
-        rootDescription:CreateButton(trackingLabel, function()
-            ToggleAchievementTracking(achievementID)
-        end)
+        if nativeAchievement
+            and (not AchievementData.IsFactionAvailable
+                or AchievementData.IsFactionAvailable(achievementID))
+        then
+            rootDescription:CreateButton(trackingLabel, function()
+                ToggleAchievementTracking(achievementID)
+            end)
+        end
         rootDescription:CreateButton(L.ACHIEVEMENT_CARD_VIEW, function()
             if openCard then
                 openCard()
@@ -452,7 +460,8 @@ OpenAchievementContextMenu = function(button, achievementID, openCard, openTree)
                 Navigation.OpenCard(achievementID)
             end
         end)
-        if #GetChildAchievementIDs(achievementID) > 0 then
+        if nativeAchievement
+            and #GetChildAchievementIDs(achievementID) > 0 then
             rootDescription:CreateButton(L.ACHIEVEMENT_TREE_VIEW,
                 function()
                     if openTree then
@@ -469,7 +478,7 @@ OpenAchievementContextMenu = function(button, achievementID, openCard, openTree)
                 break
             end
         end
-        if not hasPopup then
+        if not hasPopup and nativeAchievement then
             rootDescription:CreateButton(L.ACHIEVEMENT_POPUP_SHOW, function()
                 ShowAchievementPopup(achievementID)
             end)
@@ -706,7 +715,9 @@ function CreateAchievementLauncherSearch(anchor, icon)
         for resultIndex = first, last do
             local entry = resultEntries[resultIndex]
             local data = entry.kind == "achievement"
-                and GetAchievementData(entry.id)
+                and (Addon.AchievementCatalog
+                        and Addon.AchievementCatalog.GetData(entry.id)
+                    or GetAchievementData(entry.id))
             if data or entry.kind ~= "achievement" then
                 shown = shown + 1
                 local row = rows[shown]
@@ -788,11 +799,18 @@ function CreateAchievementLauncherSearch(anchor, icon)
         local exactID = tonumber(query)
         local function AddResult(achievementID)
             if seen[achievementID] or not IsAchievementValid(achievementID)
+                and not (Addon.AchievementCatalog
+                    and Addon.AchievementCatalog.GetRecord(achievementID))
             then
                 return
             end
-            local isStatistic = select(15,
-                GetAchievementInfo(achievementID))
+            if Addon.AchievementCatalog
+                and not Addon.AchievementCatalog.IsVisible(achievementID)
+            then
+                return
+            end
+            local isStatistic = not Addon.AchievementCatalog
+                and select(15, GetAchievementInfo(achievementID))
             if not isStatistic then
                 seen[achievementID] = true
                 resultEntries[#resultEntries + 1] = {
@@ -800,11 +818,25 @@ function CreateAchievementLauncherSearch(anchor, icon)
             end
         end
         if includeAchievements then
-            if exactID then AddResult(math.floor(exactID)) end
-            for index = 1, GetNumFilteredAchievements() or 0 do
-                AddResult(GetFilteredAchievementID(index))
+            if Addon.AchievementCatalog then
+                for _, id in ipairs(Addon.AchievementCatalog.Search(query,
+                    function()
+                        if panel:IsShown() and search:GetText() == query then
+                            RefreshResults(true)
+                        end
+                    end)) do
+                    AddResult(id)
+                end
+            else
+                if exactID then AddResult(math.floor(exactID)) end
+                for index = 1, GetNumFilteredAchievements() or 0 do
+                    AddResult(GetFilteredAchievementID(index))
+                end
             end
         end
+        mapBuilding = mapBuilding or includeAchievements
+            and Addon.AchievementCatalog
+            and not Addon.AchievementCatalog.IsSearchReady()
         RenderResults()
     end
 
@@ -830,7 +862,9 @@ function CreateAchievementLauncherSearch(anchor, icon)
         end
         local finished = SetOwnedAchievementSearch(panel, query)
         if finished then
-            RefreshResults(true)
+            ScheduleAchievementCatalogSearch(panel, function()
+                RefreshResults(true)
+            end)
         else
             RefreshResults(false)
         end
@@ -850,7 +884,8 @@ function CreateAchievementLauncherSearch(anchor, icon)
     end)
     panel:RegisterEvent("ACHIEVEMENT_SEARCH_UPDATED")
     panel:SetScript("OnEvent", function()
-        if panel:IsShown() and achievementSearchOwner == panel
+        if not Addon.AchievementCatalog and panel:IsShown()
+            and achievementSearchOwner == panel
             and #(search:GetText() or "") >= (MIN_CHARACTER_SEARCH or 3)
         then
             RefreshResults(true)

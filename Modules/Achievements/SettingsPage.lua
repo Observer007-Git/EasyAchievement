@@ -12,6 +12,7 @@ local OPTIONS = {
     { key = "launcher", label = "ACHIEVEMENT_LAUNCHER_SCALE" },
     { key = "screenIcon", label = "ACHIEVEMENT_LAUNCHER_SHOW" },
     { key = "minimap", label = "ACHIEVEMENT_MINIMAP_SHOW" },
+    { key = "mapMarkerShortcut", label = "ACHIEVEMENT_MAP_MARKER_SHORTCUT" },
 }
 
 local function IsScreenIconVisible()
@@ -217,6 +218,64 @@ local function BuildSettingsPage(frame)
                 UpdateValue()
             end)
             UpdateValue()
+        elseif option.key == "mapMarkerShortcut" then
+            local button = CreateFrame("Button", nil, row.ActiveControls,
+                "UIPanelButtonTemplate")
+            button:SetPoint("LEFT")
+            button:SetSize(220, 26)
+            row.ShortcutButton = button
+            local function StopCapture()
+                button.isCapturing = nil
+                button:EnableKeyboard(false)
+                if not InCombatLockdown()
+                    and button.SetPropagateKeyboardInput then
+                    button:SetPropagateKeyboardInput(true)
+                end
+                button:SetText(string.format(
+                    L.ACHIEVEMENT_MAP_MARKER_SHORTCUT_VALUE,
+                    Addon.MapMarkers.GetShortcutText()))
+            end
+            button:SetScript("OnClick", function()
+                if button.isCapturing then
+                    StopCapture()
+                elseif not InCombatLockdown() then
+                    button.isCapturing = true
+                    button:SetText(L.ACHIEVEMENT_MAP_MARKER_CAPTURE)
+                    button:EnableKeyboard(true)
+                    if button.SetPropagateKeyboardInput then
+                        button:SetPropagateKeyboardInput(false)
+                    end
+                end
+            end)
+            button:SetScript("OnKeyDown", function(_, key)
+                if not button.isCapturing then return end
+                if key == "ESCAPE" then
+                    Addon:SetSetting("achievementMapMarkerShortcut",
+                        { alt = true })
+                else
+                    local modifier = key == "LALT" or key == "RALT"
+                        or key == "LCTRL" or key == "RCTRL"
+                        or key == "LSHIFT" or key == "RSHIFT"
+                        or key == "LMETA" or key == "RMETA"
+                    Addon:SetSetting("achievementMapMarkerShortcut", {
+                        alt = IsAltKeyDown() or key == "LALT"
+                            or key == "RALT",
+                        ctrl = IsControlKeyDown() or key == "LCTRL"
+                            or key == "RCTRL",
+                        shift = IsShiftKeyDown() or key == "LSHIFT"
+                            or key == "RSHIFT",
+                        meta = IsMetaKeyDown() or key == "LMETA"
+                            or key == "RMETA",
+                        key = not modifier and key or nil,
+                    })
+                end
+                StopCapture()
+            end)
+            row.RefreshValue = function()
+                if not button.isCapturing then StopCapture() end
+            end
+            page:HookScript("OnHide", StopCapture)
+            StopCapture()
         end
         row:SetScript("OnClick", function()
             page.selectedKey = option.key
@@ -227,14 +286,18 @@ local function BuildSettingsPage(frame)
     local gameVersion = page:CreateFontString(nil, "OVERLAY",
         "GameFontHighlightSmall")
     gameVersion:SetPoint("BOTTOMLEFT", page, "BOTTOMLEFT", 16, 48)
+    local version, build = GetBuildInfo()
+    local fullVersion = version .. "." .. build
     gameVersion:SetText(string.format(L.ACHIEVEMENT_GAME_VERSION,
-        GetBuildInfo()))
+        fullVersion))
     page.GameVersion = gameVersion
     local dataVersion = page:CreateFontString(nil, "OVERLAY",
         "GameFontHighlightSmall")
     dataVersion:SetPoint("BOTTOMLEFT", page, "BOTTOMLEFT", 16, 30)
     dataVersion:SetText(string.format(L.ACHIEVEMENT_DATA_VERSION,
-        Addon.AchievementRewardDatabase.build))
+        (fullVersion == Addon.AchievementRewardDatabase.build
+            and "|cff40d940" or "|cffff4040")
+            .. Addon.AchievementRewardDatabase.build .. "|r"))
     page.DataVersion = dataVersion
     local addonVersion = page:CreateFontString(nil, "OVERLAY",
         "GameFontHighlightSmall")

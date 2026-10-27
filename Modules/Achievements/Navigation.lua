@@ -21,6 +21,9 @@ end
 
 -- The page owns navigation meaning; frame fields are renderer-facing aliases.
 function Navigation.ApplyPage(frame, page)
+    if frame.CatalogFallbackCard then
+        frame.CatalogFallbackCard:Hide()
+    end
     if HideAchievementSettingsPage then
         HideAchievementSettingsPage(frame)
     end
@@ -53,6 +56,15 @@ function Navigation.ApplyPage(frame, page)
 end
 
 function Navigation.OpenCard(achievementID)
+    local catalog = Addon.AchievementCatalog
+    if catalog and catalog.GetRecord(achievementID)
+        and not Addon.AchievementData.Get(achievementID)
+    then
+        local categoryID = catalog.GetRecord(achievementID)[1]
+        if ShowOfficialAchievementCategory(categoryID) then
+            return OpenOfficialAchievementCard(achievementID)
+        end
+    end
     return ShowAchievementTree(achievementID, nil, nil, true)
 end
 

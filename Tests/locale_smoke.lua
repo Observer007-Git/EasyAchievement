@@ -88,12 +88,14 @@ assert(#localePaths == 2
     "runtime should load only English and simplified Chinese locales")
 
 for _, path in ipairs(runtimePaths) do
-    local file = assert(io.open(path, "r"))
-    local source = file:read("*a")
-    file:close()
-    for key in source:gmatch("L%.([A-Z][A-Z0-9_]*)") do
-        assert(english[key] ~= nil,
-            path .. " references unknown locale key " .. key)
+    if not path:find("/Data/", 1, true) then
+        local file = assert(io.open(path, "r"))
+        local source = file:read("*a")
+        file:close()
+        for key in source:gmatch("L%.([A-Z][A-Z0-9_]*)") do
+            assert(english[key] ~= nil,
+                path .. " references unknown locale key " .. key)
+        end
     end
 end
 

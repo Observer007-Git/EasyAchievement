@@ -96,8 +96,11 @@ function TreeData.StartParentIndex()
     if parentIndexState then
         return
     end
-    if not GetCategoryList or not GetCategoryNumAchievements
-        or not GetAchievementInfo
+    local catalogIDs = Addon.AchievementCatalog
+        and Addon.AchievementCatalog.GetIDs()
+    if not GetAchievementInfo
+        or not catalogIDs and (not GetCategoryList
+            or not GetCategoryNumAchievements)
     then
         parentIndexState = "ready"
         return
@@ -114,15 +117,35 @@ function TreeData.StartParentIndex()
             end
         end
     end
-    AddCategories(GetCategoryList())
-    if GetGuildCategoryList then
-        AddCategories(GetGuildCategoryList())
+    if not catalogIDs then
+        AddCategories(GetCategoryList())
+        if GetGuildCategoryList then
+            AddCategories(GetGuildCategoryList())
+        end
     end
 
     local categoryIndex = 1
     local achievementIndex = 1
     local categoryCount = 0
     local seenAchievements = {}
+    local function IndexAchievement(achievementID)
+        if not Data.IsValid(achievementID)
+            or seenAchievements[achievementID]
+        then
+            return
+        end
+        seenAchievements[achievementID] = true
+        GetKnownParents(achievementID)
+        for criteriaIndex = 1,
+            GetAchievementNumCriteria(achievementID) or 0
+        do
+            local _, criteriaType, _, _, _, _, _, assetID =
+                GetAchievementCriteriaInfo(achievementID, criteriaIndex)
+            if criteriaType == CRITERIA_TYPE_ACHIEVEMENT then
+                AddParent(assetID, achievementID)
+            end
+        end
+    end
     local function FinishIndex()
         parentIndexState = "ready"
         if indexReadyCallback then
@@ -145,39 +168,34 @@ function TreeData.StartParentIndex()
             end
             return processed < 60
         end
-        while categoryIndex <= #categories and HasBudget() do
-            if categoryCount == 0 then
-                categoryCount = GetCategoryNumAchievements(
-                    categories[categoryIndex], true) or 0
-                achievementIndex = 1
-            end
-            if achievementIndex > categoryCount then
-                categoryIndex = categoryIndex + 1
-                categoryCount = 0
-            else
-                local achievementID = select(1, GetAchievementInfo(
-                    categories[categoryIndex], achievementIndex))
+        if catalogIDs then
+            while achievementIndex <= #catalogIDs and HasBudget() do
+                IndexAchievement(catalogIDs[achievementIndex])
                 achievementIndex = achievementIndex + 1
                 processed = processed + 1
-                if Data.IsValid(achievementID)
-                    and not seenAchievements[achievementID]
-                then
-                    seenAchievements[achievementID] = true
-                    GetKnownParents(achievementID)
-                    for criteriaIndex = 1,
-                        GetAchievementNumCriteria(achievementID) or 0
-                    do
-                        local _, criteriaType, _, _, _, _, _, assetID =
-                            GetAchievementCriteriaInfo(achievementID,
-                                criteriaIndex)
-                        if criteriaType == CRITERIA_TYPE_ACHIEVEMENT then
-                            AddParent(assetID, achievementID)
-                        end
-                    end
+            end
+        else
+            while categoryIndex <= #categories and HasBudget() do
+                if categoryCount == 0 then
+                    categoryCount = GetCategoryNumAchievements(
+                        categories[categoryIndex], true) or 0
+                    achievementIndex = 1
+                end
+                if achievementIndex > categoryCount then
+                    categoryIndex = categoryIndex + 1
+                    categoryCount = 0
+                else
+                    local achievementID = select(1, GetAchievementInfo(
+                        categories[categoryIndex], achievementIndex))
+                    achievementIndex = achievementIndex + 1
+                    processed = processed + 1
+                    IndexAchievement(achievementID)
                 end
             end
         end
-        if categoryIndex > #categories then
+        if catalogIDs and achievementIndex > #catalogIDs
+            or not catalogIDs and categoryIndex > #categories
+        then
             FinishIndex()
         elseif canDefer then
             C_Timer.After(0, ProcessChunk)

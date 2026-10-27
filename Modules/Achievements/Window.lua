@@ -469,7 +469,10 @@ function CreateAchievementTreeFrame()
     local function OpenSearchResult(entry)
         if not entry then return end
         if entry.kind == "achievement" and
-            not IsAchievementValid(entry.id) then return end
+            not IsAchievementValid(entry.id)
+            and not (Addon.AchievementCatalog
+                and Addon.AchievementCatalog.GetRecord(entry.id))
+        then return end
         searchResults:Hide()
         searchBox:ClearFocus()
         searchBox:SetText("")
@@ -606,7 +609,9 @@ function CreateAchievementTreeFrame()
         for resultIndex = first, last do
             local entry = entries[resultIndex]
             local data = entry.kind == "achievement"
-                and GetAchievementData(entry.id)
+                and (Addon.AchievementCatalog
+                        and Addon.AchievementCatalog.GetData(entry.id)
+                    or GetAchievementData(entry.id))
             if data or entry.kind ~= "achievement" then
                 shown = shown + 1
                 local row = searchRows[shown]
@@ -688,11 +693,18 @@ function CreateAchievementTreeFrame()
         local seen = {}
         local function AddResult(achievementID)
             if seen[achievementID] or not IsAchievementValid(achievementID)
+                and not (Addon.AchievementCatalog
+                    and Addon.AchievementCatalog.GetRecord(achievementID))
             then
                 return
             end
-            local isStatistic = select(15,
-                GetAchievementInfo(achievementID))
+            if Addon.AchievementCatalog
+                and not Addon.AchievementCatalog.IsVisible(achievementID)
+            then
+                return
+            end
+            local isStatistic = not Addon.AchievementCatalog
+                and select(15, GetAchievementInfo(achievementID))
             if isStatistic then
                 return
             end
@@ -701,12 +713,28 @@ function CreateAchievementTreeFrame()
                 id = achievementID }
         end
         if includeAchievements then
-            local exactID = tonumber(query)
-            if exactID then AddResult(math.floor(exactID)) end
-            for index = 1, GetNumFilteredAchievements() or 0 do
-                AddResult(GetFilteredAchievementID(index))
+            if Addon.AchievementCatalog then
+                for _, id in ipairs(Addon.AchievementCatalog.Search(query,
+                    function()
+                        if frame:IsShown()
+                            and searchBox:GetText() == query
+                        then
+                            RefreshSearchResults(true)
+                        end
+                    end)) do
+                    AddResult(id)
+                end
+            else
+                local exactID = tonumber(query)
+                if exactID then AddResult(math.floor(exactID)) end
+                for index = 1, GetNumFilteredAchievements() or 0 do
+                    AddResult(GetFilteredAchievementID(index))
+                end
             end
         end
+        frame.searchMapBuilding = mapBuilding or includeAchievements
+            and Addon.AchievementCatalog
+            and not Addon.AchievementCatalog.IsSearchReady()
         frame.searchEntries = entries
         frame.searchResultOffset = 0
         RenderSearchResults()
@@ -731,7 +759,9 @@ function CreateAchievementTreeFrame()
         end
         local finished = SetOwnedAchievementSearch(frame, frame.searchText)
         if finished then
-            RefreshSearchResults(true)
+            ScheduleAchievementCatalogSearch(frame, function()
+                RefreshSearchResults(true)
+            end)
         else
             RefreshSearchResults(false)
         end
@@ -794,6 +824,7 @@ function CreateAchievementTreeFrame()
     frame:RegisterEvent("ACHIEVEMENT_SEARCH_UPDATED")
     frame:SetScript("OnEvent", function(self, event)
         if event == "ACHIEVEMENT_SEARCH_UPDATED" and self:IsShown()
+            and not Addon.AchievementCatalog
             and achievementSearchOwner == self
         then
             RefreshSearchResults(true)

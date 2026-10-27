@@ -7,6 +7,83 @@ local roots = { 946, 947, 1, 2, 13, 197, 4080 }
 local maps, listeners = {}, {}
 local stack, seen
 local ready, building = false, false
+local highlightTemplate = "EasyAchievementCoordinateHighlightPin"
+local highlightToken = 0
+
+local function HighlightCoordinate(entry)
+    local map = WorldMapFrame
+    if not map or not map.pinPools or not map.GetCanvas
+        or not map.AcquirePin or not map.RemoveAllPinsByTemplate
+        or not MapCanvasPinMixin or not CreateObjectPool
+        or not CreateFromMixins or not Mixin then return end
+    if not map.pinPools[highlightTemplate] then
+        local function CreatePin()
+            local pin = Mixin(CreateFrame("Frame", nil, map:GetCanvas()),
+                CreateFromMixins(MapCanvasPinMixin))
+            pin:EnableMouse(false)
+            function pin:OnAcquired(point)
+                self:UseFrameLevelType("PIN_FRAME_LEVEL_TOPMOST")
+                self:SetScalingLimits(1, 1, 1.5)
+                self:SetPosition(point.x / 100, point.y / 100)
+                self:SetSize(32, 32)
+                if not self.icon then
+                    self.icon = self:CreateTexture(nil, "OVERLAY")
+                    self.icon:SetAllPoints(self)
+                    self.icon:SetAtlas("Warfront-HordeDot", false)
+                    self.ring = self:CreateTexture(nil, "OVERLAY")
+                    self.ring:SetPoint("CENTER")
+                    self.ring:SetSize(80, 80)
+                    self.ring:SetAtlas("PowerSwirlAnimation-StarBurst-Soulbinds", false)
+                    self.ring:SetBlendMode("ADD")
+                    self.pulse = self.ring:CreateAnimationGroup()
+                    local fadeOut = self.pulse:CreateAnimation("Alpha")
+                    fadeOut:SetFromAlpha(1)
+                    fadeOut:SetToAlpha(0.2)
+                    fadeOut:SetDuration(0.45)
+                    fadeOut:SetOrder(1)
+                    local fadeIn = self.pulse:CreateAnimation("Alpha")
+                    fadeIn:SetFromAlpha(0.2)
+                    fadeIn:SetToAlpha(1)
+                    fadeIn:SetDuration(0.45)
+                    fadeIn:SetOrder(2)
+                    self.pulse:SetLooping("REPEAT")
+                end
+                self.icon:Show()
+                self.ring:Show()
+                self.pulse:Play()
+                self:Show()
+            end
+            function pin:OnReleased()
+                if self.pulse then self.pulse:Stop() end
+                if self.icon then self.icon:Hide() end
+                if self.ring then self.ring:Hide() end
+            end
+            return pin
+        end
+        local function ResetPin(_, pin)
+            pin:OnReleased()
+            pin:Hide()
+            pin:ClearAllPoints()
+            pin.pinTemplate = nil
+            pin.owningMap = nil
+        end
+        map.pinPools[highlightTemplate] = CreateObjectPool(CreatePin, ResetPin)
+    end
+    highlightToken = highlightToken + 1
+    local token = highlightToken
+    map:RemoveAllPinsByTemplate(highlightTemplate)
+    local function Show()
+        if highlightToken ~= token or not map:IsShown()
+            or map:GetMapID() ~= entry.mapID then return end
+        map:AcquirePin(highlightTemplate, entry)
+        C_Timer.After(3, function()
+            if highlightToken == token then
+                map:RemoveAllPinsByTemplate(highlightTemplate)
+            end
+        end)
+    end
+    if C_Timer and C_Timer.After then C_Timer.After(0, Show) end
+end
 
 local function IsMapVisible(info)
     local mapType = info and info.mapType
@@ -143,8 +220,13 @@ function MapSearch.Activate(entry)
         end
     end
     if WorldMapFrame and WorldMapFrame:IsShown()
-        and WorldMapFrame:GetMapID() ~= mapID then
-        return pcall(WorldMapFrame.SetMapID, WorldMapFrame, mapID)
+        and WorldMapFrame:GetMapID() ~= mapID
+        and not pcall(WorldMapFrame.SetMapID, WorldMapFrame, mapID) then
+        return false
     end
-    return WorldMapFrame and WorldMapFrame:IsShown() or false
+    local shown = WorldMapFrame and WorldMapFrame:IsShown() or false
+    if shown and entry.kind == "coordinate" then
+        HighlightCoordinate(entry)
+    end
+    return shown
 end

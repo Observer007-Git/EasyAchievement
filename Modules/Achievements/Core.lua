@@ -59,8 +59,27 @@ function GetAchievementSearchBoxWidth(editBox)
 end
 
 function SetOwnedAchievementSearch(owner, query)
+    if achievementSearchOwner and achievementSearchOwner ~= owner then
+        achievementSearchOwner.catalogSearchRevision =
+            (achievementSearchOwner.catalogSearchRevision or 0) + 1
+    end
     achievementSearchOwner = owner
+    if Addon.AchievementCatalog then return true end
     return SetAchievementSearchString(query)
+end
+
+function ScheduleAchievementCatalogSearch(owner, callback)
+    if not Addon.AchievementCatalog or not C_Timer
+        or not C_Timer.After
+    then
+        callback()
+        return
+    end
+    owner.catalogSearchRevision = (owner.catalogSearchRevision or 0) + 1
+    local revision = owner.catalogSearchRevision
+    C_Timer.After(0.12, function()
+        if owner.catalogSearchRevision == revision then callback() end
+    end)
 end
 
 function ReleaseAchievementSearch(owner)
@@ -68,6 +87,8 @@ function ReleaseAchievementSearch(owner)
         return
     end
     achievementSearchOwner = nil
+    owner.catalogSearchRevision = (owner.catalogSearchRevision or 0) + 1
+    if Addon.AchievementCatalog then return end
     if SetAchievementSearchString then
         SetAchievementSearchString("")
     end
@@ -143,6 +164,9 @@ function ApplyAchievementCardScale(value)
     if achievementTreeFrame and achievementTreeFrame.AchievementCard then
         achievementTreeFrame.AchievementCard:SetScale(scale)
     end
+    if achievementTreeFrame and achievementTreeFrame.CatalogFallbackCard then
+        achievementTreeFrame.CatalogFallbackCard:SetScale(scale)
+    end
     if achievementTreeFrame and achievementTreeFrame.CardScaleValue then
         achievementTreeFrame.CardScaleValue:SetText(string.format("%d%%",
             math.floor(scale * 100 + 0.5)))
@@ -203,7 +227,25 @@ SanitizeAchievementFavorites = AchievementData.SanitizeIDList
 SanitizeAchievementTreeStates = AchievementData.SanitizeTreeStates
 TrimAchievementTreeStates = AchievementData.TrimTreeStates
 GetAchievementHistoryEntry = AchievementData.GetHistoryEntry
-GetAchievementData = AchievementData.Get
+GetAchievementData = function(id)
+    if achievementTreeFrame and achievementTreeFrame.officialBrowserState
+        and Addon.AchievementCatalog
+        and Addon.AchievementCatalog.GetRecord(id)
+    then
+        return Addon.AchievementCatalog.GetData(id)
+    end
+    local data = AchievementData.Get(id)
+    if data then return data end
+    if achievementTreeFrame and achievementTreeFrame.officialBrowserState
+        and Addon.AchievementCatalog
+    then
+        return Addon.AchievementCatalog.GetData(id)
+    end
+end
+GetCatalogAchievementData = function(id)
+    return Addon.AchievementCatalog
+        and Addon.AchievementCatalog.GetData(id)
+end
 GetAchievementProgress = AchievementData.GetProgress
 
 function GetAchievementFavorites()

@@ -497,12 +497,12 @@ assert(cardsSource:find('local CARD_LIST_ROW_HEIGHT = 26', 1, true)
         1, true)
     and cardsSource:find('self.index - active.index', 1, true)
     and cardsSource:find(
-        'UpdateAchievementCardList(frame, categoryContext or treeContext, card)',
+        'UpdateAchievementCardList(frame, categoryContext or treeContext,',
         1, true)
     and cardsSource:find('list:SetPoint("TOPRIGHT", frame, "TOPLEFT"',
         1, true)
     and treeSource:find('frame.AchievementCardList:Hide()', 1, true)
-    and cardsSource:find('UpdateAchievementCardList(frame, categoryContext or treeContext, card)',
+    and cardsSource:find('UpdateAchievementCardList(frame, categoryContext or treeContext,',
         1, true),
     "card list must follow category or tree selection and avoid narrow layouts")
 assert(navigationSource:find('frame.treeCardContext = page.treeCardContext',

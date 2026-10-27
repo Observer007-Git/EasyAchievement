@@ -13,8 +13,10 @@ local addon = {
         ACHIEVEMENT_ALL_CATEGORIES_EMPTY = "Empty",
         ACHIEVEMENT_OVERVIEW = "Summary",
         ACHIEVEMENT_PROGRESS_OVERVIEW = "Progress Overview",
+        ACHIEVEMENT_OVERVIEW_EARNED = "Achievements Earned",
+        ACHIEVEMENT_OVERVIEW_CATEGORY_POINTS = "%s (%d pts)",
         ACHIEVEMENT_EARNED_PROGRESS = "Achievements Earned: %d/%d",
-        ACHIEVEMENT_OVERVIEW_TOTALS = "Total Achievements: %d(|cff33cc33%d|r/|cff999999%d|r)",
+        ACHIEVEMENT_OVERVIEW_TOTALS = "%s/%s",
         ACHIEVEMENT_TREE_NO_INCOMPLETE = "No incomplete achievements",
         ACHIEVEMENT_REWARD_CATEGORY_STATS = "%d achievements",
     },
@@ -28,7 +30,11 @@ local function Widget()
         vertical = 0, scripts = {} }
     return setmetatable(widget, { __index = function(_, key)
         if key == "CreateTexture" or key == "CreateFontString" then
-            return function() return Widget() end
+            return function(self)
+                local child = Widget()
+                child.parent = self
+                return child
+            end
         elseif key == "SetScript" then
             return function(self, event, callback)
                 self.scripts[event] = callback
@@ -55,6 +61,8 @@ local function Widget()
             return function(self) return self.height end
         elseif key == "SetText" then
             return function(self, value) self.text = value end
+        elseif key == "SetJustifyH" then
+            return function(self, value) self.justifyH = value end
         elseif key == "GetStringWidth" then
             return function(self) return #(self.text or "") * 7 end
         elseif key == "GetStringHeight" then
@@ -112,6 +120,7 @@ local achievementIDs = { [1] = { 101 }, [2] = { 201, 202 },
 local categoryByAchievement = { [101] = 1, [201] = 2,
     [202] = 2, [301] = 3 }
 local completed = { [101] = true, [201] = true }
+local points = { [101] = 10, [201] = 5, [202] = 15, [301] = 25 }
 local categoryCalls = 0
 ui.GetCategoryList = function()
     categoryCalls = categoryCalls + 1
@@ -136,7 +145,7 @@ ui.GetAchievementCategory = function(id)
 end
 ui.GetAchievementData = function(id)
     return { id = id, name = "Achievement " .. id,
-        description = "Description", icon = id,
+        description = "Description", icon = id, points = points[id],
         completed = completed[id] == true }
 end
 ui.CreateFrame = Widget
@@ -356,15 +365,20 @@ assert(ui.ShowOfficialAchievementCategory(0)
     and not browser.leftRows[1].CollapseIcon.shown
     and browser.overview.shown and not browser.rightScroll.shown
     and not browser.incompleteOnly.shown
-    and browser.overviewCount.text
-        == "Total Achievements: 4(|cff33cc332|r/|cff9999992|r)"
-    and browser.overviewRows[1].Label.text == "Exploration"
-    and browser.overviewRows[1].Count.text
-        == "3(|cff33cc332|r/|cff9999991|r)"
-    and browser.overviewRows[2].Count.text
-        == "1(|cff33cc330|r/|cff9999991|r)"
-    and browser.overviewBar.barColor[2] == 0.72
-    and browser.overviewRows[1].Bar.barColor[2] == 0.72
+    and browser.overviewCount.text == "2/4"
+    and browser.overviewLabel.text == "Achievements Earned (55 pts)"
+    and browser.overviewLabel.justifyH == "LEFT"
+    and browser.overviewLabel.parent == browser.overviewBar
+    and browser.overviewCount.parent == browser.overviewBar
+    and browser.overviewRows[1].Label.text == "Exploration (30 pts)"
+    and browser.overviewRows[2].Label.text == "Dungeons (25 pts)"
+    and browser.overviewRows[1].Count.text == "2/3"
+    and browser.overviewRows[2].Count.text == "0/1"
+    and browser.overviewRows[1].Label.justifyH == "LEFT"
+    and browser.overviewRows[1].Label.parent == browser.overviewRows[1].Bar
+    and browser.overviewRows[1].Count.parent == browser.overviewRows[1].Bar
+    and browser.overviewBar.barColor[2] == 0.6
+    and browser.overviewRows[1].Bar.barColor[2] == 0.6
     and browser.overviewRows[1].Hover.atlas == "Options_List_Hover"
     and browser.overviewBar.value == 2,
     "overview did not show live root-category progress")
@@ -374,6 +388,19 @@ assert(browser.overviewRows[1].point[4] == 8
     and browser.overviewRows[1].point[5]
         == browser.overviewRows[2].point[5],
     "overview root categories should share a two-column row")
+browser.roots[3] = { id = 103, name = "Extra", children = {} }
+browser.overviewRows[3] = Widget()
+browser.overviewRows[3].Label = Widget()
+browser.overviewRows[3].Count = Widget()
+browser.overviewRows[3].Bar = Widget()
+browser.right.scripts.OnSizeChanged()
+assert(browser.overviewRows[3].point[4]
+    > browser.overviewRows[1].point[4]
+    and browser.overviewRows[3].point[4]
+        < browser.overviewRows[2].point[4],
+    "an unmatched last category should be centered")
+browser.roots[3] = nil
+browser.overviewRows[3] = nil
 for index = 3, 14 do
     browser.roots[index] = { id = 100 + index,
         name = "Extra " .. index, children = {} }
@@ -397,12 +424,12 @@ browser.overview.height = 300
 browser.right.scripts.OnSizeChanged()
 completed[202] = true
 ui.RefreshOfficialAchievementBrowser(frame, "earned")
-assert(browser.overviewCount.text
-        == "Total Achievements: 4(|cff33cc333|r/|cff9999991|r)"
+assert(browser.overviewCount.text == "3/4"
+    and browser.overviewLabel.text == "Achievements Earned (55 pts)"
     and browser.leftRows[1].Count.text
         == "4(|cff33cc333|r/|cff9999991|r)"
-    and browser.overviewRows[1].Count.text
-        == "3(|cff33cc333|r/|cff9999990|r)",
+    and browser.overviewRows[1].Count.text == "3/3"
+    and browser.overviewRows[1].Label.text == "Exploration (30 pts)",
     "overview did not refresh after an achievement was earned")
 completed[202] = nil
 local overviewSnapshot = { officialBrowser =
@@ -418,4 +445,80 @@ assert(ui.ShowOfficialAchievementCategory(0, false, "history",
 browser.leftRows[1].scripts.OnClick(browser.leftRows[1])
 assert(frame.title == "Summary" and browser.overview.shown,
     "left summary entry did not restore the overview")
+local selectedFaction = "Horde"
+addon.L.ACHIEVEMENT_FACTION_HORDE = "Horde"
+addon.L.ACHIEVEMENT_FACTION_ALLIANCE = "Alliance"
+addon.L.ACHIEVEMENT_CATALOG_OVERVIEW = "Character achievement catalog"
+local factionCategory = { id = 1010, parent = -1, order = 1,
+    name = "Faction category", count = 2, points = 20, children = {} }
+addon.AchievementCatalog = {
+    GetCategories = function()
+        return { [1010] = factionCategory }, { factionCategory }
+    end,
+    GetCategoryIDs = function() return { 101, 102 } end,
+    GetSelectedFaction = function() return selectedFaction end,
+    SetSelectedFaction = function(faction) selectedFaction = faction end,
+    IsVisible = function(id)
+        return (selectedFaction == "Horde" and id == 101)
+            or (selectedFaction == "Alliance" and id == 102)
+    end,
+    GetDirectTotals = function()
+        return 1, selectedFaction == "Horde" and 10 or 20
+    end,
+    GetCompleted = function() return 1 end,
+    IsProgressReady = function() return true end,
+    StartProgressScan = function(callback) callback() end,
+    IsCompleted = function() return true end,
+}
+frame.OfficialCategoryBrowser = nil
+frame.officialBrowserState = nil
+frame.currentPage = nil
+frame.history, frame.historyIndex = {}, 0
+assert(loadfile("EasyAchievement/Modules/Achievements/OfficialCategories.lua"))(
+    "EasyAchievement", addon)
+assert(ui.ShowOfficialAchievementCategory(0))
+local factionBrowser = frame.OfficialCategoryBrowser
+assert(factionBrowser.factionButtons.Horde.shown
+    and factionBrowser.factionButtons.Horde.checked
+    and not factionBrowser.factionButtons.Alliance.checked
+    and factionBrowser.factionButtons.Alliance.point[4] == -24
+    and factionBrowser.overviewLabel.text
+        == "Character achievement catalog (10 pts)"
+    and factionBrowser.overviewCount.text == "1/1",
+    "player faction must be selected by default")
+factionBrowser.factionButtons.Alliance.scripts.OnClick()
+assert(selectedFaction == "Alliance"
+    and not factionBrowser.factionButtons.Horde.checked
+    and factionBrowser.factionButtons.Alliance.checked
+    and factionBrowser.overviewLabel.text
+        == "Character achievement catalog (20 pts)"
+    and factionBrowser.overviewCount.text == "1/1",
+    "switching faction must update totals and keep exactly one checked")
+factionBrowser.factionButtons.Alliance.scripts.OnClick()
+assert(factionBrowser.factionButtons.Alliance.checked,
+    "clicking the selected faction cannot clear both options")
+factionBrowser.factionButtons.Horde.scripts.OnClick()
+assert(selectedFaction == "Horde" and factionBrowser.overviewLabel.text
+        == "Character achievement catalog (10 pts)"
+    and factionBrowser.overviewCount.text == "1/1",
+    "switching back must restore the overview")
+assert(ui.ShowOfficialAchievementCategory(1010)
+    and #factionBrowser.rightIDs == 1
+    and factionBrowser.rightIDs[1] == 101,
+    "opposite-faction achievements must be hidden from the category list")
+assert(ui.OpenOfficialAchievementCard(101)
+    and #frame.officialContext.achievementIDs == 1,
+    "card navigation must use the filtered category order")
+ui.ReturnToOfficialAchievementCategory(frame)
+factionBrowser.factionButtons.Alliance.scripts.OnClick()
+assert(#factionBrowser.rightIDs == 1
+    and factionBrowser.rightIDs[1] == 102,
+    "switching faction must replace category list entries")
+assert(ui.OpenOfficialAchievementCard(102)
+    and #frame.officialContext.achievementIDs == 1)
+factionBrowser.factionButtons.Horde.scripts.OnClick()
+assert(frame.currentPage.kind == "official-category"
+    and #factionBrowser.rightIDs == 1
+    and factionBrowser.rightIDs[1] == 101,
+    "switching faction must return from a now-hidden card")
 print("official category hierarchy, card focus and return: ok")

@@ -407,6 +407,50 @@ UpdateAchievementCardList = function(frame)
     end
 end
 
+local function GetCatalogFallbackCard(frame)
+    if frame.CatalogFallbackCard then return frame.CatalogFallbackCard end
+    local card = CreateFrame("Frame", nil, frame)
+    card:SetFrameLevel(frame:GetFrameLevel() + 50)
+    card:SetSize(330, 160)
+    local background = card:CreateTexture(nil, "BACKGROUND")
+    background:SetAllPoints()
+    background:SetColorTexture(0.09, 0.07, 0.04, 0.96)
+    for _, edge in ipairs({ "TOP", "BOTTOM", "LEFT", "RIGHT" }) do
+        local line = card:CreateTexture(nil, "BORDER")
+        line:SetColorTexture(0.55, 0.4, 0.18, 0.85)
+        if edge == "TOP" or edge == "BOTTOM" then
+            line:SetHeight(1)
+            line:SetPoint(edge .. "LEFT", card, edge .. "LEFT")
+            line:SetPoint(edge .. "RIGHT", card, edge .. "RIGHT")
+        else
+            line:SetWidth(1)
+            line:SetPoint("TOP" .. edge, card, "TOP" .. edge)
+            line:SetPoint("BOTTOM" .. edge, card, "BOTTOM" .. edge)
+        end
+    end
+    local icon = card:CreateTexture(nil, "ARTWORK")
+    icon:SetPoint("TOPLEFT", 18, -18)
+    icon:SetSize(36, 36)
+    card.Icon = icon
+    local title = card:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+    title:SetPoint("TOPLEFT", icon, "TOPRIGHT", 10, -2)
+    title:SetPoint("RIGHT", card, "RIGHT", -16, 0)
+    title:SetJustifyH("LEFT")
+    card.Title = title
+    local points = card:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    points:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -5)
+    card.Points = points
+    local description = card:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+    description:SetPoint("TOPLEFT", card, "TOPLEFT", 18, -75)
+    description:SetWidth(294)
+    description:SetJustifyH("LEFT")
+    description:SetWordWrap(true)
+    card.Description = description
+    card:Hide()
+    frame.CatalogFallbackCard = card
+    return card
+end
+
 function ShowAchievementCardInTree(frame, achievementID, progressOnly)
     if not LoadAchievementUI() then
         return false
@@ -621,12 +665,28 @@ function ShowAchievementCardInTree(frame, achievementID, progressOnly)
         end)
     end
 
-    card.EasyAchievementElementData = { id = data.id }
-    card:Init(card.EasyAchievementElementData)
-    local height = card:DisplayObjectives(data.id, card.completed)
-    ConfigureAchievementCardChildLinks(card:GetObjectiveFrame())
-    card:Expand(height)
-    FormatAchievementCardDate(card, data)
+    if data.catalogOnly or IsAchievementValid
+        and not IsAchievementValid(data.id)
+    then
+        card:Hide()
+        card = GetCatalogFallbackCard(frame)
+        card.Icon:SetTexture(data.icon)
+        card.Title:SetText(data.name)
+        card.Points:SetText(tostring(data.points or 0))
+        card.Description:SetText(data.description or "")
+        card:SetHeight(math.max(160,
+            math.ceil(card.Description:GetStringHeight()) + 100))
+    else
+        if frame.CatalogFallbackCard then
+            frame.CatalogFallbackCard:Hide()
+        end
+        card.EasyAchievementElementData = { id = data.id }
+        card:Init(card.EasyAchievementElementData)
+        local height = card:DisplayObjectives(data.id, card.completed)
+        ConfigureAchievementCardChildLinks(card:GetObjectiveFrame())
+        card:Expand(height)
+        FormatAchievementCardDate(card, data)
+    end
     if not progressOnly then
         UpdateAchievementRewardPanel(frame, data.id)
     end
@@ -664,7 +724,12 @@ function ShowAchievementCardInTree(frame, achievementID, progressOnly)
     cardForwardButton:ClearAllPoints()
     cardForwardButton:SetPoint("LEFT", card, "RIGHT", 2, 0)
     cardForwardButton:SetShown(canGoForward)
-    UpdateAchievementCardList(frame, categoryContext or treeContext, card)
+    if card == frame.AchievementCard then
+        UpdateAchievementCardList(frame, categoryContext or treeContext,
+            card)
+    elseif frame.AchievementCardList then
+        frame.AchievementCardList:Hide()
+    end
     local header = frame.AchievementCardHeader
     header.node = data
     header.Icon:SetTexture(data.icon)
@@ -696,6 +761,9 @@ function ShowAchievementCardInTree(frame, achievementID, progressOnly)
         categoryReturnButton:SetText(string.format(
             L.ACHIEVEMENT_REWARD_CATEGORY_RETURN,
             categoryContext and categoryContext.label
+                or (Addon.AchievementCatalog
+                    and Addon.AchievementCatalog.GetCategories()
+                        [active.categoryID] or {}).name
                 or GetCategoryInfo(active.categoryID)))
         categoryReturnButton:Show()
     else

@@ -59,6 +59,43 @@ assert(coord.mapID == 101 and search.Activate(coord)
     and waypoint.y == 0.22 and tracked
     and WorldMapFrame.mapID == 101,
     "coordinate selection must track and open the active map")
+local highlighted, removed = nil, 0
+WorldMapFrame.pinPools = {}
+WorldMapFrame.GetCanvas = function() return {} end
+WorldMapFrame.AcquirePin = function(_, _, entry) highlighted = entry end
+WorldMapFrame.RemoveAllPinsByTemplate = function()
+    removed = removed + 1
+    highlighted = nil
+end
+MapCanvasPinMixin = { IsSuppressed = function() return false end }
+CreateObjectPool = function(create, reset)
+    return { creationFunc = create, resetterFunc = reset }
+end
+CreateFromMixins = function(mixin) return mixin end
+Mixin = function(frame, mixin)
+    return setmetatable(frame, { __index = mixin })
+end
+CreateFrame = function()
+    return { EnableMouse = function() end }
+end
+assert(search.Activate(coord) and #queued == 1 and not highlighted,
+    "coordinate highlight must wait for the map canvas")
+local highlightPool = WorldMapFrame.pinPools.EasyAchievementCoordinateHighlightPin
+local pin = highlightPool.creationFunc()
+assert(pin:IsSuppressed() == false,
+    "coordinate highlight pin must support map canvas suppression")
+table.remove(queued, 1)()
+assert(highlighted == coord and #queued == 1,
+    "coordinate highlight must mark the selected map position")
+local previousTimeout = table.remove(queued, 1)
+search.Activate(coord)
+table.remove(queued, 1)()
+previousTimeout()
+assert(highlighted == coord,
+    "an older highlight timeout must not clear the new marker")
+table.remove(queued, 1)()
+assert(not highlighted and removed == 3,
+    "coordinate highlight must disappear after its timeout")
 local notified = false
 search.Subscribe(function() notified = true end)
 assert(#search.Find("Storm", 6) == 0 and #queued > 0,

@@ -7,6 +7,7 @@ else
 end
 
 local Copy = Addon.AchievementData.CopyNavigationState
+local Catalog = Addon.AchievementCatalog
 local LEFT_WIDTH = 214
 local LEFT_ROW_HEIGHT = 26
 local RIGHT_ROW_HEIGHT = 40
@@ -15,6 +16,10 @@ local OVERVIEW_CATEGORY_ID = 0
 local ShowCategoryContent
 
 local function ReadCategories()
+    if Catalog then
+        local categories, roots = Catalog.GetCategories()
+        return categories, roots
+    end
     local categories, roots = {}, {}
     local categoryIDs = GetCategoryList and GetCategoryList() or {}
     for _, id in ipairs(categoryIDs) do
@@ -39,42 +44,76 @@ local function GetCategoryAchievements(browser, categoryID)
     if browser.achievementCache[categoryID] then
         return browser.achievementCache[categoryID]
     end
-    local ids, seen = {}, {}
+    local ids, seen, points = {}, {}, 0
+    if Catalog then
+        ids = Catalog.GetCategoryIDs(categoryID)
+        browser.achievementCache[categoryID] = ids
+        return ids
+    end
     local count = GetCategoryNumAchievements(categoryID) or 0
     for index = 1, count do
         local id = select(1, GetAchievementInfo(categoryID, index))
         if id and not seen[id]
             and (not GetAchievementCategory
-                or GetAchievementCategory(id) == categoryID)
-            and GetAchievementData(id)
-        then
-            seen[id] = true
-            ids[#ids + 1] = id
+                or GetAchievementCategory(id) == categoryID) then
+            local data = GetAchievementData(id)
+            if data then
+                seen[id] = true
+                ids[#ids + 1] = id
+                points = points + (tonumber(data.points) or 0)
+            end
         end
     end
     browser.achievementCache[categoryID] = ids
+    browser.categoryDirectPoints[categoryID] = points
     return ids
 end
 
 local function GetVisibleCategoryAchievements(browser, categoryID)
     local ids = GetCategoryAchievements(browser, categoryID)
     local state = browser.frame.officialBrowserState
-    if not state or not state.incompleteOnly then return ids end
-    local visible = browser.incompleteCache[categoryID]
+    if not state or not state.incompleteOnly
+        and not Catalog
+    then
+        return ids
+    end
+    local visible = browser.visibleCache[categoryID]
     if not visible then
         visible = {}
         for _, id in ipairs(ids) do
-            local data = GetAchievementData(id)
-            if data and not data.completed then
-                visible[#visible + 1] = id
+            if not Catalog or Catalog.IsVisible(id) then
+                local completed = false
+                if state.incompleteOnly then
+                    if Catalog then
+                        completed = Catalog.IsCompleted(id)
+                    else
+                        local data = GetAchievementData(id)
+                        completed = data and data.completed
+                    end
+                end
+                if not completed then
+                    visible[#visible + 1] = id
+                end
             end
         end
-        browser.incompleteCache[categoryID] = visible
+        browser.visibleCache[categoryID] = visible
     end
     return visible
 end
 
 local function GetCategoryTotals(browser, category)
+    if Catalog then
+        local cached = browser.categoryTotals[category.id]
+        if not cached then
+            local total = Catalog.GetDirectTotals(category.id)
+            for _, child in ipairs(category.children) do
+                total = total + select(1, GetCategoryTotals(browser, child))
+            end
+            cached = { total }
+            browser.categoryTotals[category.id] = cached
+        end
+        return cached[1], Catalog.GetCompleted(category.id)
+    end
     local cached = browser.categoryTotals[category.id]
     if cached then return cached[1], cached[2] end
     local total, completed = GetCategoryNumAchievements(category.id, true)
@@ -86,6 +125,20 @@ local function GetCategoryTotals(browser, category)
     end
     browser.categoryTotals[category.id] = { total, completed }
     return total, completed
+end
+
+local function GetCategoryPoints(browser, category)
+    local cached = browser.categoryPointTotals[category.id]
+    if cached then return cached end
+    if not Catalog then GetCategoryAchievements(browser, category.id) end
+    local points = Catalog and select(2, Catalog.GetDirectTotals(
+        category.id))
+        or browser.categoryDirectPoints[category.id] or 0
+    for _, child in ipairs(category.children) do
+        points = points + GetCategoryPoints(browser, child)
+    end
+    browser.categoryPointTotals[category.id] = points
+    return points
 end
 
 local function ScrollBy(scroll, delta, rowHeight)
@@ -134,15 +187,21 @@ local function BuildLeftEntries(browser, state)
     browser.leftEntries = entries
     browser.leftScroll.Content:SetSize(LEFT_WIDTH - 4,
         math.max(1, #entries * LEFT_ROW_HEIGHT))
+    local scroll = browser.leftScroll
+    if scroll:GetVerticalScroll() > scroll:GetVerticalScrollRange() then
+        scroll:SetVerticalScroll(scroll:GetVerticalScrollRange())
+    end
 end
 
 local function GetOverviewTotals(browser)
     local total, completed = 0, 0
     for _, category in ipairs(browser.roots) do
-        local categoryTotal, categoryCompleted = GetCategoryTotals(browser,
-            category)
-        total = total + categoryTotal
-        completed = completed + categoryCompleted
+        if not Catalog or category.id ~= 1 and category.id ~= 15076 then
+            local categoryTotal, categoryCompleted = GetCategoryTotals(browser,
+                category)
+            total = total + categoryTotal
+            completed = completed + categoryCompleted
+        end
     end
     return total, completed
 end
@@ -200,9 +259,13 @@ local function DrawLeftRows(browser)
                     total, completed = GetCategoryTotals(browser,
                         browser.categories[entry.categoryID])
                 end
-                row.Count:SetText(string.format(
-                    "%d(|cff33cc33%d|r/|cff999999%d|r)", total,
-                    completed, math.max(0, total - completed)))
+                if Catalog and not Catalog.IsProgressReady() then
+                    row.Count:SetText(string.format("%d(…)", total))
+                else
+                    row.Count:SetText(string.format(
+                        "%d(|cff33cc33%d|r/|cff999999%d|r)", total,
+                        completed, math.max(0, total - completed)))
+                end
             end
             row.Label:ClearAllPoints()
             local labelLeft = 5 + entry.depth * 13
@@ -355,39 +418,59 @@ local function RefreshOverview(browser)
     local content = scroll.Content
     local contentWidth = math.max(1, scroll:GetWidth() - 4)
     local rowCount = math.ceil(#browser.roots / 2)
-    local rowHeight = math.min(46, math.max(1,
-        math.floor((scroll:GetHeight() - 76) / math.max(1, rowCount))))
+    local rowHeight = math.min(31, math.max(1,
+        math.floor((scroll:GetHeight() - 64) / math.max(1, rowCount))))
     local cellWidth = math.max(1, (contentWidth - 32) / 2)
     content:SetSize(contentWidth, math.max(1,
-        76 + rowCount * rowHeight))
+        64 + rowCount * rowHeight))
     scroll:SetVerticalScroll(0)
     local total, completed = GetOverviewTotals(browser)
+    local totalPoints = 0
+    for _, category in ipairs(browser.roots) do
+        if not Catalog or category.id ~= 1 and category.id ~= 15076 then
+            totalPoints = totalPoints + GetCategoryPoints(browser, category)
+        end
+    end
+    browser.overviewLabel:SetText(string.format(
+        L.ACHIEVEMENT_OVERVIEW_CATEGORY_POINTS,
+        Catalog and L.ACHIEVEMENT_CATALOG_OVERVIEW
+            or L.ACHIEVEMENT_OVERVIEW_EARNED, totalPoints))
     browser.overviewCount:SetText(string.format(
-        L.ACHIEVEMENT_OVERVIEW_TOTALS, total, completed,
-        math.max(0, total - completed)))
+        L.ACHIEVEMENT_OVERVIEW_TOTALS,
+        Catalog and not Catalog.IsProgressReady() and "…"
+            or BreakUpLargeNumbers and BreakUpLargeNumbers(completed)
+            or completed,
+        BreakUpLargeNumbers and BreakUpLargeNumbers(total) or total))
     browser.overviewBar:SetMinMaxValues(0, math.max(1, total))
     browser.overviewBar:SetValue(completed)
     for index, category in ipairs(browser.roots) do
         local row = browser.overviewRows[index]
         row:ClearAllPoints()
-        row:SetPoint("TOPLEFT", content, "TOPLEFT",
-            8 + ((index - 1) % 2) * (cellWidth + 16),
-            -76 - math.floor((index - 1) / 2) * rowHeight)
+        local x = 8 + ((index - 1) % 2) * (cellWidth + 16)
+        if index == #browser.roots and index % 2 == 1 then
+            x = (contentWidth - cellWidth) / 2
+        end
+        row:SetPoint("TOPLEFT", content, "TOPLEFT", x,
+            -64 - math.floor((index - 1) / 2) * rowHeight)
         row:SetSize(cellWidth, rowHeight)
-        row.Bar:SetHeight(math.max(4, math.min(12, rowHeight - 18)))
+        row.Bar:SetHeight(math.max(4, math.min(14, rowHeight - 4)))
         local categoryTotal, categoryCompleted = GetCategoryTotals(browser,
             category)
         row.categoryID = category.id
-        row.Label:SetText(category.name)
-        row.Count:SetText(string.format(
-            "%d(|cff33cc33%d|r/|cff999999%d|r)", categoryTotal,
-            categoryCompleted, math.max(0,
-                categoryTotal - categoryCompleted)))
+        row.Label:SetText(string.format(
+            L.ACHIEVEMENT_OVERVIEW_CATEGORY_POINTS, category.name,
+            GetCategoryPoints(browser, category)))
+        row.Count:SetText(string.format("%s/%d",
+            Catalog and not Catalog.IsProgressReady() and "…"
+                or categoryCompleted, categoryTotal))
         row.Bar:SetMinMaxValues(0, math.max(1, categoryTotal))
         row.Bar:SetValue(categoryCompleted)
     end
-    browser.frame.Stats:SetText(string.format(
-        L.ACHIEVEMENT_EARNED_PROGRESS, completed, total))
+    browser.frame.Stats:SetText(Catalog
+        and not Catalog.IsProgressReady()
+        and L.ACHIEVEMENT_CATALOG_LOADING
+        or string.format(L.ACHIEVEMENT_EARNED_PROGRESS,
+            completed, total))
     LayoutAchievementHeader(browser.frame)
 end
 
@@ -411,6 +494,9 @@ local function RefreshRight(browser)
     browser.rightColumns = columns
     scroll.Content:SetSize(contentWidth,
         math.max(1, rowCount * RIGHT_ROW_HEIGHT))
+    if scroll:GetVerticalScroll() > scroll:GetVerticalScrollRange() then
+        scroll:SetVerticalScroll(scroll:GetVerticalScrollRange())
+    end
     local firstRow = math.floor(scroll:GetVerticalScroll() / RIGHT_ROW_HEIGHT)
     local visibleRows = math.ceil(scroll:GetHeight() / RIGHT_ROW_HEIGHT) + 1
     local visibleSlots = math.min(#ids, visibleRows * columns)
@@ -480,7 +566,8 @@ local function CreateBrowser(frame)
     end
     local categories, roots = ReadCategories()
     local browser = { frame = frame, categories = categories, roots = roots,
-        achievementCache = {}, incompleteCache = {}, categoryTotals = {},
+        achievementCache = {}, visibleCache = {}, categoryTotals = {},
+        categoryDirectPoints = {}, categoryPointTotals = {},
         leftRows = {}, rightRows = {} }
     local pane = CreateFrame("Frame", nil, frame)
     pane:SetPoint("TOPLEFT", frame, "TOPLEFT", 24, -135)
@@ -601,28 +688,52 @@ local function CreateBrowser(frame)
     local overview = MakeScroll(right, { 12, -12 }, { -12, 12 }, 46)
     overview:EnableMouseWheel(false)
     local overviewTitle = overview.Content:CreateFontString(nil, "OVERLAY",
-        "GameFontNormalLarge")
-    overviewTitle:SetPoint("TOPLEFT", overview.Content, "TOPLEFT", 8, -6)
+        "GameFontNormalSmall")
+    overviewTitle:SetPoint("TOP", overview.Content, "TOP", 0, -6)
     overviewTitle:SetText(L.ACHIEVEMENT_PROGRESS_OVERVIEW)
-    local overviewCount = overview.Content:CreateFontString(nil, "OVERLAY",
-        "GameFontHighlight")
-    overviewCount:SetPoint("TOPRIGHT", overview.Content, "TOPRIGHT",
-        -8, -10)
-    browser.overviewCount = overviewCount
     local function CreateBar(parent)
         local bar = CreateFrame("StatusBar", nil, parent)
         bar:SetStatusBarTexture("Interface\\TargetingFrame\\UI-StatusBar")
-        bar:SetStatusBarColor(0.16, 0.72, 0.16)
-        bar:SetHeight(12)
+        bar:SetStatusBarColor(0, 0.6, 0)
+        bar:SetHeight(14)
         local background = bar:CreateTexture(nil, "BACKGROUND")
         background:SetAllPoints()
-        background:SetColorTexture(0.11, 0.08, 0.04, 0.85)
+        background:SetColorTexture(0, 0, 0, 0.4)
+        local border = "Interface\\AchievementFrame\\UI-Achievement-ProgressBar-Border"
+        local left = bar:CreateTexture(nil, "ARTWORK")
+        left:SetTexture(border)
+        left:SetWidth(16)
+        left:SetPoint("TOPLEFT", bar, "TOPLEFT", -6, 5)
+        left:SetPoint("BOTTOMLEFT", bar, "BOTTOMLEFT", -6, -5)
+        left:SetTexCoord(0, 0.0625, 0, 0.75)
+        local right = bar:CreateTexture(nil, "ARTWORK")
+        right:SetTexture(border)
+        right:SetWidth(16)
+        right:SetPoint("TOPRIGHT", bar, "TOPRIGHT", 6, 5)
+        right:SetPoint("BOTTOMRIGHT", bar, "BOTTOMRIGHT", 6, -5)
+        right:SetTexCoord(0.812, 0.8745, 0, 0.75)
+        local center = bar:CreateTexture(nil, "ARTWORK")
+        center:SetTexture(border)
+        center:SetPoint("TOPLEFT", left, "TOPRIGHT")
+        center:SetPoint("BOTTOMRIGHT", right, "BOTTOMLEFT")
+        center:SetTexCoord(0.0625, 0.812, 0, 0.75)
         return bar
     end
     local overviewBar = CreateBar(overview.Content)
-    overviewBar:SetPoint("TOPLEFT", overview.Content, "TOPLEFT", 8, -38)
-    overviewBar:SetPoint("TOPRIGHT", overview.Content, "TOPRIGHT", -8, -38)
+    overviewBar:SetPoint("TOPLEFT", overview.Content, "TOPLEFT", 8, -31)
+    overviewBar:SetPoint("TOPRIGHT", overview.Content, "TOPRIGHT", -8, -31)
     browser.overviewBar = overviewBar
+    local overviewCount = overviewBar:CreateFontString(nil, "OVERLAY",
+        "GameFontHighlightSmall")
+    overviewCount:SetPoint("RIGHT", overviewBar, "RIGHT", -5, 0)
+    browser.overviewCount = overviewCount
+    local overviewLabel = overviewBar:CreateFontString(nil, "OVERLAY",
+        "GameFontNormalSmall")
+    overviewLabel:SetPoint("LEFT", overviewBar, "LEFT", 6, 0)
+    overviewLabel:SetPoint("RIGHT", overviewCount, "LEFT", -4, 0)
+    overviewLabel:SetJustifyH("LEFT")
+    overviewLabel:SetWordWrap(false)
+    browser.overviewLabel = overviewLabel
     browser.overviewRows = {}
     for index = 1, #roots do
         local row = CreateFrame("Button", nil, overview.Content)
@@ -631,17 +742,20 @@ local function CreateBrowser(frame)
         hover:SetAllPoints()
         SetTextureAtlas(hover, "Options_List_Hover")
         row.Hover = hover
-        local label = row:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-        label:SetPoint("TOPLEFT")
-        row.Label = label
-        local count = row:CreateFontString(nil, "OVERLAY",
-            "GameFontHighlightSmall")
-        count:SetPoint("TOPRIGHT")
-        row.Count = count
         local bar = CreateBar(row)
-        bar:SetPoint("BOTTOMLEFT", row, "BOTTOMLEFT", 0, 3)
-        bar:SetPoint("BOTTOMRIGHT", row, "BOTTOMRIGHT", 0, 3)
+        bar:SetPoint("LEFT", row, "LEFT", 0, 0)
+        bar:SetPoint("RIGHT", row, "RIGHT", 0, 0)
         row.Bar = bar
+        local label = bar:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+        label:SetPoint("LEFT", bar, "LEFT", 6, 0)
+        label:SetWordWrap(false)
+        label:SetJustifyH("LEFT")
+        row.Label = label
+        local count = bar:CreateFontString(nil, "OVERLAY",
+            "GameFontHighlightSmall")
+        count:SetPoint("RIGHT", bar, "RIGHT", -5, 0)
+        label:SetPoint("RIGHT", count, "LEFT", -4, 0)
+        row.Count = count
         row:SetScript("OnClick", function(self)
             ShowOfficialAchievementCategory(self.categoryID)
         end)
@@ -654,10 +768,84 @@ local function CreateBrowser(frame)
     browser.empty:SetPoint("CENTER")
     browser.empty:SetText(L.ACHIEVEMENT_ALL_CATEGORIES_EMPTY)
     browser.right = right
+    if Catalog then
+        local function SelectFaction(faction)
+            Catalog.SetSelectedFaction(faction)
+            browser.factionButtons.Horde:SetChecked(faction == "Horde")
+            browser.factionButtons.Alliance:SetChecked(faction == "Alliance")
+            browser.visibleCache = {}
+            browser.categoryTotals = {}
+            browser.categoryPointTotals = {}
+            local state = frame.officialBrowserState
+            if state and state.selectedAchievementID
+                and not Catalog.IsVisible(state.selectedAchievementID)
+            then
+                state.selectedAchievementID = nil
+            end
+            RefreshLeft(browser)
+            if frame.currentPage.kind == "official-category" then
+                RefreshRight(browser)
+            elseif frame.currentPage.kind == "card"
+                and frame.officialContext
+            then
+                local context = frame.officialContext
+                local ids = GetVisibleCategoryAchievements(browser,
+                    context.categoryID)
+                local index
+                for position, id in ipairs(ids) do
+                    if id == frame.sourceAchievementID then
+                        index = position
+                        break
+                    end
+                end
+                if not index then
+                    ReturnToOfficialAchievementCategory(frame)
+                else
+                    context.achievementIDs = Copy(ids)
+                    context.index = index
+                    frame.AchievementCardBackButton:SetShown(index > 1)
+                    frame.AchievementCardForwardButton:SetShown(index < #ids)
+                    frame.AchievementCardCategoryPosition:SetText(
+                        string.format(L.ACHIEVEMENT_REWARD_CATEGORY_POSITION,
+                            index, #ids))
+                end
+            end
+        end
+        browser.factionButtons = {}
+        for _, faction in ipairs({ "Alliance", "Horde" }) do
+            local button = CreateFrame("CheckButton", nil, frame,
+                "UICheckButtonTemplate")
+            button:SetSize(22, 22)
+            button:SetFrameLevel(frame:GetFrameLevel() + 44)
+            local label = button:CreateFontString(nil, "OVERLAY",
+                "GameFontNormalSmall")
+            label:SetPoint("RIGHT", button, "LEFT", -2, 0)
+            label:SetText(faction == "Horde" and L.ACHIEVEMENT_FACTION_HORDE
+                or L.ACHIEVEMENT_FACTION_ALLIANCE)
+            if faction == "Alliance" then
+                button:SetPoint("RIGHT", frame, "TOPRIGHT", -24, -113)
+            else
+                button:SetPoint("RIGHT", browser.factionButtons.Alliance.label,
+                    "LEFT", -12, 0)
+            end
+            button.label = label
+            button:SetChecked(Catalog.GetSelectedFaction() == faction)
+            button:SetScript("OnClick", function()
+                SelectFaction(faction)
+            end)
+            button:Hide()
+            browser.factionButtons[faction] = button
+        end
+    end
     local incompleteOnly = CreateFrame("CheckButton", nil, frame,
         "UICheckButtonTemplate")
     incompleteOnly:SetSize(22, 22)
-    incompleteOnly:SetPoint("RIGHT", frame, "TOPRIGHT", -24, -113)
+    if browser.factionButtons then
+        incompleteOnly:SetPoint("RIGHT", browser.factionButtons.Horde.label,
+            "LEFT", -12, 0)
+    else
+        incompleteOnly:SetPoint("RIGHT", frame, "TOPRIGHT", -24, -113)
+    end
     incompleteOnly:SetFrameLevel(frame:GetFrameLevel() + 44)
     local incompleteLabel = incompleteOnly:CreateFontString(nil,
         "OVERLAY", "GameFontNormalSmall")
@@ -708,7 +896,15 @@ function UpdateOfficialAchievementBrowser(frame)
             browser.right:Hide()
             browser.overview:Hide()
             browser.incompleteOnly:Hide()
+            if browser.factionButtons then
+                browser.factionButtons.Horde:Hide()
+                browser.factionButtons.Alliance:Hide()
+            end
         end
+        frame.Breadcrumb:ClearAllPoints()
+        frame.Breadcrumb:SetPoint("LEFT", frame, "TOPLEFT", 82, -113)
+        frame.Breadcrumb:SetPoint("RIGHT", frame.TreeScaleControls,
+            "LEFT", -8, 0)
         frame.ScrollFrame:ClearAllPoints()
         frame.ScrollFrame:SetPoint("TOPLEFT", frame, "TOPLEFT", 24, -135)
         frame.ScrollFrame:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -24, 26)
@@ -740,6 +936,18 @@ function UpdateOfficialAchievementBrowser(frame)
     browser.incompleteOnly:SetShown(
         frame.currentPage.kind == "official-category"
             and state.categoryID ~= OVERVIEW_CATEGORY_ID)
+    if browser.factionButtons then
+        browser.factionButtons.Horde:SetChecked(
+            Catalog.GetSelectedFaction() == "Horde")
+        browser.factionButtons.Alliance:SetChecked(
+            Catalog.GetSelectedFaction() == "Alliance")
+        browser.factionButtons.Horde:Show()
+        browser.factionButtons.Alliance:Show()
+        frame.Breadcrumb:ClearAllPoints()
+        frame.Breadcrumb:SetPoint("LEFT", frame, "TOPLEFT", 82, -113)
+        frame.Breadcrumb:SetPoint("RIGHT", browser.factionButtons.Horde.label,
+            "LEFT", -8, 0)
+    end
     browser.leftScroll:SetVerticalScroll(state.leftScroll or 0)
     browser.rightScroll:SetVerticalScroll(state.rightScroll or 0)
     RefreshLeft(browser)
@@ -749,13 +957,16 @@ function UpdateOfficialAchievementBrowser(frame)
     end
 end
 
-function RefreshOfficialAchievementBrowser(frame, reason)
+function RefreshOfficialAchievementBrowser(frame, reason, achievementID)
     local browser = frame and frame.OfficialCategoryBrowser
     if not browser or not frame.officialBrowserState then return end
     if reason == "earned" then
+        if Catalog then Catalog.RefreshCompletion(achievementID) end
         browser.achievementCache = {}
-        browser.incompleteCache = {}
+        browser.visibleCache = {}
         browser.categoryTotals = {}
+        browser.categoryDirectPoints = {}
+        browser.categoryPointTotals = {}
     end
     RefreshLeft(browser)
     if frame.currentPage.kind == "official-category" then
@@ -765,6 +976,27 @@ end
 
 ShowCategoryContent = function(frame)
     local browser = CreateBrowser(frame)
+    if Catalog and not browser.catalogProgressStarted then
+        browser.catalogProgressStarted = true
+        Catalog.StartProgressScan(function()
+            if frame.OfficialCategoryBrowser == browser
+                and frame.officialBrowserState
+            then
+                browser.visibleCache = {}
+                RefreshLeft(browser)
+                RefreshRight(browser)
+                if frame.currentPage.kind == "official-category"
+                    and frame.officialBrowserState.categoryID
+                        == OVERVIEW_CATEGORY_ID
+                then
+                    local total, completed = GetOverviewTotals(browser)
+                    UpdateAchievementHeader(frame, L.ACHIEVEMENT_OVERVIEW,
+                        string.format(L.ACHIEVEMENT_EARNED_PROGRESS,
+                            completed, total))
+                end
+            end
+        end)
+    end
     local state = frame.officialBrowserState
     frame.ScrollFrame:Hide()
     frame.HorizontalScroll:Hide()
@@ -778,6 +1010,14 @@ ShowCategoryContent = function(frame)
     browser.incompleteOnly:SetChecked(state.incompleteOnly == true)
     browser.incompleteOnly:SetShown(
         state.categoryID ~= OVERVIEW_CATEGORY_ID)
+    if browser.factionButtons then
+        browser.factionButtons.Horde:SetChecked(
+            Catalog.GetSelectedFaction() == "Horde")
+        browser.factionButtons.Alliance:SetChecked(
+            Catalog.GetSelectedFaction() == "Alliance")
+        browser.factionButtons.Horde:Show()
+        browser.factionButtons.Alliance:Show()
+    end
     frame.Breadcrumb:Hide()
     for _, button in ipairs(frame.BreadcrumbButtons or {}) do
         button:Hide()
@@ -792,13 +1032,19 @@ ShowCategoryContent = function(frame)
         frame.AchievementCardCategoryPosition:Hide()
         frame.AchievementCardCategoryReturnButton:Hide()
     end
+    if frame.CatalogFallbackCard then
+        frame.CatalogFallbackCard:Hide()
+    end
     if frame.AchievementCardList then frame.AchievementCardList:Hide() end
     UpdateAchievementRewardHeader(frame, nil)
     local category = browser.categories[state.categoryID]
     if state.categoryID == OVERVIEW_CATEGORY_ID then
         local total, completed = GetOverviewTotals(browser)
         UpdateAchievementHeader(frame, L.ACHIEVEMENT_OVERVIEW,
-            string.format(L.ACHIEVEMENT_EARNED_PROGRESS, completed, total))
+            Catalog and not Catalog.IsProgressReady()
+                and L.ACHIEVEMENT_CATALOG_LOADING
+                or string.format(L.ACHIEVEMENT_EARNED_PROGRESS,
+                    completed, total))
     else
         UpdateAchievementHeader(frame, category and category.name
             or L.ACHIEVEMENT_ALL_CATEGORIES,
@@ -840,6 +1086,11 @@ function ShowOfficialAchievementCategory(categoryID, toggleExpansion,
         or CaptureOfficialAchievementBrowser(frame)
         or { expanded = {}, leftScroll = 0, rightScroll = 0 }
     state.expanded = state.expanded or {}
+    if Catalog and state.selectedAchievementID
+        and not Catalog.IsVisible(state.selectedAchievementID)
+    then
+        state.selectedAchievementID = nil
+    end
     if navigationMode ~= "history" then
         local wasExpanded = state.expanded[categoryID] == true
         state.categoryID = categoryID
@@ -868,13 +1119,13 @@ function OpenOfficialAchievementCard(achievementID, navigationMode)
     local frame = CreateAchievementTreeFrame()
     local browser = CreateBrowser(frame)
     local state = CaptureOfficialAchievementBrowser(frame)
-    if not state or not GetAchievementData(achievementID) then return false end
+    if not state then return false end
     local ids = GetVisibleCategoryAchievements(browser, state.categoryID)
     local index
     for i, id in ipairs(ids) do
         if id == achievementID then index = i; break end
     end
-    if not index then return false end
+    if not index or not GetAchievementData(achievementID) then return false end
     state.selectedAchievementID = achievementID
     local category = browser.categories[state.categoryID]
     while category do

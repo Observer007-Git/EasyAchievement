@@ -82,6 +82,22 @@ function ShowAchievementTooltip(button)
     if node.description and node.description ~= "" then
         GameTooltip:AddLine(node.description, 1, 1, 1, true)
     end
+    if Addon.AchievementCatalog
+        and Addon.AchievementCatalog.GetRecord(node.id)
+    then
+        local record = Addon.AchievementCatalog.GetRecord(node.id)
+        if record[3] == 0 or record[3] == 1 then
+            local faction = record[3] == 0 and "Horde" or "Alliance"
+            if UnitFactionGroup and UnitFactionGroup("player") ~= faction then
+                GameTooltip:AddLine(L.ACHIEVEMENT_CATALOG_OTHER_FACTION,
+                    1, 0.65, 0.25)
+            end
+        end
+        if node.catalogOnly then
+            GameTooltip:AddLine(L.ACHIEVEMENT_CATALOG_OFFLINE,
+                1, 0.65, 0.25)
+        end
+    end
     local criteria = {}
     local reputationProgress = {}
     local seenFactions = {}

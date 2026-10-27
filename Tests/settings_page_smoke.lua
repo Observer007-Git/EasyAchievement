@@ -5,7 +5,9 @@ local settings = {
     achievementPopupAlpha = 1,
     achievementLauncherScale = 1,
 }
-local addon = { L = setmetatable({
+local addon = { MapMarkers = { GetShortcutText = function()
+    return "Alt"
+end }, L = setmetatable({
     ACHIEVEMENT_LAUNCHER_REOPEN_HINT =
         "Click the minimap icon or type /eat to open the panel again",
     ACHIEVEMENT_GAME_VERSION = "Game version: %s",
@@ -83,6 +85,8 @@ for _, name in ipairs({ "SetWidth", "SetHeight",
     "SetTexture" }) do
     methods[name] = function() end
 end
+function methods:EnableKeyboard(value) self.keyboard = value end
+function methods:SetPropagateKeyboardInput() end
 function methods:SetText(value) self.text = value end
 function methods:SetChecked(value) self.checked = value end
 function methods:GetChecked() return self.checked end
@@ -93,11 +97,16 @@ function methods:SetAlpha(alpha) self.alpha = alpha end
 ui.CreateFrame = function() return Widget() end
 ui.UIParent = Widget()
 local page = Widget()
-GetBuildInfo = function() return "12.1.5", "60861" end
+GetBuildInfo = function() return "12.1.5", "70575" end
 C_AddOns = { GetAddOnMetadata = function(name, key)
     assert(name == "EasyAchievement" and key == "Version")
     return "1.0.0"
 end }
+InCombatLockdown = function() return false end
+IsAltKeyDown = function() return false end
+IsControlKeyDown = function() return true end
+IsShiftKeyDown = function() return false end
+IsMetaKeyDown = function() return false end
 local frame = { SettingsPanel = page, ScrollFrame = Widget(),
     GetFrameLevel = function() return 1 end }
 for _, name in ipairs({ "HorizontalScroll", "BackButton", "ForwardButton",
@@ -125,10 +134,15 @@ assert(page.CardPreview.initializedID == 6,
     "settings card preview must initialize after native UI loading")
 assert(page.LauncherPreview.atlas == "UI-HUD-MicroMenu-Achievements-Up",
     "launcher preview did not use the screen icon atlas")
-assert(page.GameVersion.text == "Game version: 12.1.5"
-    and page.DataVersion.text == "Data version: 12.1.5.70575"
+assert(page.GameVersion.text == "Game version: 12.1.5.70575"
+    and page.DataVersion.text == "Data version: |cff40d94012.1.5.70575|r"
     and page.AddonVersion.text == "Addon version: V1.0.0",
     "settings footer did not show the game and TOC versions")
+addon.AchievementRewardDatabase.build = "12.1.5.70576"
+page.SettingsRows = nil
+ui.ShowAchievementSettingsPage(frame)
+assert(page.DataVersion.text == "Data version: |cffff404012.1.5.70576|r",
+    "outdated data version must be shown in red")
 addon:SetSetting("achievementCardScale", 0.7)
 assert(page.CardPreview.scale == 0.7,
     "card preview did not react to live scale changes")
@@ -179,6 +193,20 @@ assert(settings.achievementLauncherScale == 1
 page.SettingsRows.minimap.scripts.OnClick()
 assert(not page.LauncherPreview.shown and not page.MinimapPreview,
     "minimap setting unexpectedly showed an icon preview")
+page.SettingsRows.mapMarkerShortcut.scripts.OnClick()
+local shortcutButton = page.SettingsRows.mapMarkerShortcut.ShortcutButton
+shortcutButton.scripts.OnClick()
+assert(shortcutButton.isCapturing and shortcutButton.keyboard,
+    "map marker shortcut did not start capture")
+shortcutButton.scripts.OnKeyDown(nil, "K")
+assert(settings.achievementMapMarkerShortcut.ctrl
+    and settings.achievementMapMarkerShortcut.key == "K"
+    and not shortcutButton.keyboard,
+    "map marker shortcut did not save the captured chord")
+shortcutButton.scripts.OnClick()
+shortcutButton.scripts.OnKeyDown(nil, "ESCAPE")
+assert(settings.achievementMapMarkerShortcut.alt,
+    "Escape did not restore the default map marker shortcut")
 ui.HideAchievementSettingsPage(frame)
 assert(not frame.settingsPageShown and not page.shown
     and not page.PopupPreview.shown,

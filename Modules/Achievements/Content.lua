@@ -15,7 +15,7 @@ end
 function Content.Refresh(frame, reason, achievementID)
     if not frame or not frame:IsShown() then return end
     if UI.RefreshOfficialAchievementBrowser then
-        UI.RefreshOfficialAchievementBrowser(frame, reason)
+        UI.RefreshOfficialAchievementBrowser(frame, reason, achievementID)
     end
     if frame.rewardCategoryMode then
         -- Keep the frozen order and node/widget identities while data changes.

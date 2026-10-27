@@ -39,7 +39,7 @@ PY
 fi
 
 BUILD_DIR="${CACHE_DIR}/${BUILD}"
-LOCALIZED_TABLES=(Achievement BattlePetSpecies Creature Mount Toy HouseDecor ItemSparse TransmogSet)
+LOCALIZED_TABLES=(Achievement Achievement_Category BattlePetSpecies Creature Mount Toy HouseDecor ItemSparse TransmogSet)
 COMMON_TABLES=(RetroactiveDecorReward ItemEffect ItemXItemEffect ItemModifiedAppearance TransmogSetItem)
 
 download_table() {
@@ -72,8 +72,13 @@ done
     --output "${ADDON_DIR}/Data/AchievementRewardDatabase.lua" \
     --unresolved "${BUILD_DIR}/unresolved-model-rewards.csv" \
     --build "${BUILD}"
+"${PYTHON_BIN}" "${SCRIPT_DIR}/build_achievement_catalog.py" \
+    --input "${BUILD_DIR}" \
+    --output "${ADDON_DIR}/Data/AchievementCatalogData.lua" \
+    --build "${BUILD}"
 "${SCRIPT_DIR}/update_reward_workbook.sh" "${BUILD}"
 
 echo "Generated Data/AchievementRewardDatabase.lua"
+echo "Generated Data/AchievementCatalogData.lua"
 echo "Generated Exports/EasyAchievement_奖励成就.xlsx"
 echo "Review unresolved candidates at ${BUILD_DIR}/unresolved-model-rewards.csv"

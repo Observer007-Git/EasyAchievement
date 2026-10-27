@@ -11,10 +11,13 @@
 
 Core/Database.lua
 Data/AchievementRewardDatabase.lua
+Data/AchievementCatalogData.lua
 Config/Defaults.lua
 Core/AchievementRewardDatabase.lua
+Core/AchievementCatalog.lua
 Core/AchievementData.lua
 Core/MapSearch.lua
+Core/MapMarkers.lua
 Locales/enUS.lua
 Locales/zhCN.lua
 Core/Anchors.lua
@@ -36,3 +39,4 @@ Modules/Achievements/Search.lua
 Modules/Achievements/Content.lua
 Modules/Achievements/Launcher.lua
 Modules/Achievements/SettingsPage.lua
+Modules/MapMarkerEditor.lua
