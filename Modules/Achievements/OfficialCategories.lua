@@ -473,10 +473,8 @@ local function RefreshOverview(browser)
         FormatPoints(totalPoints)))
     browser.overviewCount:SetText(string.format(
         L.ACHIEVEMENT_OVERVIEW_TOTALS,
-        loading and "…"
-            or BreakUpLargeNumbers and BreakUpLargeNumbers(completed)
-            or completed,
-        BreakUpLargeNumbers and BreakUpLargeNumbers(total) or total))
+        loading and "…" or FormatEarnedPoints(completed),
+        FormatPoints(total)))
     browser.overviewBar:SetMinMaxValues(0, math.max(1, total))
     browser.overviewBar:SetValue(completed)
     for index, category in ipairs(browser.roots) do
@@ -499,8 +497,8 @@ local function RefreshOverview(browser)
                 GetCategoryCompletedPoints(browser, category)),
             FormatPoints(GetCategoryPoints(browser, category))))
         row.Count:SetText(string.format("%s/%d",
-            loading and "…"
-                or categoryCompleted, categoryTotal))
+            loading and "…" or FormatEarnedPoints(categoryCompleted),
+            categoryTotal))
         row.Bar:SetMinMaxValues(0, math.max(1, categoryTotal))
         row.Bar:SetValue(categoryCompleted)
     end

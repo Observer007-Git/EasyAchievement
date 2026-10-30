@@ -138,8 +138,9 @@ end
 function Catalog.IsVisible(id)
     local row = raw.achievements[id]
     if not row then
-        return not pointsOnly or (tonumber(select(3,
-            GetAchievementInfo(id))) or 0) > 0
+        if not pointsOnly then return true end
+        local _, _, points = GetAchievementInfo(id)
+        return (tonumber(points) or 0) > 0
     end
     if pointsOnly and row[2] <= 0 then return false end
     return row[3] == -1 or row[3] == (Catalog.GetSelectedFaction()

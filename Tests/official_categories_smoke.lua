@@ -367,7 +367,7 @@ assert(ui.ShowOfficialAchievementCategory(0)
     and not browser.leftRows[1].CollapseIcon.shown
     and browser.overview.shown and not browser.rightScroll.shown
     and not browser.incompleteOnly.shown
-    and browser.overviewCount.text == "2/4"
+    and browser.overviewCount.text == "|cff33cc332|r/4"
     and browser.overviewTitle.text
         == "Progress Overview (|cff33cc3315|r pts earned)"
     and browser.overviewLabel.text
@@ -379,8 +379,8 @@ assert(ui.ShowOfficialAchievementCategory(0)
         == "Exploration (|cff33cc3315|r/30 pts)"
     and browser.overviewRows[2].Label.text
         == "Dungeons (|cff33cc330|r/25 pts)"
-    and browser.overviewRows[1].Count.text == "2/3"
-    and browser.overviewRows[2].Count.text == "0/1"
+    and browser.overviewRows[1].Count.text == "|cff33cc332|r/3"
+    and browser.overviewRows[2].Count.text == "|cff33cc330|r/1"
     and browser.overviewRows[1].Label.justifyH == "LEFT"
     and browser.overviewRows[1].Label.parent == browser.overviewRows[1].Bar
     and browser.overviewRows[1].Count.parent == browser.overviewRows[1].Bar
@@ -431,14 +431,14 @@ browser.overview.height = 300
 browser.right.scripts.OnSizeChanged()
 completed[202] = true
 ui.RefreshOfficialAchievementBrowser(frame, "earned")
-assert(browser.overviewCount.text == "3/4"
+assert(browser.overviewCount.text == "|cff33cc333|r/4"
     and browser.overviewTitle.text
         == "Progress Overview (|cff33cc3330|r pts earned)"
     and browser.overviewLabel.text
         == "Achievements Earned (|cff33cc3330|r/55 pts)"
     and browser.leftRows[1].Count.text
         == "4(|cff33cc333|r/|cff9999991|r)"
-    and browser.overviewRows[1].Count.text == "3/3"
+    and browser.overviewRows[1].Count.text == "|cff33cc333|r/3"
     and browser.overviewRows[1].Label.text
         == "Exploration (|cff33cc3330|r/30 pts)",
     "overview did not refresh after an achievement was earned")
@@ -506,7 +506,7 @@ assert(factionBrowser.factionButtons.Horde.shown
         == "Character achievement catalog (|cff33cc3310|r/10 pts)"
     and factionBrowser.overviewTitle.text
         == "Progress Overview (|cff33cc3310|r pts earned)"
-    and factionBrowser.overviewCount.text == "1/1",
+    and factionBrowser.overviewCount.text == "|cff33cc331|r/1",
     "player faction must be selected by default")
 factionBrowser.pointsOnly:SetChecked(true)
 factionBrowser.pointsOnly.scripts.OnClick(factionBrowser.pointsOnly)
@@ -522,7 +522,7 @@ assert(selectedFaction == "Alliance"
     and factionBrowser.factionButtons.Alliance.checked
     and factionBrowser.overviewLabel.text
         == "Character achievement catalog (|cff33cc3320|r/20 pts)"
-    and factionBrowser.overviewCount.text == "1/1",
+    and factionBrowser.overviewCount.text == "|cff33cc331|r/1",
     "switching faction must update totals and keep exactly one checked")
 factionBrowser.factionButtons.Alliance.scripts.OnClick()
 assert(factionBrowser.factionButtons.Alliance.checked,
@@ -530,7 +530,7 @@ assert(factionBrowser.factionButtons.Alliance.checked,
 factionBrowser.factionButtons.Horde.scripts.OnClick()
 assert(selectedFaction == "Horde" and factionBrowser.overviewLabel.text
         == "Character achievement catalog (|cff33cc3310|r/10 pts)"
-    and factionBrowser.overviewCount.text == "1/1",
+    and factionBrowser.overviewCount.text == "|cff33cc331|r/1",
     "switching back must restore the overview")
 assert(ui.ShowOfficialAchievementCategory(1010)
     and #factionBrowser.rightIDs == 1

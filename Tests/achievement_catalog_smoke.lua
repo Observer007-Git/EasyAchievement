@@ -13,6 +13,12 @@ local env = setmetatable({
     end,
     GetAchievementInfo = function(id)
         infoCalls[id] = (infoCalls[id] or 0) + 1
+        if id == 900001 then
+            return id, "Uncatalogued achievement", 10, false
+        end
+        if id == 900002 then
+            return id, "Uncatalogued zero-point achievement", 0, false
+        end
         if id == 456 then
             return id, "Zero-point feat", 0, true
         end
@@ -57,6 +63,11 @@ catalog.SetPointsOnly(true)
 assert(catalog.GetPointsOnly() and not catalog.IsVisible(456)
     and catalog.IsVisible(1356)
     and select(1, catalog.GetDirectTotals(81)) == 0)
+assert(not catalog.GetRecord(900001)
+    and catalog.IsVisible(900001)
+    and not catalog.IsVisible(900002)
+    and not catalog.IsVisible(900003),
+    "uncatalogued achievements must read only the numeric points value")
 catalog.SetPointsOnly(false)
 catalog.SetSelectedFaction("Alliance")
 assert(catalog.IsVisible(33) and not catalog.IsVisible(1356))
