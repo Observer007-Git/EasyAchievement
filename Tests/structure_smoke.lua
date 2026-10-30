@@ -519,7 +519,7 @@ assert(cardsSource:find("frame:EnableKeyboard(true)", 1, true)
     and cardsSource:find("navigationButton:Click()", 1, true),
     "achievement cards do not support left/right keyboard navigation")
 assert(tooltipSource:find(
-        "local reward = Addon.AchievementRewards.Get(node.id)", 1, true)
+        "local reward = Addon.AchievementRewards.Get(node.id, true)", 1, true)
     and tooltipSource:find(
         "GameTooltip:AddLine(rewardDescription, 1, 0.82, 0, true)",
         1, true),

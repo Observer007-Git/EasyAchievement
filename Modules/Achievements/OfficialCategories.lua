@@ -15,6 +15,10 @@ local RIGHT_CELL_MIN_WIDTH = 220
 local OVERVIEW_CATEGORY_ID = 0
 local ShowCategoryContent
 
+local function IsLoading()
+    return Catalog and not Catalog.IsProgressReady()
+end
+
 local function ReadCategories()
     if Catalog then
         local categories, roots = Catalog.GetCategories()
@@ -139,6 +143,30 @@ local function GetCategoryPoints(browser, category)
     end
     browser.categoryPointTotals[category.id] = points
     return points
+end
+
+local function GetCategoryCompletedPoints(browser, category)
+    if Catalog then return Catalog.GetCompletedPoints(category.id) end
+    local points = 0
+    for _, id in ipairs(GetCategoryAchievements(browser, category.id)) do
+        local data = GetAchievementData(id)
+        if data and data.completed then
+            points = points + (tonumber(data.points) or 0)
+        end
+    end
+    for _, child in ipairs(category.children) do
+        points = points + GetCategoryCompletedPoints(browser, child)
+    end
+    return points
+end
+
+local function FormatPoints(points)
+    return BreakUpLargeNumbers and BreakUpLargeNumbers(points)
+        or tostring(points)
+end
+
+local function FormatEarnedPoints(points)
+    return "|cff33cc33" .. FormatPoints(points) .. "|r"
 end
 
 local function ScrollBy(scroll, delta, rowHeight)
@@ -425,19 +453,27 @@ local function RefreshOverview(browser)
         64 + rowCount * rowHeight))
     scroll:SetVerticalScroll(0)
     local total, completed = GetOverviewTotals(browser)
-    local totalPoints = 0
+    local totalPoints, completedPoints = 0, 0
     for _, category in ipairs(browser.roots) do
         if not Catalog or category.id ~= 1 and category.id ~= 15076 then
             totalPoints = totalPoints + GetCategoryPoints(browser, category)
+            completedPoints = completedPoints
+                + GetCategoryCompletedPoints(browser, category)
         end
     end
+    local loading = IsLoading()
+    browser.overviewTitle:SetText(string.format(
+        L.ACHIEVEMENT_PROGRESS_OVERVIEW_POINTS,
+        loading and "…" or FormatEarnedPoints(completedPoints)))
     browser.overviewLabel:SetText(string.format(
         L.ACHIEVEMENT_OVERVIEW_CATEGORY_POINTS,
         Catalog and L.ACHIEVEMENT_CATALOG_OVERVIEW
-            or L.ACHIEVEMENT_OVERVIEW_EARNED, totalPoints))
+            or L.ACHIEVEMENT_OVERVIEW_EARNED,
+        loading and "…" or FormatEarnedPoints(completedPoints),
+        FormatPoints(totalPoints)))
     browser.overviewCount:SetText(string.format(
         L.ACHIEVEMENT_OVERVIEW_TOTALS,
-        Catalog and not Catalog.IsProgressReady() and "…"
+        loading and "…"
             or BreakUpLargeNumbers and BreakUpLargeNumbers(completed)
             or completed,
         BreakUpLargeNumbers and BreakUpLargeNumbers(total) or total))
@@ -459,15 +495,16 @@ local function RefreshOverview(browser)
         row.categoryID = category.id
         row.Label:SetText(string.format(
             L.ACHIEVEMENT_OVERVIEW_CATEGORY_POINTS, category.name,
-            GetCategoryPoints(browser, category)))
+            loading and "…" or FormatEarnedPoints(
+                GetCategoryCompletedPoints(browser, category)),
+            FormatPoints(GetCategoryPoints(browser, category))))
         row.Count:SetText(string.format("%s/%d",
-            Catalog and not Catalog.IsProgressReady() and "…"
+            loading and "…"
                 or categoryCompleted, categoryTotal))
         row.Bar:SetMinMaxValues(0, math.max(1, categoryTotal))
         row.Bar:SetValue(categoryCompleted)
     end
-    browser.frame.Stats:SetText(Catalog
-        and not Catalog.IsProgressReady()
+    browser.frame.Stats:SetText(IsLoading()
         and L.ACHIEVEMENT_CATALOG_LOADING
         or string.format(L.ACHIEVEMENT_EARNED_PROGRESS,
             completed, total))
@@ -691,6 +728,7 @@ local function CreateBrowser(frame)
         "GameFontNormalSmall")
     overviewTitle:SetPoint("TOP", overview.Content, "TOP", 0, -6)
     overviewTitle:SetText(L.ACHIEVEMENT_PROGRESS_OVERVIEW)
+    browser.overviewTitle = overviewTitle
     local function CreateBar(parent)
         local bar = CreateFrame("StatusBar", nil, parent)
         bar:SetStatusBarTexture("Interface\\TargetingFrame\\UI-StatusBar")
@@ -769,10 +807,12 @@ local function CreateBrowser(frame)
     browser.empty:SetText(L.ACHIEVEMENT_ALL_CATEGORIES_EMPTY)
     browser.right = right
     if Catalog then
-        local function SelectFaction(faction)
-            Catalog.SetSelectedFaction(faction)
-            browser.factionButtons.Horde:SetChecked(faction == "Horde")
-            browser.factionButtons.Alliance:SetChecked(faction == "Alliance")
+        local function RefreshFilters()
+            browser.factionButtons.Horde:SetChecked(
+                Catalog.GetSelectedFaction() == "Horde")
+            browser.factionButtons.Alliance:SetChecked(
+                Catalog.GetSelectedFaction() == "Alliance")
+            browser.pointsOnly:SetChecked(Catalog.GetPointsOnly())
             browser.visibleCache = {}
             browser.categoryTotals = {}
             browser.categoryPointTotals = {}
@@ -811,6 +851,22 @@ local function CreateBrowser(frame)
                 end
             end
         end
+        local pointsOnly = CreateFrame("CheckButton", nil, frame,
+            "UICheckButtonTemplate")
+        pointsOnly:SetSize(22, 22)
+        pointsOnly:SetPoint("RIGHT", frame, "TOPRIGHT", -24, -113)
+        pointsOnly:SetFrameLevel(frame:GetFrameLevel() + 44)
+        local pointsOnlyLabel = pointsOnly:CreateFontString(nil, "OVERLAY",
+            "GameFontNormalSmall")
+        pointsOnlyLabel:SetPoint("RIGHT", pointsOnly, "LEFT", -2, 0)
+        pointsOnlyLabel:SetText(L.ACHIEVEMENT_POINTS_ONLY)
+        pointsOnly:SetChecked(Catalog.GetPointsOnly())
+        pointsOnly:SetScript("OnClick", function(self)
+            Catalog.SetPointsOnly(self:GetChecked() == true)
+            RefreshFilters()
+        end)
+        pointsOnly:Hide()
+        browser.pointsOnly = pointsOnly
         browser.factionButtons = {}
         for _, faction in ipairs({ "Alliance", "Horde" }) do
             local button = CreateFrame("CheckButton", nil, frame,
@@ -823,7 +879,7 @@ local function CreateBrowser(frame)
             label:SetText(faction == "Horde" and L.ACHIEVEMENT_FACTION_HORDE
                 or L.ACHIEVEMENT_FACTION_ALLIANCE)
             if faction == "Alliance" then
-                button:SetPoint("RIGHT", frame, "TOPRIGHT", -24, -113)
+                button:SetPoint("RIGHT", pointsOnlyLabel, "LEFT", -12, 0)
             else
                 button:SetPoint("RIGHT", browser.factionButtons.Alliance.label,
                     "LEFT", -12, 0)
@@ -831,7 +887,8 @@ local function CreateBrowser(frame)
             button.label = label
             button:SetChecked(Catalog.GetSelectedFaction() == faction)
             button:SetScript("OnClick", function()
-                SelectFaction(faction)
+                Catalog.SetSelectedFaction(faction)
+                RefreshFilters()
             end)
             button:Hide()
             browser.factionButtons[faction] = button
@@ -855,6 +912,7 @@ local function CreateBrowser(frame)
         local state = frame.officialBrowserState
         if not state then return end
         state.incompleteOnly = self:GetChecked() == true
+        browser.visibleCache = {}
         state.rightScroll = 0
         browser.rightScroll:SetVerticalScroll(0)
         ShowCategoryContent(frame)
@@ -899,6 +957,7 @@ function UpdateOfficialAchievementBrowser(frame)
             if browser.factionButtons then
                 browser.factionButtons.Horde:Hide()
                 browser.factionButtons.Alliance:Hide()
+                browser.pointsOnly:Hide()
             end
         end
         frame.Breadcrumb:ClearAllPoints()
@@ -941,8 +1000,10 @@ function UpdateOfficialAchievementBrowser(frame)
             Catalog.GetSelectedFaction() == "Horde")
         browser.factionButtons.Alliance:SetChecked(
             Catalog.GetSelectedFaction() == "Alliance")
+        browser.pointsOnly:SetChecked(Catalog.GetPointsOnly())
         browser.factionButtons.Horde:Show()
         browser.factionButtons.Alliance:Show()
+        browser.pointsOnly:Show()
         frame.Breadcrumb:ClearAllPoints()
         frame.Breadcrumb:SetPoint("LEFT", frame, "TOPLEFT", 82, -113)
         frame.Breadcrumb:SetPoint("RIGHT", browser.factionButtons.Horde.label,
@@ -1015,8 +1076,10 @@ ShowCategoryContent = function(frame)
             Catalog.GetSelectedFaction() == "Horde")
         browser.factionButtons.Alliance:SetChecked(
             Catalog.GetSelectedFaction() == "Alliance")
+        browser.pointsOnly:SetChecked(Catalog.GetPointsOnly())
         browser.factionButtons.Horde:Show()
         browser.factionButtons.Alliance:Show()
+        browser.pointsOnly:Show()
     end
     frame.Breadcrumb:Hide()
     for _, button in ipairs(frame.BreadcrumbButtons or {}) do

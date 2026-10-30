@@ -725,8 +725,6 @@ function CreateAchievementTreeFrame()
                     AddResult(id)
                 end
             else
-                local exactID = tonumber(query)
-                if exactID then AddResult(math.floor(exactID)) end
                 for index = 1, GetNumFilteredAchievements() or 0 do
                     AddResult(GetFilteredAchievementID(index))
                 end

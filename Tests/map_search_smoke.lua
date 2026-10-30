@@ -8,6 +8,9 @@ local mapNames = { [946] = "Azeroth", [100] = "Stormwind City",
     [101] = "Stormsong Valley", [102] = "Dornogal",
     [103] = "Storm Peaks", [104] = "Stormwind Harbor" }
 local opened, waypoint, tracked
+local sounds = {}
+SOUNDKIT = { UI_MAP_WAYPOINT_SUPER_TRACK_ON = 12345 }
+PlaySound = function(sound) sounds[#sounds + 1] = sound end
 WorldMapFrame = {
     shown = false, mapID = 100,
     IsShown = function(self) return self.shown end,
@@ -16,7 +19,8 @@ WorldMapFrame = {
 }
 C_Map = {
     GetMapInfo = function(id)
-        return mapNames[id] and { name = mapNames[id], mapType = 5 }
+        return mapNames[id] and { name = mapNames[id],
+            description = "A description-only place", mapType = 5 }
     end,
     GetMapChildrenInfo = function(id)
         return id == 946 and { { mapID = 100 }, { mapID = 101 },
@@ -57,7 +61,8 @@ coord = search.Find("22 22", 6)[1]
 assert(coord.mapID == 101 and search.Activate(coord)
     and waypoint.mapID == 101 and waypoint.x == 0.22
     and waypoint.y == 0.22 and tracked
-    and WorldMapFrame.mapID == 101,
+    and WorldMapFrame.mapID == 101
+    and sounds[1] == SOUNDKIT.UI_MAP_WAYPOINT_SUPER_TRACK_ON,
     "coordinate selection must track and open the active map")
 local highlighted, removed = nil, 0
 WorldMapFrame.pinPools = {}
@@ -102,12 +107,16 @@ assert(#search.Find("Storm", 6) == 0 and #queued > 0,
     "map index should build asynchronously")
 while #queued > 0 do table.remove(queued, 1)() end
 local results = search.Find("Storm", 3)
+local soundCount = #sounds
 assert(notified and #results == 3
     and results[1].name == "Storm Peaks"
     and results[2].name == "Stormsong Valley"
     and results[3].name == "Stormwind City"
-    and search.Activate(results[3]) and WorldMapFrame.mapID == 100,
+    and search.Activate(results[3]) and WorldMapFrame.mapID == 100
+    and #sounds == soundCount,
     "map search must rank matches and open the chosen map")
+assert(#search.Find("description-only", 3) == 0,
+    "map search must use only localized map names")
 WorldMapFrame.shown = false
 assert(search.Activate(results[1]) and opened == 103,
     "map result must open the world map when it is closed")

@@ -180,7 +180,7 @@ function ShowAchievementTooltip(button)
             GameTooltip:AddLine(progress, 0.35, 0.82, 1, true)
         end
     end
-    local reward = Addon.AchievementRewards.Get(node.id)
+    local reward = Addon.AchievementRewards.Get(node.id, true)
     local rewardDescription = reward and reward.text or ""
     if reward and rewardDescription == "" then
         local names = {}

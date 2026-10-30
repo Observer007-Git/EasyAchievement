@@ -1076,6 +1076,9 @@ C_HousingCatalog = {
         }
     end,
 }
+assert(Addon.AchievementRewards.Get(1, true)
+    and searchCallback == nil,
+    "tooltip reward reads started the housing catalog index")
 reward = GetAchievementRewardData(1)
 assert(#reward.entries == 2
     and reward.entries[2].rewardType == "decor"

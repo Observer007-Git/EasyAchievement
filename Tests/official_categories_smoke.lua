@@ -13,8 +13,10 @@ local addon = {
         ACHIEVEMENT_ALL_CATEGORIES_EMPTY = "Empty",
         ACHIEVEMENT_OVERVIEW = "Summary",
         ACHIEVEMENT_PROGRESS_OVERVIEW = "Progress Overview",
+        ACHIEVEMENT_PROGRESS_OVERVIEW_POINTS =
+            "Progress Overview (%s pts earned)",
         ACHIEVEMENT_OVERVIEW_EARNED = "Achievements Earned",
-        ACHIEVEMENT_OVERVIEW_CATEGORY_POINTS = "%s (%d pts)",
+        ACHIEVEMENT_OVERVIEW_CATEGORY_POINTS = "%s (%s/%s pts)",
         ACHIEVEMENT_EARNED_PROGRESS = "Achievements Earned: %d/%d",
         ACHIEVEMENT_OVERVIEW_TOTALS = "%s/%s",
         ACHIEVEMENT_TREE_NO_INCOMPLETE = "No incomplete achievements",
@@ -366,12 +368,17 @@ assert(ui.ShowOfficialAchievementCategory(0)
     and browser.overview.shown and not browser.rightScroll.shown
     and not browser.incompleteOnly.shown
     and browser.overviewCount.text == "2/4"
-    and browser.overviewLabel.text == "Achievements Earned (55 pts)"
+    and browser.overviewTitle.text
+        == "Progress Overview (|cff33cc3315|r pts earned)"
+    and browser.overviewLabel.text
+        == "Achievements Earned (|cff33cc3315|r/55 pts)"
     and browser.overviewLabel.justifyH == "LEFT"
     and browser.overviewLabel.parent == browser.overviewBar
     and browser.overviewCount.parent == browser.overviewBar
-    and browser.overviewRows[1].Label.text == "Exploration (30 pts)"
-    and browser.overviewRows[2].Label.text == "Dungeons (25 pts)"
+    and browser.overviewRows[1].Label.text
+        == "Exploration (|cff33cc3315|r/30 pts)"
+    and browser.overviewRows[2].Label.text
+        == "Dungeons (|cff33cc330|r/25 pts)"
     and browser.overviewRows[1].Count.text == "2/3"
     and browser.overviewRows[2].Count.text == "0/1"
     and browser.overviewRows[1].Label.justifyH == "LEFT"
@@ -425,11 +432,15 @@ browser.right.scripts.OnSizeChanged()
 completed[202] = true
 ui.RefreshOfficialAchievementBrowser(frame, "earned")
 assert(browser.overviewCount.text == "3/4"
-    and browser.overviewLabel.text == "Achievements Earned (55 pts)"
+    and browser.overviewTitle.text
+        == "Progress Overview (|cff33cc3330|r pts earned)"
+    and browser.overviewLabel.text
+        == "Achievements Earned (|cff33cc3330|r/55 pts)"
     and browser.leftRows[1].Count.text
         == "4(|cff33cc333|r/|cff9999991|r)"
     and browser.overviewRows[1].Count.text == "3/3"
-    and browser.overviewRows[1].Label.text == "Exploration (30 pts)",
+    and browser.overviewRows[1].Label.text
+        == "Exploration (|cff33cc3330|r/30 pts)",
     "overview did not refresh after an achievement was earned")
 completed[202] = nil
 local overviewSnapshot = { officialBrowser =
@@ -446,8 +457,10 @@ browser.leftRows[1].scripts.OnClick(browser.leftRows[1])
 assert(frame.title == "Summary" and browser.overview.shown,
     "left summary entry did not restore the overview")
 local selectedFaction = "Horde"
+local pointsOnly = false
 addon.L.ACHIEVEMENT_FACTION_HORDE = "Horde"
 addon.L.ACHIEVEMENT_FACTION_ALLIANCE = "Alliance"
+addon.L.ACHIEVEMENT_POINTS_ONLY = "Points only"
 addon.L.ACHIEVEMENT_CATALOG_OVERVIEW = "Character achievement catalog"
 local factionCategory = { id = 1010, parent = -1, order = 1,
     name = "Faction category", count = 2, points = 20, children = {} }
@@ -458,6 +471,8 @@ addon.AchievementCatalog = {
     GetCategoryIDs = function() return { 101, 102 } end,
     GetSelectedFaction = function() return selectedFaction end,
     SetSelectedFaction = function(faction) selectedFaction = faction end,
+    GetPointsOnly = function() return pointsOnly end,
+    SetPointsOnly = function(enabled) pointsOnly = enabled end,
     IsVisible = function(id)
         return (selectedFaction == "Horde" and id == 101)
             or (selectedFaction == "Alliance" and id == 102)
@@ -466,6 +481,9 @@ addon.AchievementCatalog = {
         return 1, selectedFaction == "Horde" and 10 or 20
     end,
     GetCompleted = function() return 1 end,
+    GetCompletedPoints = function()
+        return selectedFaction == "Horde" and 10 or 20
+    end,
     IsProgressReady = function() return true end,
     StartProgressScan = function(callback) callback() end,
     IsCompleted = function() return true end,
@@ -481,17 +499,29 @@ local factionBrowser = frame.OfficialCategoryBrowser
 assert(factionBrowser.factionButtons.Horde.shown
     and factionBrowser.factionButtons.Horde.checked
     and not factionBrowser.factionButtons.Alliance.checked
-    and factionBrowser.factionButtons.Alliance.point[4] == -24
+    and factionBrowser.pointsOnly.shown
+    and not factionBrowser.pointsOnly.checked
+    and factionBrowser.pointsOnly.point[4] == -24
     and factionBrowser.overviewLabel.text
-        == "Character achievement catalog (10 pts)"
+        == "Character achievement catalog (|cff33cc3310|r/10 pts)"
+    and factionBrowser.overviewTitle.text
+        == "Progress Overview (|cff33cc3310|r pts earned)"
     and factionBrowser.overviewCount.text == "1/1",
     "player faction must be selected by default")
+factionBrowser.pointsOnly:SetChecked(true)
+factionBrowser.pointsOnly.scripts.OnClick(factionBrowser.pointsOnly)
+assert(pointsOnly and factionBrowser.pointsOnly.checked
+    and factionBrowser.factionButtons.Horde.checked,
+    "points checkbox must not change the selected faction")
+factionBrowser.pointsOnly:SetChecked(false)
+factionBrowser.pointsOnly.scripts.OnClick(factionBrowser.pointsOnly)
+assert(not pointsOnly and not factionBrowser.pointsOnly.checked)
 factionBrowser.factionButtons.Alliance.scripts.OnClick()
 assert(selectedFaction == "Alliance"
     and not factionBrowser.factionButtons.Horde.checked
     and factionBrowser.factionButtons.Alliance.checked
     and factionBrowser.overviewLabel.text
-        == "Character achievement catalog (20 pts)"
+        == "Character achievement catalog (|cff33cc3320|r/20 pts)"
     and factionBrowser.overviewCount.text == "1/1",
     "switching faction must update totals and keep exactly one checked")
 factionBrowser.factionButtons.Alliance.scripts.OnClick()
@@ -499,13 +529,24 @@ assert(factionBrowser.factionButtons.Alliance.checked,
     "clicking the selected faction cannot clear both options")
 factionBrowser.factionButtons.Horde.scripts.OnClick()
 assert(selectedFaction == "Horde" and factionBrowser.overviewLabel.text
-        == "Character achievement catalog (10 pts)"
+        == "Character achievement catalog (|cff33cc3310|r/10 pts)"
     and factionBrowser.overviewCount.text == "1/1",
     "switching back must restore the overview")
 assert(ui.ShowOfficialAchievementCategory(1010)
     and #factionBrowser.rightIDs == 1
     and factionBrowser.rightIDs[1] == 101,
     "opposite-faction achievements must be hidden from the category list")
+factionBrowser.incompleteOnly:SetChecked(true)
+factionBrowser.incompleteOnly.scripts.OnClick(factionBrowser.incompleteOnly)
+assert(#factionBrowser.rightIDs == 0
+    and frame.officialBrowserState.incompleteOnly,
+    "completed achievements remained visible after filtering")
+factionBrowser.incompleteOnly:SetChecked(false)
+factionBrowser.incompleteOnly.scripts.OnClick(factionBrowser.incompleteOnly)
+assert(#factionBrowser.rightIDs == 1
+    and factionBrowser.rightIDs[1] == 101
+    and not frame.officialBrowserState.incompleteOnly,
+    "achievement list did not return after clearing incomplete filter")
 assert(ui.OpenOfficialAchievementCard(101)
     and #frame.officialContext.achievementIDs == 1,
     "card navigation must use the filtered category order")

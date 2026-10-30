@@ -4,6 +4,7 @@ local addon = { Config = { Performance = {
     ACHIEVEMENT_CATALOG_ACHIEVEMENT_ID = "成就 #%d",
 } }
 local infoCalls = {}
+local newlyCompleted = false
 local env = setmetatable({
     GetLocale = function() return "frFR" end,
     UnitFactionGroup = function() return "Horde" end,
@@ -12,9 +13,16 @@ local env = setmetatable({
     end,
     GetAchievementInfo = function(id)
         infoCalls[id] = (infoCalls[id] or 0) + 1
+        if id == 456 then
+            return id, "Zero-point feat", 0, true
+        end
+        if id == 1356 and newlyCompleted then
+            return id, "Horde achievement", 10, true
+        end
         if id == 15915 or id == 33 then
             return id, id == 33 and "Alliance achievement"
-                or "Les rivages de l’Éveil : bronze", 10, true
+                or "Les rivages de l’Éveil : bronze", 10, true,
+                nil, nil, nil, "A description-only phrase"
         end
         return nil
     end,
@@ -44,6 +52,12 @@ local directCount, directPoints = catalog.GetDirectTotals(14863)
 assert(directCount == 25 and directPoints == 170)
 assert(catalog.GetSelectedFaction() == "Horde"
     and catalog.IsVisible(1356) and not catalog.IsVisible(33))
+assert(catalog.IsVisible(456))
+catalog.SetPointsOnly(true)
+assert(catalog.GetPointsOnly() and not catalog.IsVisible(456)
+    and catalog.IsVisible(1356)
+    and select(1, catalog.GetDirectTotals(81)) == 0)
+catalog.SetPointsOnly(false)
 catalog.SetSelectedFaction("Alliance")
 assert(catalog.IsVisible(33) and not catalog.IsVisible(1356))
 directCount, directPoints = catalog.GetDirectTotals(14863)
@@ -68,16 +82,34 @@ assert(catalog.GetData(15915).name
 
 local found = catalog.Search("rivages de l’Éveil")
 assert(#found > 0 and found[1] == 15915)
-assert(catalog.Search("628")[1] == 628)
+assert(#catalog.Search("description-only") == 0
+    and #catalog.Search("15915") == 0
+    and #catalog.Search("Bronze Shores") == 0
+    and #catalog.Search("成就 #628") == 0,
+    "achievement search must use only localized game names")
 assert(#catalog.GetCategoryIDs(14808) == 26)
 
 local ready = false
 catalog.StartProgressScan(function() ready = true end)
 assert(ready and catalog.IsProgressReady())
 assert(catalog.GetCompleted(15462) == 1)
+assert(catalog.GetCompletedPoints(15462) == 10)
+assert(catalog.GetCompleted(81) == 1)
+catalog.SetPointsOnly(true)
+assert(catalog.GetCompleted(81) == 0)
+catalog.SetPointsOnly(false)
 assert(catalog.GetCompleted(14863) == 0)
+assert(catalog.GetCompletedPoints(14863) == 0)
 catalog.SetSelectedFaction("Alliance")
 assert(catalog.GetCompleted(14863) == 1)
+assert(catalog.GetCompletedPoints(14863) == 10)
+catalog.SetSelectedFaction("Horde")
+newlyCompleted = true
+catalog.RefreshCompletion(1356)
+catalog.RefreshCompletion(1356)
+assert(catalog.GetCompleted(14863) == 1
+    and catalog.GetCompletedPoints(14863) == 10,
+    "new achievement points must be added only once")
 local queued = {}
 local searchDone = false
 local deferredAddon = {

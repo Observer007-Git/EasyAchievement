@@ -10,12 +10,17 @@ local categories, roots, byCategory, sortedIDs
 local detailCache = {}
 local completedByCategory = {}
 local completedByFaction = { [0] = {}, [1] = {} }
+local completedZeroByCategory = {}
+local completedZeroByFaction = { [0] = {}, [1] = {} }
+local completedPointsByCategory = {}
+local completedPointsByFaction = { [0] = {}, [1] = {} }
 local completedIDs = {}
 local progressState
 local progressCallbacks = {}
 local searchState, searchText
 local searchCallbacks = {}
 local lastSearchQuery, lastSearchResults
+local pointsOnly = false
 
 local function SortCategories(list)
     table.sort(list, function(a, b)
@@ -31,6 +36,7 @@ local function EnsureIndex()
         local name = GetCategoryInfo and GetCategoryInfo(id)
         categories[id] = { id = id, parent = row[1], order = row[2],
             count = row[3], points = row[4],
+            zeroCount = 0, zeroFactionCount = { [0] = 0, [1] = 0 },
             factionCount = { [0] = 0, [1] = 0 },
             factionPoints = { [0] = 0, [1] = 0 },
             name = name or string.format(
@@ -52,6 +58,13 @@ local function EnsureIndex()
         local list = byCategory[row[1]]
         if list then list[#list + 1] = id end
         local category = categories[row[1]]
+        if category and row[2] == 0 then
+            category.zeroCount = category.zeroCount + 1
+            if category.zeroFactionCount[row[3]] then
+                category.zeroFactionCount[row[3]] =
+                    category.zeroFactionCount[row[3]] + 1
+            end
+        end
         if category and (row[3] == 0 or row[3] == 1) then
             category.factionCount[row[3]] =
                 category.factionCount[row[3]] + 1
@@ -114,9 +127,21 @@ function Catalog.SetSelectedFaction(faction)
     end
 end
 
+function Catalog.GetPointsOnly()
+    return pointsOnly
+end
+
+function Catalog.SetPointsOnly(enabled)
+    pointsOnly = enabled == true
+end
+
 function Catalog.IsVisible(id)
     local row = raw.achievements[id]
-    if not row then return true end
+    if not row then
+        return not pointsOnly or (tonumber(select(3,
+            GetAchievementInfo(id))) or 0) > 0
+    end
+    if pointsOnly and row[2] <= 0 then return false end
     return row[3] == -1 or row[3] == (Catalog.GetSelectedFaction()
         == "Horde" and 0 or 1)
 end
@@ -135,6 +160,10 @@ function Catalog.GetDirectTotals(categoryID)
     local opposite = Catalog.GetSelectedFaction() == "Horde" and 1 or 0
     count = count - category.factionCount[opposite]
     points = points - category.factionPoints[opposite]
+    if pointsOnly then
+        count = count - category.zeroCount
+            + category.zeroFactionCount[opposite]
+    end
     return count, points
 end
 
@@ -155,10 +184,28 @@ function Catalog.GetCompleted(categoryID)
     local total = completedByCategory[categoryID] or 0
     local opposite = Catalog.GetSelectedFaction() == "Horde" and 1 or 0
     total = total - (completedByFaction[opposite][categoryID] or 0)
+    if pointsOnly then
+        total = total - (completedZeroByCategory[categoryID] or 0)
+            + (completedZeroByFaction[opposite][categoryID] or 0)
+    end
     local category = categories[categoryID]
     if category then
         for _, child in ipairs(category.children) do
             total = total + Catalog.GetCompleted(child.id)
+        end
+    end
+    return total
+end
+
+function Catalog.GetCompletedPoints(categoryID)
+    EnsureIndex()
+    local total = completedPointsByCategory[categoryID] or 0
+    local opposite = Catalog.GetSelectedFaction() == "Horde" and 1 or 0
+    total = total - (completedPointsByFaction[opposite][categoryID] or 0)
+    local category = categories[categoryID]
+    if category then
+        for _, child in ipairs(category.children) do
+            total = total + Catalog.GetCompletedPoints(child.id)
         end
     end
     return total
@@ -196,13 +243,26 @@ function Catalog.StartProgressScan(callback)
             end
             if completed and not completedIDs[id] then
                 completedIDs[id] = true
-                local categoryID = raw.achievements[id][1]
+                local row = raw.achievements[id]
+                local categoryID = row[1]
                 completedByCategory[categoryID] =
                     (completedByCategory[categoryID] or 0) + 1
-                local faction = raw.achievements[id][3]
+                if row[2] == 0 then
+                    completedZeroByCategory[categoryID] =
+                        (completedZeroByCategory[categoryID] or 0) + 1
+                end
+                completedPointsByCategory[categoryID] =
+                    (completedPointsByCategory[categoryID] or 0) + row[2]
+                local faction = row[3]
                 if completedByFaction[faction] then
                     local counts = completedByFaction[faction]
                     counts[categoryID] = (counts[categoryID] or 0) + 1
+                    if row[2] == 0 then
+                        local zeros = completedZeroByFaction[faction]
+                        zeros[categoryID] = (zeros[categoryID] or 0) + 1
+                    end
+                    local points = completedPointsByFaction[faction]
+                    points[categoryID] = (points[categoryID] or 0) + row[2]
                 end
             end
         end
@@ -232,9 +292,21 @@ function Catalog.RefreshCompletion(id)
         completedIDs[id] = true
         completedByCategory[row[1]] =
             (completedByCategory[row[1]] or 0) + 1
+        if row[2] == 0 then
+            completedZeroByCategory[row[1]] =
+                (completedZeroByCategory[row[1]] or 0) + 1
+        end
+        completedPointsByCategory[row[1]] =
+            (completedPointsByCategory[row[1]] or 0) + row[2]
         if completedByFaction[row[3]] then
             local counts = completedByFaction[row[3]]
             counts[row[1]] = (counts[row[1]] or 0) + 1
+            if row[2] == 0 then
+                local zeros = completedZeroByFaction[row[3]]
+                zeros[row[1]] = (zeros[row[1]] or 0) + 1
+            end
+            local points = completedPointsByFaction[row[3]]
+            points[row[1]] = (points[row[1]] or 0) + row[2]
         end
     end
 end
@@ -285,18 +357,17 @@ local function StartSearchIndex(callback)
             position = position + 1
             processed = processed + 1
             local data = detailCache[id]
-            local name, description
-            if data then
-                name, description = data.name, data.description
+            local name
+            if data and not data.catalogOnly then
+                name = data.name
             else
-                local gameID, gameName, _, _, _, _, _, gameDescription =
-                    GetAchievementInfo(id)
+                local gameID, gameName = GetAchievementInfo(id)
                 if gameID then
-                    name, description = gameName, gameDescription
+                    name = gameName
                 end
             end
             if name and name ~= "" then
-                searchText[id] = (name .. " " .. (description or "")):lower()
+                searchText[id] = name:lower()
             end
         end
         if position <= #sortedIDs and C_Timer and C_Timer.After then
@@ -320,19 +391,14 @@ function Catalog.Search(query, onReady)
     EnsureIndex()
     query = (query or ""):lower()
     if query == "" then return {} end
-    local exactID = tonumber(query)
     local found = {}
-    if exactID and raw.achievements[exactID] then
-        found[1] = exactID
-    end
     if searchState ~= "ready" then
         StartSearchIndex(onReady)
         if searchState ~= "ready" then return found end
     end
     if query == lastSearchQuery then return lastSearchResults end
     for _, id in ipairs(sortedIDs) do
-        if id ~= exactID and searchText[id]
-            and searchText[id]:find(query, 1, true)
+        if searchText[id] and searchText[id]:find(query, 1, true)
         then
             found[#found + 1] = id
         end

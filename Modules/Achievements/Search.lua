@@ -154,8 +154,7 @@ UpdateTreeSearch = function(frame)
         local button = node.button
         if button and button.node == node and button:IsShown() then
             local searchMatches = query ~= "" and (
-                node.name:lower():find(query, 1, true)
-                or tostring(node.id):find(query, 1, true))
+                node.name:lower():find(query, 1, true))
             if searchMatches then
                 button.SearchHighlight:Show()
                 if button.SearchHighlightQuery ~= query
@@ -796,7 +795,6 @@ function CreateAchievementLauncherSearch(anchor, icon)
         local seen = {}
         local query = search:GetText() or ""
         resultEntries, mapBuilding = Addon.MapSearch.Find(query, 3)
-        local exactID = tonumber(query)
         local function AddResult(achievementID)
             if seen[achievementID] or not IsAchievementValid(achievementID)
                 and not (Addon.AchievementCatalog
@@ -828,7 +826,6 @@ function CreateAchievementLauncherSearch(anchor, icon)
                     AddResult(id)
                 end
             else
-                if exactID then AddResult(math.floor(exactID)) end
                 for index = 1, GetNumFilteredAchievements() or 0 do
                     AddResult(GetFilteredAchievementID(index))
                 end

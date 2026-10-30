@@ -208,6 +208,10 @@ function MapSearch.Activate(entry)
         if C_SuperTrack and C_SuperTrack.SetSuperTrackedUserWaypoint then
             C_SuperTrack.SetSuperTrackedUserWaypoint(true)
         end
+        if PlaySound and SOUNDKIT
+            and SOUNDKIT.UI_MAP_WAYPOINT_SUPER_TRACK_ON then
+            PlaySound(SOUNDKIT.UI_MAP_WAYPOINT_SUPER_TRACK_ON)
+        end
     end
     if not WorldMapFrame and C_AddOns and C_AddOns.LoadAddOn then
         C_AddOns.LoadAddOn("Blizzard_WorldMap")

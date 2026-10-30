@@ -674,7 +674,7 @@ function Rewards.Has(achievementID, achievement)
     return false
 end
 
-function Rewards.Get(achievementID)
+function Rewards.Get(achievementID, skipHousingDiscovery)
     local achievement = Data.Get(achievementID)
     if not achievement then
         return nil
@@ -735,7 +735,9 @@ function Rewards.Get(achievementID)
         AddRewardEntry(reward, appearanceEntry, seen)
     end
 
-    StartHousingRewardIndex()
+    if not skipHousingDiscovery then
+        StartHousingRewardIndex()
+    end
     if housingRewardIndexState == "ready" and C_HousingCatalog
         and C_HousingCatalog.GetCatalogEntryInfo
     then
