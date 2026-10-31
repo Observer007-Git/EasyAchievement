@@ -20,7 +20,8 @@ fi
 if [[ -z "${BUILD}" ]]; then
     mkdir -p "${CACHE_DIR}"
     BUILDS_JSON="${CACHE_DIR}/builds.json"
-    curl -L --fail --silent --show-error --retry 3 \
+    curl -L --http1.1 --fail --silent --show-error --retry 3 \
+        --retry-all-errors \
         -A "${USER_AGENT}" "https://wago.tools/api/builds" \
         -o "${BUILDS_JSON}.tmp"
     mv "${BUILDS_JSON}.tmp" "${BUILDS_JSON}"
@@ -46,9 +47,14 @@ download_table() {
     local table=$1
     local locale=$2
     local destination=$3
+    if [[ -s "${destination}" ]]; then
+        echo "Using cached ${table} (${locale})"
+        return
+    fi
     mkdir -p "${destination:h}"
     echo "Downloading ${table} (${locale})"
-    curl -L --fail --silent --show-error --retry 3 \
+    curl -L --http1.1 --fail --silent --show-error --retry 3 \
+        --retry-all-errors \
         -A "${USER_AGENT}" \
         "https://wago.tools/db2/${table}/csv?build=${BUILD}&locale=${locale}" \
         -o "${destination}.tmp"

@@ -41,7 +41,8 @@ assert(loadfile("EasyAchievement/Core/AchievementCatalog.lua",
 
 local catalog = addon.AchievementCatalog
 local categories, roots = catalog.GetCategories()
-assert(catalog.GetBuild() == "12.1.5.70575")
+assert(catalog.GetBuild() == addon.AchievementCatalogData.build
+    and catalog.GetBuild():match("^%d+%.%d+%.%d+%.%d+$"))
 assert(#roots == 15 and categories[14808].name == "Classique")
 assert(not categories[1] and not categories[15076])
 assert(not catalog.GetRecord(49) and not catalog.GetRecord(4860),
