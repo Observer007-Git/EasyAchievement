@@ -93,27 +93,18 @@ assert(windowSource:find(
         1, true),
     "resizing the settings page still schedules the previous tree layout")
 assert(launcherSource:find(
-    'RegisterForClicks("LeftButtonUp", "RightButtonUp")', 1, true)
-    and launcherSource:find("CreateAchievementLauncherSettings(self)", 1,
-        true)
+    'button:RegisterForClicks("LeftButtonUp")', 1, true)
+    and not launcherSource:find("CreateAchievementLauncherSettings", 1, true)
+    and not launcherSource:find('mouseButton == "RightButton"', 1, true)
     and launcherSource:find('"achievementLauncherScale"', 1, true)
     and launcherSource:find('"achievementLauncherHidden"', 1, true)
     and launcherSource:find('"achievementShowMinimapIcon"', 1, true)
     and launcherSource:find('_G.SLASH_EASYACHIEVEMENT1 = "/eat"', 1,
         true)
     and launcherSource:find("CreateAchievementMinimapButton()", 1, true)
-    and launcherSource:find('border:SetPoint("TOPLEFT")', 1, true)
-    and launcherSource:find('self:RegisterEvent("GLOBAL_MOUSE_DOWN")',
-        1, true)
-    and launcherSource:find('self:UnregisterEvent("GLOBAL_MOUSE_DOWN")',
-        1, true)
-    and launcherSource:find('not self:IsMouseOver()', 1, true)
-    and launcherSource:find('not self.Owner:IsMouseOver()', 1, true)
-    and launcherSource:find('hideLauncher.Label:GetStringWidth()',
-        1, true)
     and not launcherSource:find("CreateAchievementFavoritesPanel(self)", 1,
         true),
-    "launcher settings, slash command, or minimap entry is not configured")
+    "launcher left click, slash command, or minimap entry is not configured")
 assert(not launcherSource:find("enableAchievementEnhancement", 1, true)
     and not launcherSource:find("ApplyAchievementEnhancement", 1, true),
     "standalone addon retained the obsolete LiteTools enable switch")

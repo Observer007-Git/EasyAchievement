@@ -14,7 +14,6 @@ local MIN_LAUNCHER_SCALE = 0
 local MAX_LAUNCHER_SCALE = 1
 local LAUNCHER_SCALE_STEP = 0.05
 local DEFAULT_MINIMAP_ANGLE = 225
-local achievementLauncherSettings
 local achievementMinimapButton
 
 -- The shield occupies pixels (811, 36)-(891, 94) of texture file 4035524.
@@ -132,133 +131,6 @@ function OpenAchievementPanel()
     ShowAchievementEmptyPage(CreateAchievementTreeFrame())
 end
 
-local function RefreshLauncherSettings()
-    if achievementLauncherSettings then
-        local scale = GetAchievementLauncherScale()
-        achievementLauncherSettings.ScaleValue:SetText(string.format("%d%%",
-            math.floor(scale * 100 + 0.5)))
-        achievementLauncherSettings.ScaleMinus:SetEnabled(
-            scale > MIN_LAUNCHER_SCALE)
-        achievementLauncherSettings.ScalePlus:SetEnabled(
-            scale < MAX_LAUNCHER_SCALE)
-        achievementLauncherSettings.HideLauncher:SetChecked(
-            Addon:GetSetting("achievementLauncherHidden"))
-        achievementLauncherSettings.ShowMinimap:SetChecked(
-            Addon:GetSetting("achievementShowMinimapIcon"))
-    end
-end
-
-local function CreateLauncherCheckButton(parent, labelText, anchor)
-    local checkButton = CreateFrame("CheckButton", nil, parent,
-        "UICheckButtonTemplate")
-    checkButton:SetSize(22, 22)
-    checkButton:SetPoint("TOPLEFT", 10, anchor)
-    local label = checkButton:CreateFontString(nil, "OVERLAY",
-        "GameFontHighlightSmall")
-    label:SetPoint("LEFT", checkButton, "RIGHT", 2, 0)
-    label:SetText(labelText)
-    checkButton.Label = label
-    return checkButton
-end
-
-local function CreateAchievementLauncherSettings(owner)
-    if achievementLauncherSettings then
-        achievementLauncherSettings:ClearAllPoints()
-        achievementLauncherSettings:SetPoint("TOPLEFT", owner, "TOPRIGHT",
-            4, 0)
-        achievementLauncherSettings.Owner = owner
-        return achievementLauncherSettings
-    end
-
-    local panel = CreateFrame("Frame", "EasyAchievementLauncherSettings",
-        UIParent)
-    panel:SetSize(220, 100)
-    panel:SetFrameStrata("DIALOG")
-    panel:SetClampedToScreen(true)
-    panel:EnableMouse(true)
-    panel:SetPoint("TOPLEFT", owner, "TOPRIGHT", 4, 0)
-    panel.Owner = owner
-    panel:SetScript("OnShow", function(self)
-        self:RegisterEvent("GLOBAL_MOUSE_DOWN")
-    end)
-    panel:SetScript("OnHide", function(self)
-        self:UnregisterEvent("GLOBAL_MOUSE_DOWN")
-    end)
-    panel:SetScript("OnEvent", function(self, event)
-        if event == "GLOBAL_MOUSE_DOWN" and not self:IsMouseOver()
-            and not self.Owner:IsMouseOver()
-        then
-            self:Hide()
-        end
-    end)
-    local background = panel:CreateTexture(nil, "BACKGROUND")
-    background:SetAllPoints()
-    background:SetColorTexture(0.035, 0.035, 0.035, 0.98)
-    local border = panel:CreateTexture(nil, "BORDER")
-    border:SetPoint("TOPLEFT")
-    border:SetPoint("BOTTOMRIGHT")
-    border:SetColorTexture(0.72, 0.52, 0.14, 0.95)
-    local inset = panel:CreateTexture(nil, "ARTWORK")
-    inset:SetPoint("TOPLEFT", 1, -1)
-    inset:SetPoint("BOTTOMRIGHT", -1, 1)
-    inset:SetColorTexture(0.035, 0.035, 0.035, 1)
-
-    local scaleLabel = panel:CreateFontString(nil, "OVERLAY",
-        "GameFontNormalSmall")
-    scaleLabel:SetPoint("TOPLEFT", 12, -12)
-    scaleLabel:SetText(L.ACHIEVEMENT_LAUNCHER_SCALE)
-    local minus = CreateFrame("Button", nil, panel,
-        "UIPanelButtonTemplate")
-    minus:SetPoint("LEFT", scaleLabel, "RIGHT", 8, 0)
-    minus:SetSize(20, 20)
-    minus:SetText("-")
-    local value = panel:CreateFontString(nil, "OVERLAY",
-        "GameFontHighlightSmall")
-    value:SetPoint("LEFT", minus, "RIGHT", 5, 0)
-    value:SetWidth(38)
-    value:SetJustifyH("CENTER")
-    local plus = CreateFrame("Button", nil, panel,
-        "UIPanelButtonTemplate")
-    plus:SetPoint("LEFT", value, "RIGHT", 5, 0)
-    plus:SetSize(20, 20)
-    plus:SetText("+")
-    minus:SetScript("OnClick", function()
-        Addon:SetSetting("achievementLauncherScale",
-            GetAchievementLauncherScale() - LAUNCHER_SCALE_STEP)
-    end)
-    plus:SetScript("OnClick", function()
-        Addon:SetSetting("achievementLauncherScale",
-            GetAchievementLauncherScale() + LAUNCHER_SCALE_STEP)
-    end)
-    panel.ScaleMinus = minus
-    panel.ScaleValue = value
-    panel.ScalePlus = plus
-
-    local hideLauncher = CreateLauncherCheckButton(panel,
-        L.ACHIEVEMENT_LAUNCHER_HIDE, -38)
-    hideLauncher:SetScript("OnClick", function(self)
-        Addon:SetSetting("achievementLauncherHidden",
-            self:GetChecked() == true)
-    end)
-    panel.HideLauncher = hideLauncher
-
-    local showMinimap = CreateLauncherCheckButton(panel,
-        L.ACHIEVEMENT_MINIMAP_SHOW, -66)
-    showMinimap:SetScript("OnClick", function(self)
-        Addon:SetSetting("achievementShowMinimapIcon",
-            self:GetChecked() == true)
-    end)
-    panel.ShowMinimap = showMinimap
-    panel:SetWidth(math.max(220,
-        math.ceil(math.max(hideLauncher.Label:GetStringWidth(),
-            showMinimap.Label:GetStringWidth())) + 46))
-    panel:Hide()
-    table.insert(UISpecialFrames, panel:GetName())
-    achievementLauncherSettings = panel
-    RefreshLauncherSettings()
-    return panel
-end
-
 local function PositionMinimapButton(button, angle)
     angle = math.rad(tonumber(angle) or DEFAULT_MINIMAP_ANGLE)
     local radius = (Minimap:GetWidth() or 140) / 2 + 5
@@ -371,16 +243,12 @@ function UpdateAchievementLauncherVisibility()
         achievementLauncher:SetShown(ShouldShowAchievementLauncher())
         if not achievementLauncher:IsShown() then
             achievementLauncher.QuickSearch:HideSearch()
-            if achievementLauncherSettings then
-                achievementLauncherSettings:Hide()
-            end
         end
     end
     if achievementMinimapButton then
         achievementMinimapButton:SetShown(
             Addon:GetSetting("achievementShowMinimapIcon"))
     end
-    RefreshLauncherSettings()
 end
 
 function ApplyAchievementLauncherScale(value)
@@ -412,7 +280,7 @@ function CreateAchievementLauncher()
     button:SetClampedToScreen(true)
     button:SetMovable(true)
     button:EnableMouse(true)
-    button:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+    button:RegisterForClicks("LeftButtonUp")
     button:RegisterForDrag("LeftButton")
     if button.SetDontSavePosition then
         button:SetDontSavePosition(true)
@@ -473,21 +341,11 @@ function CreateAchievementLauncher()
             self.wasDragged = nil
         end)
     end)
-    button:SetScript("OnClick", function(self, mouseButton)
+    button:SetScript("OnClick", function(self)
         if self.wasDragged then
             return
         end
         self.QuickSearch:HideSearch()
-        if mouseButton == "RightButton" then
-            local panel = CreateAchievementLauncherSettings(self)
-            if panel:IsShown() then
-                panel:Hide()
-            else
-                panel:Show()
-                panel:Raise()
-            end
-            return
-        end
         OpenAchievementPanel()
     end)
     button:SetScript("OnEnter", function(self)

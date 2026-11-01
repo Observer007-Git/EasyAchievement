@@ -61,10 +61,13 @@ local simplifiedChinese = LoadLocale(
     "EasyAchievement/Locales/zhCN.lua", "zhCN")
 
 AssertCompatible(english, simplifiedChinese, "zhCN", true)
-assert(simplifiedChinese.ACHIEVEMENT_LAUNCHER_HIDE
-        == "隐藏屏幕图标（/eat 或小地图再次启用）"
-    and english.ACHIEVEMENT_LAUNCHER_HIDE:find("/eat", 1, true),
-    "launcher hide option must explain how to reopen it in both locales")
+assert(simplifiedChinese.ACHIEVEMENT_LAUNCHER_SCALE == "屏幕图标缩放"
+    and english.ACHIEVEMENT_LAUNCHER_SCALE == "Screen icon scale"
+    and simplifiedChinese.ACHIEVEMENT_LAUNCHER_REOPEN_HINT:find("（", 1, true)
+    and english.ACHIEVEMENT_LAUNCHER_REOPEN_HINT:find("(", 1, true)
+    and simplifiedChinese.ACHIEVEMENT_REWARD_TAB == "%s"
+    and english.ACHIEVEMENT_REWARD_TAB == "%s",
+    "settings labels and reward tabs must match both locales")
 
 local toc = assert(io.open("EasyAchievement/EasyAchievement.toc", "r"))
 local runtimePaths = {}

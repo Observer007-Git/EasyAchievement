@@ -1,7 +1,7 @@
 local settings = {}
 local addon = {
     L = setmetatable({ ACHIEVEMENT_REWARD_CATEGORY_MOUNT = "Mounts",
-        ACHIEVEMENT_REWARD_TAB = "Reward %s" },
+        ACHIEVEMENT_REWARD_TAB = "%s" },
         { __index = function(_, key) return key end }),
     Config = {
         Tree = { MinScale = 0.2, MaxScale = 1.5 },
