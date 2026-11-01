@@ -3,6 +3,7 @@ local menuCount = 0
 local menuActions = {}
 local registeredEventHandlers = {}
 local savedATTPosition
+local doingIDs = {}
 local savedGetTime = GetTime
 local rewardTestTime = 0
 GetTime = function() return rewardTestTime end
@@ -13,6 +14,8 @@ local Addon = {
         ACHIEVEMENT_CARD_VIEW = "card",
         ACHIEVEMENT_FAVORITE_ADD = "favorite",
         ACHIEVEMENT_FAVORITE_REMOVE = "unfavorite",
+        ACHIEVEMENT_DOING_ADD = "doing-add",
+        ACHIEVEMENT_DOING_REMOVE = "doing-remove",
         ACHIEVEMENT_POPUP_SHOW = "popup",
         ACHIEVEMENT_TRACK = "track",
         ACHIEVEMENT_TREE_VIEW = "tree",
@@ -72,10 +75,12 @@ function Addon:RegisterEvent(event, callback)
     registeredEventHandlers[event] = callback
 end
 
-function Addon:SetSetting()
+function Addon:SetSetting(key, value)
+    if key == "achievementDoing" then doingIDs = value end
 end
 
 function Addon:GetSetting(key)
+    if key == "achievementDoing" then return doingIDs end
     if key == "achievementPopupIDs" then
         return {}
     end
@@ -325,6 +330,32 @@ assert(AchievementUI.OpenAchievementATTGuide(1357)
     and attWindow.positioned,
     "another achievement's ATT guide must reuse the saved position")
 AchievementUI.OpenAchievementContextMenu(button, 2468)
+assert(type(menuActions["doing-add"]) == "function",
+    "unfinished achievement is missing the in-progress action")
+menuActions["doing-add"]()
+assert(AchievementUI.IsAchievementDoing(2468) and doingIDs[1] == 2468,
+    "in-progress achievement was not saved")
+menuActions = {}
+AchievementUI.OpenAchievementContextMenu(button, 2468)
+assert(type(menuActions["doing-remove"]) == "function"
+    and menuActions["doing-add"] == nil,
+    "in-progress menu did not change to remove")
+menuActions["doing-remove"]()
+assert(not AchievementUI.IsAchievementDoing(2468) and #doingIDs == 0,
+    "in-progress achievement was not removed")
+doingIDs = { 2468 }
+local originalDoingAchievementInfo = GetAchievementInfo
+GetAchievementInfo = function(id)
+    if id == 2468 then
+        return id, "Achievement " .. id, 10, true, nil, nil, nil,
+            "Description", 0, 123, "Reward", false
+    end
+    return originalDoingAchievementInfo(id)
+end
+AchievementUI.PruneAchievementsDoing()
+GetAchievementInfo = originalDoingAchievementInfo
+assert(#doingIDs == 0,
+    "completed achievements were not removed from in-progress")
 assert(type(menuActions.att) == "function",
     "achievement context menu did not include the ATT guide")
 openedATTQuery = nil

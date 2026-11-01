@@ -243,6 +243,7 @@ function UpdateAchievementLauncherVisibility()
         achievementLauncher:SetShown(ShouldShowAchievementLauncher())
         if not achievementLauncher:IsShown() then
             achievementLauncher.QuickSearch:HideSearch()
+            achievementLauncher.DoingMenu:Hide()
         end
     end
     if achievementMinimapButton then
@@ -257,12 +258,155 @@ function ApplyAchievementLauncherScale(value)
     if achievementLauncher and scale > 0 then
         achievementLauncher:SetScale(scale)
         achievementLauncher.QuickSearch:SetScale(scale)
+        achievementLauncher.DoingMenu:SetScale(scale)
         if Addon.Anchors then
             Addon.Anchors:Position(achievementLauncher,
                 "achievementLauncherPosition", 0.035, 0.65)
         end
     end
     UpdateAchievementLauncherVisibility()
+end
+
+local function CreateAchievementDoingMenu(owner)
+    local menu = CreateFrame("Frame", nil, UIParent)
+    local inputOffsetX = (owner:GetWidth() + owner.Icon:GetWidth()) / 2 + 1
+    menu:SetWidth(owner.QuickSearch:GetWidth() + inputOffsetX)
+    menu:SetFrameStrata("DIALOG")
+    menu:SetFrameLevel(owner:GetFrameLevel() + 10)
+    menu:SetClampedToScreen(true)
+    menu:EnableMouse(true)
+    menu:EnableMouseWheel(true)
+    menu:SetPoint("TOPLEFT", owner.QuickSearch.SearchBox, "BOTTOMLEFT",
+        -inputOffsetX, -3)
+    local background = menu:CreateTexture(nil, "BACKGROUND")
+    background:SetAllPoints()
+    background:SetColorTexture(0.025, 0.025, 0.025, 0.96)
+    for _, side in ipairs({ "LEFT", "RIGHT" }) do
+        local edge = menu:CreateTexture(nil, "BORDER")
+        edge:SetPoint("TOP" .. side)
+        edge:SetPoint("BOTTOM" .. side)
+        edge:SetWidth(1)
+        edge:SetColorTexture(0.38, 0.35, 0.29, 0.9)
+    end
+    local bottom = menu:CreateTexture(nil, "BORDER")
+    bottom:SetPoint("BOTTOMLEFT")
+    bottom:SetPoint("BOTTOMRIGHT")
+    bottom:SetHeight(1)
+    bottom:SetColorTexture(0.38, 0.35, 0.29, 0.9)
+    local rows = {}
+    local offset = 0
+    for index = 1, MAX_ACHIEVEMENT_SEARCH_RESULTS do
+        local row = CreateFrame("Button", nil, menu)
+        row:SetPoint("TOPLEFT", 0, -(index - 1) * 28)
+        row:SetPoint("TOPRIGHT", 0, -(index - 1) * 28)
+        row:SetHeight(28)
+        row:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+        row:EnableMouseWheel(true)
+        row:SetScript("OnMouseWheel", function(_, delta)
+            menu:GetScript("OnMouseWheel")(menu, delta)
+        end)
+        local separator = row:CreateTexture(nil, "OVERLAY")
+        separator:SetPoint("LEFT", row, "TOPLEFT")
+        separator:SetPoint("RIGHT", row, "TOPRIGHT")
+        separator:SetHeight(8)
+        if not SetTextureAtlas(separator, "AftLevelup-GlowLine") then
+            separator:SetColorTexture(0.38, 0.28, 0.12, 0.85)
+        end
+        local highlight = row:CreateTexture(nil, "HIGHLIGHT")
+        highlight:SetAllPoints()
+        highlight:SetTexture("Interface\\QuestFrame\\UI-QuestTitleHighlight")
+        highlight:SetBlendMode("ADD")
+        highlight:SetAlpha(0.75)
+        local icon = row:CreateTexture(nil, "ARTWORK")
+        icon:SetPoint("LEFT", 11, 0)
+        icon:SetSize(20, 20)
+        row.Icon = icon
+        local border = row:CreateTexture(nil, "OVERLAY")
+        border:SetPoint("CENTER", icon, "CENTER", -0.33, 0.67)
+        border:SetSize(27, 27)
+        border:SetTexture(
+            "Interface\\AchievementFrame\\UI-Achievement-IconFrame")
+        border:SetTexCoord(0, 0.5625, 0, 0.5625)
+        row.Border = border
+        local name = row:CreateFontString(nil, "OVERLAY",
+            "GameFontHighlightSmall")
+        name:SetPoint("LEFT", 38, 0)
+        name:SetPoint("RIGHT", -8, 0)
+        name:SetJustifyH("LEFT")
+        name:SetWordWrap(false)
+        row.Name = name
+        row:SetScript("OnClick", function(self, mouseButton)
+            menu:Hide()
+            owner.QuickSearch:HideSearch()
+            if mouseButton == "RightButton" then
+                OpenAchievementATTGuide(self.achievementID)
+            else
+                ShowAchievementPopup(self.achievementID)
+            end
+        end)
+        row:SetScript("OnEnter", function(self)
+            if self.node then ShowAchievementTooltip(self) end
+        end)
+        row:SetScript("OnLeave", function() GameTooltip:Hide() end)
+        rows[index] = row
+    end
+    local empty = menu:CreateFontString(nil, "OVERLAY",
+        "GameFontDisableSmall")
+    empty:SetPoint("TOPLEFT", 0, 0)
+    empty:SetPoint("TOPRIGHT", 0, 0)
+    empty:SetHeight(28)
+    empty:SetJustifyH("CENTER")
+    empty:SetText(L.ACHIEVEMENT_DOING_EMPTY)
+    local hint = menu:CreateFontString(nil, "OVERLAY",
+        "GameFontDisableSmall")
+    hint:SetPoint("BOTTOM", 0, 6)
+    hint:SetText(L.ACHIEVEMENT_DOING_MOUSE_HINT)
+    local function Refresh()
+        local ids = GetAchievementsDoing()
+        offset = math.min(offset,
+            math.max(0, #ids - MAX_ACHIEVEMENT_SEARCH_RESULTS))
+        local count = math.min(#ids, MAX_ACHIEVEMENT_SEARCH_RESULTS)
+        menu:SetHeight(math.max(1, count) * 28 + 24)
+        empty:SetShown(count == 0)
+        for index, row in ipairs(rows) do
+            local id = ids[offset + index]
+            local data = id and (GetAchievementData(id)
+                or GetCatalogAchievementData(id))
+            row:SetShown(index <= count and data ~= nil)
+            if data then
+                row.achievementID = id
+                row.node = AchievementData.CreateNode(data)
+                row.Icon:SetTexture(data.icon)
+                row.Name:SetText(data.name)
+                SetAchievementTextColor(row.Name, data.completed, false, 0.82)
+            end
+        end
+    end
+    menu.Refresh = Refresh
+    menu:SetScript("OnMouseWheel", function(_, delta)
+        local count = #GetAchievementsDoing()
+        offset = math.max(0, math.min(
+            count - MAX_ACHIEVEMENT_SEARCH_RESULTS, offset - delta))
+        Refresh()
+    end)
+    menu:SetScript("OnShow", function(self)
+        PruneAchievementsDoing()
+        Refresh()
+        self:RegisterEvent("GLOBAL_MOUSE_DOWN")
+    end)
+    menu:SetScript("OnHide", function(self)
+        self:UnregisterEvent("GLOBAL_MOUSE_DOWN")
+        owner.QuickSearch:ScheduleHide()
+    end)
+    menu:SetScript("OnEvent", function(self)
+        if not self:IsMouseOver() and not owner:IsMouseOver()
+            and not owner.QuickSearch:IsMouseOver()
+        then
+            self:Hide()
+        end
+    end)
+    menu:Hide()
+    return menu
 end
 
 function CreateAchievementLauncher()
@@ -280,7 +424,7 @@ function CreateAchievementLauncher()
     button:SetClampedToScreen(true)
     button:SetMovable(true)
     button:EnableMouse(true)
-    button:RegisterForClicks("LeftButtonUp")
+    button:RegisterForClicks("LeftButtonUp", "RightButtonUp")
     button:RegisterForDrag("LeftButton")
     if button.SetDontSavePosition then
         button:SetDontSavePosition(true)
@@ -325,9 +469,24 @@ function CreateAchievementLauncher()
     hoverIcon:Hide()
     button.HoverIcon = hoverIcon
     button.QuickSearch = CreateAchievementLauncherSearch(button, icon)
+    button.DoingMenu = CreateAchievementDoingMenu(button)
+    button.QuickSearch.KeepOpenWhile = function()
+        return button.DoingMenu:IsShown()
+    end
+    button.QuickSearch:HookScript("OnHide", function()
+        button.doingMode = nil
+        button.DoingMenu:Hide()
+    end)
+    button.QuickSearch.SearchBox:HookScript("OnTextChanged", function(self)
+        if not button.doingMode then return end
+        button.DoingMenu:SetShown(self:GetText() == ""
+            and button.QuickSearch:IsShown())
+    end)
 
     button:SetScript("OnDragStart", function(self)
         self.wasDragged = true
+        self.doingMode = nil
+        self.DoingMenu:Hide()
         self.QuickSearch:HideSearch()
         self:StartMoving()
     end)
@@ -341,17 +500,35 @@ function CreateAchievementLauncher()
             self.wasDragged = nil
         end)
     end)
-    button:SetScript("OnClick", function(self)
+    button:SetScript("OnClick", function(self, mouseButton)
         if self.wasDragged then
             return
         end
+        if mouseButton == "RightButton" then
+            if self.DoingMenu:IsShown() then
+                self.doingMode = nil
+                self.DoingMenu:Hide()
+            else
+                self.QuickSearch.SearchBox:SetText("")
+                self.doingMode = true
+                if not self.QuickSearch:IsShown() then
+                    self.QuickSearch:ShowAnimated()
+                end
+                self.DoingMenu:Show()
+            end
+            return
+        end
+        self.doingMode = nil
+        self.DoingMenu:Hide()
         self.QuickSearch:HideSearch()
         OpenAchievementPanel()
     end)
     button:SetScript("OnEnter", function(self)
         self.Icon:Hide()
         self.HoverIcon:Show()
-        self.QuickSearch:ShowAnimated()
+        if not self.QuickSearch:IsShown() then
+            self.QuickSearch:ShowAnimated()
+        end
     end)
     button:SetScript("OnLeave", function(self)
         self.Icon:Show()
@@ -397,6 +574,10 @@ function OnCriteriaUpdate()
 end
 
 function OnAchievementEarned(_, achievementID)
+    RemoveAchievementDoing(achievementID)
+    if achievementLauncher and achievementLauncher.DoingMenu:IsShown() then
+        achievementLauncher.DoingMenu:Refresh()
+    end
     RefreshAchievementPopup()
     Content.Refresh(achievementTreeFrame, "earned", achievementID)
 end
@@ -477,6 +658,7 @@ Addon:RegisterSetting("achievementMinimapAngle", DEFAULT_MINIMAP_ANGLE,
     end)
 Addon:RegisterSetting("achievementFavorites", {},
     SanitizeAchievementFavorites)
+Addon:RegisterSetting("achievementDoing", {}, SanitizeAchievementFavorites)
 Addon:RegisterSetting("achievementRecent", {}, SanitizeAchievementFavorites)
 Addon:RegisterSetting("achievementTreeStates", {},
     SanitizeAchievementTreeStates)
@@ -490,6 +672,7 @@ Addon:RegisterEvent("NEW_MOUNT_ADDED", OnRewardCollectionChanged)
 Addon:RegisterEvent("TRANSMOG_COLLECTION_UPDATED", OnRewardCollectionChanged)
 Addon:RegisterEvent("TOYS_UPDATED", OnRewardCollectionChanged)
 Addon:RegisterEvent("PLAYER_LOGIN", function()
+    PruneAchievementsDoing()
     local launcher = CreateAchievementLauncher()
     CreateAchievementMinimapButton()
     if launcher then

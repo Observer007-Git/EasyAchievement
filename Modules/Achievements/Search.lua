@@ -442,6 +442,13 @@ OpenAchievementContextMenu = function(button, achievementID, openCard, openTree)
         rootDescription:CreateButton(favoriteLabel, function()
             ToggleAchievementFavorite(achievementID)
         end)
+        if not data.completed or IsAchievementDoing(achievementID) then
+            rootDescription:CreateButton(IsAchievementDoing(achievementID)
+                and L.ACHIEVEMENT_DOING_REMOVE
+                or L.ACHIEVEMENT_DOING_ADD, function()
+                ToggleAchievementDoing(achievementID)
+            end)
+        end
         local trackingLabel = IsAchievementTracked(achievementID)
             and L.ACHIEVEMENT_UNTRACK or L.ACHIEVEMENT_TRACK
         if nativeAchievement
@@ -911,7 +918,9 @@ function CreateAchievementLauncherSearch(anchor, icon)
                     end
                 end
             end
-            if panel:IsShown() and not panel:IsMouseOver()
+            if panel:IsShown()
+                and not (panel.KeepOpenWhile and panel.KeepOpenWhile())
+                and not panel:IsMouseOver()
                 and not anchor:IsMouseOver() and not overResults
             then
                 HidePanel()

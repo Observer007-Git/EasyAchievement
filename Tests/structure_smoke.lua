@@ -93,9 +93,19 @@ assert(windowSource:find(
         1, true),
     "resizing the settings page still schedules the previous tree layout")
 assert(launcherSource:find(
-    'button:RegisterForClicks("LeftButtonUp")', 1, true)
+    'button:RegisterForClicks("LeftButtonUp", "RightButtonUp")', 1, true)
     and not launcherSource:find("CreateAchievementLauncherSettings", 1, true)
-    and not launcherSource:find('mouseButton == "RightButton"', 1, true)
+    and launcherSource:find("CreateAchievementDoingMenu(button)", 1, true)
+    and launcherSource:find('owner.QuickSearch.SearchBox, "BOTTOMLEFT"',
+        1, true)
+    and launcherSource:find('button.QuickSearch.SearchBox:HookScript("OnTextChanged"',
+        1, true)
+    and launcherSource:find('button.DoingMenu:SetShown(self:GetText() == ""',
+        1, true)
+    and launcherSource:find('"achievementDoing"', 1, true)
+    and launcherSource:find('ShowAchievementPopup(self.achievementID)', 1, true)
+    and launcherSource:find('OpenAchievementATTGuide(self.achievementID)',
+        1, true)
     and launcherSource:find('"achievementLauncherScale"', 1, true)
     and launcherSource:find('"achievementLauncherHidden"', 1, true)
     and launcherSource:find('"achievementShowMinimapIcon"', 1, true)
@@ -104,7 +114,7 @@ assert(launcherSource:find(
     and launcherSource:find("CreateAchievementMinimapButton()", 1, true)
     and not launcherSource:find("CreateAchievementFavoritesPanel(self)", 1,
         true),
-    "launcher left click, slash command, or minimap entry is not configured")
+    "launcher actions, slash command, or minimap entry is not configured")
 assert(not launcherSource:find("enableAchievementEnhancement", 1, true)
     and not launcherSource:find("ApplyAchievementEnhancement", 1, true),
     "standalone addon retained the obsolete LiteTools enable switch")

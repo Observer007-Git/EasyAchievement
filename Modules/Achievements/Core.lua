@@ -293,6 +293,74 @@ function GetAchievementFavorites()
     return type(favorites) == "table" and favorites or {}
 end
 
+function GetAchievementsDoing()
+    local ids = Addon:GetSetting("achievementDoing")
+    return type(ids) == "table" and ids or {}
+end
+
+function IsAchievementDoing(achievementID)
+    for _, id in ipairs(GetAchievementsDoing()) do
+        if id == achievementID then return true end
+    end
+    return false
+end
+
+function RemoveAchievementDoing(achievementID)
+    local ids = {}
+    local removed = false
+    for _, id in ipairs(GetAchievementsDoing()) do
+        if id == achievementID then
+            removed = true
+        else
+            ids[#ids + 1] = id
+        end
+    end
+    if removed then
+        Addon:SetSetting("achievementDoing", ids)
+        if RefreshAchievementDoingCategory then
+            RefreshAchievementDoingCategory()
+        end
+    end
+end
+
+function PruneAchievementsDoing()
+    local ids = {}
+    local removed = false
+    for _, id in ipairs(GetAchievementsDoing()) do
+        local data = GetAchievementData(id) or GetCatalogAchievementData(id)
+        if data and data.completed then
+            removed = true
+        else
+            ids[#ids + 1] = id
+        end
+    end
+    if removed then
+        Addon:SetSetting("achievementDoing", ids)
+        if RefreshAchievementDoingCategory then
+            RefreshAchievementDoingCategory()
+        end
+    end
+end
+
+function ToggleAchievementDoing(achievementID)
+    if IsAchievementDoing(achievementID) then
+        RemoveAchievementDoing(achievementID)
+        return
+    end
+    local data = GetAchievementData(achievementID)
+        or GetCatalogAchievementData(achievementID)
+    if not data or data.completed then return end
+    local ids = {}
+    for _, id in ipairs(GetAchievementsDoing()) do
+        ids[#ids + 1] = id
+    end
+    ids[#ids + 1] = achievementID
+    Addon:SetSetting("achievementDoing", ids)
+    if RefreshAchievementDoingCategory then
+        RefreshAchievementDoingCategory()
+    end
+end
+
 function GetAchievementRecent()
     local recent = Addon:GetSetting("achievementRecent")
     return type(recent) == "table" and recent or {}

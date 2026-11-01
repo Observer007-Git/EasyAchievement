@@ -74,7 +74,7 @@ end
 ui.CreateAchievementTreeFrame = function() return frame end
 frame.RewardCategoryRailButtons = {}
 for _, key in ipairs({ "all", "mount", "pet", "toy", "decor", "title",
-    "appearance", "other", "settings" }) do
+    "appearance", "other", "doing", "settings" }) do
     frame.RewardCategoryRailButtons[key] = {
         Selected = {
             SetShown = function(self, shown) self.shown = shown end,
@@ -204,6 +204,7 @@ function addon:RegisterSetting() end
 function addon:RegisterEvent() end
 function addon.NumberSetting() return function(value) return value end end
 function addon.BooleanSetting(value) return not not value end
+ui.RemoveAchievementDoing = function() end
 assert(loadfile("EasyAchievement/Modules/Achievements/Launcher.lua"))(
     "EasyAchievement", addon)
 local shield = {
@@ -302,7 +303,7 @@ for _, button in pairs(frame.RewardCategoryRailButtons) do
     railCount = railCount + 1
     assert(button.scripts.OnClick, "reward category rail button has no action")
 end
-assert(railCount == 9 and frame.RewardCategoryRail,
+assert(railCount == 10 and frame.RewardCategoryRail,
     "top navigation omitted achievement, reward, or settings tabs")
 frame.RewardCategoryRailButtons.toy.scripts.OnClick()
 assert(frame.rewardCategoryMode.key == "toy"
@@ -337,6 +338,7 @@ ui.MenuUtil = { CreateContextMenu = function(_, generator)
     })
 end }
 ui.IsAchievementFavorite = function() return false end
+ui.IsAchievementDoing = function() return false end
 ui.IsAchievementTracked = function() return false end
 ui.GetChildAchievementIDs = function() return {} end
 ui.CanOpenAchievementATTGuide = function() return false end
@@ -640,4 +642,18 @@ ui.ShowAchievementRewardCategory("mount")
 assert(frame.rewardCategoryMode.selectedAchievementID == 105
     and revealedID == nil,
     "ordinary top-category switching replayed the old selection pulse")
+settings.achievementDoing = { 101, 102 }
+ui.GetAchievementsDoing = function() return settings.achievementDoing end
+ui.PruneAchievementsDoing = function() end
+frame.RewardCategoryRailButtons.doing.scripts.OnClick()
+assert(frame.rewardCategoryMode.key == "doing"
+    and #frame.layoutNodes == 2
+    and frame.layoutNodes[1].id == 101
+    and frame.layoutNodes[2].id == 102,
+    "in-progress tab did not render the saved achievements")
+ui.OpenAchievementRewardCategoryCard(frame, 101)
+ui.ReturnToAchievementRewardCategory(frame)
+assert(frame.rewardCategoryMode.key == "doing"
+    and #frame.layoutNodes == 2,
+    "returning from an in-progress card lost the list")
 print("navigation visits, snapshots, related trees and in-place refresh: ok")

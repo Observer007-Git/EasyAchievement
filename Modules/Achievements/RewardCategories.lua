@@ -27,6 +27,10 @@ local CATEGORY_DEFINITIONS = {
         icon = "Interface\\Icons\\INV_Misc_QuestionMark",
         iconAtlas = "decor-placement-list-default" },
 }
+local DOING_DEFINITION = {
+    key = "doing", labelKey = "ACHIEVEMENT_DOING_TAB",
+    iconAtlas = "UI-HUD-MicroMenu-Achievements-Mouseover",
+}
 
 local categoryIndex
 local categoryIndexState
@@ -36,6 +40,7 @@ local VALID_CATEGORIES = {}
 for _, definition in ipairs(CATEGORY_DEFINITIONS) do
     VALID_CATEGORIES[definition.key] = true
 end
+VALID_CATEGORIES.doing = true
 
 function SanitizeAchievementRewardCategoryStates(value)
     local states = {}
@@ -177,6 +182,7 @@ local function GetCategoryIndex(callback)
 end
 
 local function GetCategoryDefinition(category)
+    if category == "doing" then return DOING_DEFINITION end
     for _, definition in ipairs(CATEGORY_DEFINITIONS) do
         if definition.key == category then
             return definition
@@ -246,6 +252,7 @@ function CreateAchievementRewardCategoryRail(frame)
             label = string.format(L.ACHIEVEMENT_REWARD_TAB,
                 L[definition.labelKey]) }
     end
+    tabs[#tabs + 1] = { key = "doing", label = L.ACHIEVEMENT_DOING_TAB }
     tabs[#tabs + 1] = { key = "settings", label = L.ACHIEVEMENT_SETTINGS_TAB }
     for index, tab in ipairs(tabs) do
         local button = CreateFrame("Button", nil, content)
@@ -335,7 +342,9 @@ local function RenderRewardCategory(frame, definition, achievementIDs,
         local catalog = Addon.AchievementCatalog
         local visible = not catalog or catalog.IsVisible(achievementID)
         local node = visible and AchievementData.CreateNode(
-            GetAchievementData(achievementID))
+            GetAchievementData(achievementID)
+                or definition.key == "doing"
+                    and GetCatalogAchievementData(achievementID))
         if node then
             node.depth = 1
             node.hasChildren = false
@@ -399,6 +408,7 @@ ShowAchievementRewardCategory = function(category, navigationMode, snapshot)
     if not definition then
         return false
     end
+    if category == "doing" then PruneAchievementsDoing() end
     local frame = CreateAchievementTreeFrame()
     if navigationMode ~= "history" then
         SaveCurrentAchievementNavigation(frame)
@@ -423,7 +433,11 @@ ShowAchievementRewardCategory = function(category, navigationMode, snapshot)
     if navigationMode ~= "history" then
         RecordAchievementNavigation(frame)
     end
-    if categoryIndexState == "ready" then
+    if category == "doing" then
+        RestoreCategoryState(frame, category, snapshot and snapshot.viewState)
+        RenderRewardCategory(frame, definition, GetAchievementsDoing(),
+            navigationMode == "return" or navigationMode == "history")
+    elseif categoryIndexState == "ready" then
         RestoreCategoryState(frame, category, snapshot and snapshot.viewState)
         RenderRewardCategory(frame, definition,
             snapshot and snapshot.achievementIDs or categoryIndex[category],
@@ -451,6 +465,16 @@ ShowAchievementRewardCategory = function(category, navigationMode, snapshot)
         end)
     end
     return true
+end
+
+RefreshAchievementDoingCategory = function()
+    local frame = achievementTreeFrame
+    if not frame or not frame.rewardCategoryMode
+        or frame.rewardCategoryMode.key ~= "doing" then return end
+    local state = CaptureAchievementViewState(frame)
+    RestoreCategoryState(frame, "doing", state)
+    RenderRewardCategory(frame, DOING_DEFINITION, GetAchievementsDoing(),
+        false)
 end
 
 OpenAchievementRewardCategoryCard = function(frame, achievementID)
