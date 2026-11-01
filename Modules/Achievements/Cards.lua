@@ -121,7 +121,7 @@ function CreateAchievementPopupFrame()
     frame = CreateFrame("Frame", "EasyAchievementPopupFrame"
         .. achievementPopupFrameSerial, UIParent)
     frame:SetSize(434, 142)
-    frame:SetFrameStrata("DIALOG")
+    frame:SetFrameStrata("FULLSCREEN_DIALOG")
     frame:SetToplevel(true)
     frame:SetClampedToScreen(true)
     frame:SetMovable(true)

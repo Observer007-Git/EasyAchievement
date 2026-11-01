@@ -79,7 +79,7 @@ assert(host.Stats.width > 125
 for _, name in ipairs({ "ItemName", "Description",
     "ModelScene", "ModelControls",
     "PreviousReward", "NextReward", "EntryCounter", "InfoCard",
-    "RewardTypeText", "DetailsButton", "DetailsPanel", "RewardSelector",
+    "RewardTypeText", "DetailsButton", "OfficialButton", "DetailsPanel", "RewardSelector",
     "TextPreview" }) do
     panel[name] = Widget()
 end
@@ -140,6 +140,8 @@ for _, kind in ipairs({ "mount", "pet", "toy", "decor", "appearance", "item" }) 
         and (kind ~= "mount" and kind ~= "pet"
             or not panel.DetailsButton.shown),
         "reward type did not use the requested display mode")
+    assert(panel.OfficialButton.shown == (kind == "mount" or kind == "pet"),
+        "official collection button must only appear for mount and pet rewards")
     if kind == "toy" then
         assert(panel.TextPreview.ToyButton.shown
             and panel.TextPreview.ToyButton.itemID == 456
@@ -150,6 +152,7 @@ for _, kind in ipairs({ "mount", "pet", "toy", "decor", "appearance", "item" }) 
         assert(panel.Description.wordWrap == true
             and not panel.Description.text:find("\n", 1, true)
             and panel.DetailsButton.shown
+            and panel.InfoCard.height >= 163
             and panel.DetailsPanel.DetailsText.text:find("\n", 1, true)
             and panel.DetailsPanel.height ==
                 panel.DetailsPanel.DetailsText:GetStringHeight() + 24,
@@ -178,6 +181,9 @@ for _, kind in ipairs({ "mount", "pet" }) do
     ui.UpdateAchievementRewardPanel(host, kind == "mount" and 457 or 458)
     assert(not panel.DetailsButton.shown,
         "mount and pet rewards must never show the details button")
+    assert(panel.OfficialButton.shown and panel.OfficialButton.entry
+        and panel.InfoCard.height >= 163,
+        "mount and pet info cards must fit the official collection button")
 end
 
 categories[789] = "title"

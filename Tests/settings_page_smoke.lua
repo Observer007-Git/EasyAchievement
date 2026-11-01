@@ -75,6 +75,7 @@ end
 function methods:CreateTexture() return Widget() end
 function methods:CreateFontString() return Widget() end
 function methods:SetPoint(...) self.point = { ... } end
+function methods:GetStringWidth() return #(self.text or "") * 6 end
 function methods:SetSize(width, height)
     self.width, self.height = width, height
 end
@@ -134,14 +135,16 @@ assert(page.CardPreview.initializedID == 6,
     "settings card preview must initialize after native UI loading")
 assert(page.LauncherPreview.atlas == "UI-HUD-MicroMenu-Achievements-Up",
     "launcher preview did not use the screen icon atlas")
-assert(page.GameVersion.text == "Game version: 12.1.5.70575"
-    and page.DataVersion.text == "Data version: |cff40d94012.1.5.70575|r"
-    and page.AddonVersion.text == "Addon version: V1.0.0",
+assert(page.GameVersion.text == "12.1.5.70575"
+    and page.DataVersion.text == "|cff40d94012.1.5.70575|r"
+    and page.AddonVersion.text == "V1.0.0"
+    and page.GameVersion.point[4] == page.DataVersion.point[4]
+    and page.DataVersion.point[4] + 2 == page.AddonVersion.point[4],
     "settings footer did not show the game and TOC versions")
 addon.AchievementRewardDatabase.build = "12.1.5.70576"
 page.SettingsRows = nil
 ui.ShowAchievementSettingsPage(frame)
-assert(page.DataVersion.text == "Data version: |cffff404012.1.5.70576|r",
+assert(page.DataVersion.text == "|cffff404012.1.5.70576|r",
     "outdated data version must be shown in red")
 addon:SetSetting("achievementCardScale", 0.7)
 assert(page.CardPreview.scale == 0.7,

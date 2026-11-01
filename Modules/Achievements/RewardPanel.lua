@@ -24,6 +24,29 @@ local MODEL_SCENE_RIGHT_OFFSET = 24
 local MODEL_SCENE_CENTER_OFFSET =
     (MODEL_SCENE_LEFT_OFFSET + MODEL_SCENE_RIGHT_OFFSET) / 2
 
+local function OpenRewardInCollections(entry)
+    local tab = entry.rewardType == "mount" and 1 or 2
+    if not CollectionsJournal or not CollectionsJournal:IsShown() then
+        ToggleCollectionsJournal(tab)
+    else
+        CollectionsJournal_SetTab(CollectionsJournal, tab)
+    end
+    if not CollectionsJournal or not CollectionsJournal:IsShown() then
+        return
+    end
+    RaiseAchievementExternalWindow(CollectionsJournal)
+    if tab == 1 then
+        local mountID = entry.mountID or entry.itemID
+            and C_MountJournal and C_MountJournal.GetMountFromItem
+            and C_MountJournal.GetMountFromItem(entry.itemID)
+        if mountID and MountJournal_SelectByMountID then
+            MountJournal_SelectByMountID(mountID)
+        end
+    elseif entry.speciesID and PetJournal_SelectSpecies then
+        PetJournal_SelectSpecies(PetJournal, entry.speciesID)
+    end
+end
+
 local function FitMountRewardModel(modelScene, actor)
     if not modelScene or not actor or not actor.IsLoaded
         or not actor:IsLoaded() or not actor.GetActiveBoundingBox
@@ -178,12 +201,77 @@ function CreateAchievementRewardFrame()
     description:SetWordWrap(true)
     frame.Description = description
 
-    local detailsButton = CreateFrame("Button", nil, infoCard,
-        "UIPanelButtonTemplate")
-    detailsButton:SetPoint("BOTTOM", infoCard, "BOTTOM", 0, 8)
-    detailsButton:SetSize(96, 22)
-    detailsButton:SetText(L.ACHIEVEMENT_REWARD_DETAILS)
+    local shopButtonCoords = {
+        up = {
+            left = { 0.30859375, 0.35937500, 0.85156250, 0.88281250 },
+            middle = { 0.73925781, 0.81152344, 0.41992188, 0.45117188 },
+            right = { 0.98242188, 0.99902344, 0.15917969, 0.19042969 },
+        },
+        down = {
+            left = { 0.31738281, 0.36816406, 0.89160156, 0.92285156 },
+            middle = { 0.18457031, 0.25683594, 0.93164063, 0.96289063 },
+            right = { 0.98046875, 0.99707031, 0.33300781, 0.36425781 },
+        },
+    }
+    local function CreateShopButton(label)
+        local button = CreateFrame("Button", nil, infoCard)
+        button:SetPoint("BOTTOM", infoCard, "BOTTOM", 0, 8)
+        button:SetSize(146, 35)
+        local parts = {}
+        for _, part in ipairs({ "left", "middle", "right" }) do
+            local texture = button:CreateTexture(nil, "BACKGROUND")
+            parts[part] = texture
+            texture:SetTexture("Interface\\Store\\Store-Main")
+        end
+        parts.left:SetPoint("TOPLEFT")
+        parts.left:SetPoint("BOTTOMLEFT")
+        parts.left:SetWidth(57)
+        parts.right:SetPoint("TOPRIGHT")
+        parts.right:SetPoint("BOTTOMRIGHT")
+        parts.right:SetWidth(19)
+        parts.middle:SetPoint("TOPLEFT", parts.left, "TOPRIGHT")
+        parts.middle:SetPoint("BOTTOMRIGHT", parts.right, "BOTTOMLEFT")
+        local buttonText = button:CreateFontString(nil, "OVERLAY",
+            "GameFontNormalMed2")
+        buttonText:SetPoint("CENTER")
+        button:SetFontString(buttonText)
+        button:SetNormalFontObject(GameFontNormalMed2)
+        button:SetHighlightFontObject(GameFontHighlightMed2)
+        button:SetDisabledFontObject(GameFontDisableMed2)
+        button:SetText(label)
+        buttonText:ClearAllPoints()
+        buttonText:SetPoint("CENTER", button, "CENTER", 0, 3)
+        local highlight = button:CreateTexture(nil, "HIGHLIGHT")
+        highlight:SetAllPoints()
+        highlight:SetTexture("Interface\\Buttons\\UI-Panel-Button-Highlight")
+        highlight:SetTexCoord(0, 0.625, 0, 0.6875)
+        highlight:SetBlendMode("ADD")
+        button:SetHighlightTexture(highlight)
+        local function SetButtonState(state)
+            for part, texture in pairs(parts) do
+                local coords = shopButtonCoords[state][part]
+                texture:SetTexCoord(coords[1], coords[2],
+                    coords[3], coords[4])
+            end
+        end
+        SetButtonState("up")
+        button:SetScript("OnShow", function() SetButtonState("up") end)
+        button:SetScript("OnMouseDown", function() SetButtonState("down") end)
+        button:SetScript("OnMouseUp", function() SetButtonState("up") end)
+        return button
+    end
+
+    local detailsButton = CreateShopButton(L.ACHIEVEMENT_REWARD_DETAILS)
     frame.DetailsButton = detailsButton
+
+    local officialButton = CreateShopButton(
+        L.ACHIEVEMENT_REWARD_OFFICIAL_UI)
+    officialButton:SetScript("OnClick", function(self)
+        if self.entry then
+            OpenRewardInCollections(self.entry)
+        end
+    end)
+    frame.OfficialButton = officialButton
 
     local details = CreateFrame("Frame", nil, frame)
     details:SetPoint("BOTTOMRIGHT", infoCard, "TOPRIGHT", 0, 4)
@@ -547,6 +635,9 @@ UpdateAchievementRewardPanel = function(frame, achievementID)
         and rewardType ~= "mount" and rewardType ~= "pet"
         and not centeredPreview
     rewardFrame.DetailsButton:SetShown(showDetails)
+    local showOfficial = rewardType == "mount" or rewardType == "pet"
+    rewardFrame.OfficialButton:SetShown(showOfficial)
+    rewardFrame.OfficialButton.entry = showOfficial and primaryEntry or nil
     rewardFrame.DetailsPanel:Hide()
     rewardFrame.DetailsPanel.DetailsText:SetText(fullDescription)
     rewardFrame.DetailsPanel:SetHeight(math.max(40,
@@ -626,8 +717,9 @@ UpdateAchievementRewardPanel = function(frame, achievementID)
     rewardFrame.Description:SetPoint("TOPRIGHT", rewardFrame.InfoCard,
         "TOPRIGHT", -10, -summaryTop)
     rewardFrame.Description:SetHeight(40)
-    rewardFrame.InfoCard:SetHeight(math.max(showDetails and 148 or 120,
-        summaryTop + 40 + (showDetails and 32 or 12)))
+    local hasCardButton = showOfficial or showDetails
+    rewardFrame.InfoCard:SetHeight(math.max(hasCardButton and 163 or 120,
+        summaryTop + 40 + (hasCardButton and 55 or 12)))
     rewardFrame.PreviousReward:SetShown(hasMultipleEntries)
     rewardFrame.PreviousReward:SetEnabled(rewardFrame.entryIndex > 1)
     rewardFrame.NextReward:SetShown(hasMultipleEntries)

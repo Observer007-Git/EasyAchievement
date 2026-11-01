@@ -2,6 +2,7 @@ local settingSanitizers = {}
 local menuCount = 0
 local menuActions = {}
 local registeredEventHandlers = {}
+local savedATTPosition
 local savedGetTime = GetTime
 local rewardTestTime = 0
 GetTime = function() return rewardTestTime end
@@ -77,6 +78,9 @@ end
 function Addon:GetSetting(key)
     if key == "achievementPopupIDs" then
         return {}
+    end
+    if key == "achievementATTPopupPosition" then
+        return savedATTPosition
     end
 end
 
@@ -268,9 +272,39 @@ assert(not AchievementUI.SetTextureAtlas({
     "texture atlas helper did not allow callers to use their fallback")
 C_Texture = nil
 local openedATTQuery
+local attWindow
+Addon.Anchors = {
+    SavePosition = function(_, _, key)
+        assert(key == "achievementATTPopupPosition")
+        savedATTPosition = { x = 0.7, y = 0.6 }
+    end,
+    Position = function(_, window, key)
+        assert(key == "achievementATTPopupPosition")
+        window.positioned = true
+    end,
+}
 AllTheThings = {
+    Windows = {},
     CreatePopoutForSearch = function(query)
         openedATTQuery = query
+        attWindow = {
+            strata = "MEDIUM", shown = true,
+            GetFrameStrata = function(self) return self.strata end,
+            SetFrameStrata = function(self, value) self.strata = value end,
+            HookScript = function(self, script, callback)
+                self.hooks = self.hooks or {}
+                self.hooks[script] = self.hooks[script] or {}
+                table.insert(self.hooks[script], callback)
+            end,
+            FireScript = function(self, script)
+                for _, callback in ipairs(self.hooks[script] or {}) do
+                    callback(self)
+                end
+            end,
+            IsShown = function(self) return self.shown end,
+            Raise = function(self) self.raised = true end,
+        }
+        AllTheThings.Windows[query] = attWindow
     end,
 }
 assert(AchievementUI.CanOpenAchievementATTGuide(),
@@ -278,6 +312,18 @@ assert(AchievementUI.CanOpenAchievementATTGuide(),
 assert(AchievementUI.OpenAchievementATTGuide(2468)
     and openedATTQuery == "achievementID:2468",
     "ATT guide did not open the requested achievement")
+assert(attWindow.strata == "FULLSCREEN_DIALOG" and attWindow.raised,
+    "ATT guide must open above the achievement panel")
+attWindow:FireScript("OnMouseUp")
+assert(savedATTPosition and savedATTPosition.x == 0.7,
+    "moving an ATT guide must save the shared position")
+attWindow:FireScript("OnHide")
+attWindow.shown = false
+assert(attWindow.strata == "MEDIUM",
+    "ATT guide must restore its original layer when closed")
+assert(AchievementUI.OpenAchievementATTGuide(1357)
+    and attWindow.positioned,
+    "another achievement's ATT guide must reuse the saved position")
 AchievementUI.OpenAchievementContextMenu(button, 2468)
 assert(type(menuActions.att) == "function",
     "achievement context menu did not include the ATT guide")

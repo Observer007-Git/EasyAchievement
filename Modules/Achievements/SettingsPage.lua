@@ -283,27 +283,41 @@ local function BuildSettingsPage(frame)
         end)
         rows[option.key] = row
     end
+    local gameVersionLabel = page:CreateFontString(nil, "OVERLAY",
+        "GameFontHighlightSmall")
+    gameVersionLabel:SetPoint("BOTTOMLEFT", page, "BOTTOMLEFT", 16, 48)
+    gameVersionLabel:SetText(L.ACHIEVEMENT_GAME_VERSION:match("^(.-)%%s$"))
+    local dataVersionLabel = page:CreateFontString(nil, "OVERLAY",
+        "GameFontHighlightSmall")
+    dataVersionLabel:SetPoint("BOTTOMLEFT", page, "BOTTOMLEFT", 16, 30)
+    dataVersionLabel:SetText(L.ACHIEVEMENT_DATA_VERSION:match("^(.-)%%s$"))
+    local addonVersionLabel = page:CreateFontString(nil, "OVERLAY",
+        "GameFontHighlightSmall")
+    addonVersionLabel:SetPoint("BOTTOMLEFT", page, "BOTTOMLEFT", 16, 12)
+    addonVersionLabel:SetText(L.ACHIEVEMENT_ADDON_VERSION:match(
+        "^(.-)V%%s$"))
+    local valueX = 22 + math.max(gameVersionLabel:GetStringWidth(),
+        dataVersionLabel:GetStringWidth(),
+        addonVersionLabel:GetStringWidth())
     local gameVersion = page:CreateFontString(nil, "OVERLAY",
         "GameFontHighlightSmall")
-    gameVersion:SetPoint("BOTTOMLEFT", page, "BOTTOMLEFT", 16, 48)
+    gameVersion:SetPoint("BOTTOMLEFT", page, "BOTTOMLEFT", valueX, 48)
     local version, build = GetBuildInfo()
     local fullVersion = version .. "." .. build
-    gameVersion:SetText(string.format(L.ACHIEVEMENT_GAME_VERSION,
-        fullVersion))
+    gameVersion:SetText(fullVersion)
     page.GameVersion = gameVersion
     local dataVersion = page:CreateFontString(nil, "OVERLAY",
         "GameFontHighlightSmall")
-    dataVersion:SetPoint("BOTTOMLEFT", page, "BOTTOMLEFT", 16, 30)
-    dataVersion:SetText(string.format(L.ACHIEVEMENT_DATA_VERSION,
-        (fullVersion == Addon.AchievementRewardDatabase.build
-            and "|cff40d940" or "|cffff4040")
-            .. Addon.AchievementRewardDatabase.build .. "|r"))
+    dataVersion:SetPoint("BOTTOMLEFT", page, "BOTTOMLEFT", valueX, 30)
+    dataVersion:SetText((fullVersion == Addon.AchievementRewardDatabase.build
+        and "|cff40d940" or "|cffff4040")
+        .. Addon.AchievementRewardDatabase.build .. "|r")
     page.DataVersion = dataVersion
     local addonVersion = page:CreateFontString(nil, "OVERLAY",
         "GameFontHighlightSmall")
-    addonVersion:SetPoint("BOTTOMLEFT", page, "BOTTOMLEFT", 16, 12)
-    addonVersion:SetText(string.format(L.ACHIEVEMENT_ADDON_VERSION,
-        C_AddOns.GetAddOnMetadata(addonName, "Version")))
+    addonVersion:SetPoint("BOTTOMLEFT", page, "BOTTOMLEFT", valueX + 2, 12)
+    addonVersion:SetText("V" .. C_AddOns.GetAddOnMetadata(addonName,
+        "Version"))
     page.AddonVersion = addonVersion
     page.selectedKey = "card"
     page.SettingsRows = rows

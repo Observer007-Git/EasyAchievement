@@ -117,21 +117,61 @@ function CanOpenAchievementATTGuide()
     return GetAchievementATTApp() ~= nil
 end
 
+local ATT_POSITION_SETTING = "achievementATTPopupPosition"
+Addon:RegisterSetting(ATT_POSITION_SETTING, nil, Addon.PositionSetting)
+
+function RaiseAchievementExternalWindow(window)
+    if not window.EasyAchievementPreviousStrata then
+        window.EasyAchievementPreviousStrata = window:GetFrameStrata()
+        window:HookScript("OnHide", function(self)
+            self:SetFrameStrata(self.EasyAchievementPreviousStrata)
+        end)
+    end
+    window:SetFrameStrata("FULLSCREEN_DIALOG")
+    window:Raise()
+end
+
+local function PositionAchievementATTWindow(window)
+    if not window.EasyAchievementATTPositionHooked then
+        window.EasyAchievementATTPositionHooked = true
+        local function SavePosition(self)
+            Addon.Anchors:SavePosition(self, ATT_POSITION_SETTING)
+        end
+        window:HookScript("OnMouseUp", SavePosition)
+        window:HookScript("OnHide", SavePosition)
+    end
+    if Addon:GetSetting(ATT_POSITION_SETTING) then
+        Addon.Anchors:Position(window, ATT_POSITION_SETTING)
+    end
+    RaiseAchievementExternalWindow(window)
+end
+
 function OpenAchievementATTGuide(achievementID)
     local app = GetAchievementATTApp()
     if not app or not IsAchievementValid(achievementID) then
         return false
     end
+    local shownWindows = {}
+    for _, window in pairs(app.Windows or {}) do
+        shownWindows[window] = window:IsShown()
+    end
     if app.CreatePopoutForSearch then
         app.CreatePopoutForSearch("achievementID:" .. achievementID)
-        return true
+    else
+        local group = app.SearchForObject("achievementID", achievementID, "key")
+            or app.SearchForObject("achievementID", achievementID, "field")
+        if not group then
+            return false
+        end
+        app:CreateMiniListForGroup(group)
     end
-    local group = app.SearchForObject("achievementID", achievementID, "key")
-        or app.SearchForObject("achievementID", achievementID, "field")
-    if not group then
-        return false
+    for _, window in pairs(app.Windows or {}) do
+        if shownWindows[window] == nil or not shownWindows[window]
+            and window:IsShown()
+        then
+            PositionAchievementATTWindow(window)
+        end
     end
-    app:CreateMiniListForGroup(group)
     return true
 end
 
