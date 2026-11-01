@@ -321,18 +321,33 @@ function CreateAchievementTreeFrame()
     local fitMotion = fitVisual:CreateAnimationGroup()
     fitMotion:SetLooping("REPEAT")
     local rise = fitMotion:CreateAnimation("Translation")
-    rise:SetOffset(0, 3)
+    rise:SetOffset(-3, 0)
     rise:SetDuration(0.45)
     rise:SetSmoothing("IN_OUT")
     rise:SetOrder(1)
     local fall = fitMotion:CreateAnimation("Translation")
-    fall:SetOffset(0, -3)
+    fall:SetOffset(3, 0)
     fall:SetDuration(0.45)
     fall:SetSmoothing("IN_OUT")
     fall:SetOrder(2)
     fitButton.HoverMotion = fitMotion
+    fitMotion:SetScript("OnLoop", function(self)
+        fitButton.motionLoops = fitButton.motionLoops + 1
+        if fitButton.motionLoops >= 3 and not fitButton.isHovered then
+            self:Stop()
+        end
+    end)
+    fitButton:SetScript("OnShow", function(self)
+        self.motionLoops = 0
+        self.HoverMotion:Play()
+    end)
+    fitButton:SetScript("OnHide", function(self)
+        self.isHovered = false
+        self.HoverMotion:Stop()
+    end)
     fitButton:SetScript("OnEnter", function(self)
         self:SetAlpha(1)
+        self.isHovered = true
         self.HoverMotion:Play()
         GameTooltip:SetOwner(self, "ANCHOR_LEFT")
         GameTooltip:SetText(L.ACHIEVEMENT_TREE_FIT)
@@ -340,6 +355,7 @@ function CreateAchievementTreeFrame()
     end)
     fitButton:SetScript("OnLeave", function(self)
         self:SetAlpha(0.7)
+        self.isHovered = false
         self.HoverMotion:Stop()
         GameTooltip:Hide()
     end)

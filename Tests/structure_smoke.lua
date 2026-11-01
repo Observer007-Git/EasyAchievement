@@ -352,6 +352,11 @@ assert(windowSource:find('fitButton:SetPoint("RIGHT", frame, "RIGHT", -4, 0)',
     and not windowSource:find('local toggleBackground', 1, true)
     and not windowSource:find('local fitHighlight =', 1, true)
     and windowSource:find('fitMotion:SetLooping("REPEAT")', 1, true)
+    and windowSource:find('rise:SetOffset(-3, 0)', 1, true)
+    and windowSource:find('fall:SetOffset(3, 0)', 1, true)
+    and windowSource:find('fitMotion:SetScript("OnLoop"', 1, true)
+    and windowSource:find('fitButton.motionLoops >= 3', 1, true)
+    and windowSource:find('fitButton:SetScript("OnShow"', 1, true)
     and windowSource:find('self.HoverMotion:Play()', 1, true)
     and windowSource:find('self.HoverMotion:Stop()', 1, true)
     and not windowSource:find('local toggleHighlight =', 1, true),
