@@ -102,6 +102,8 @@ assert(launcherSource:find(
         1, true)
     and launcherSource:find('button.DoingMenu:SetShown(self:GetText() == ""',
         1, true)
+    and launcherSource:find('separatorBase:SetColorTexture(0.38, 0.28, 0.12, 0.65)',
+        1, true)
     and launcherSource:find('"achievementDoing"', 1, true)
     and launcherSource:find('ShowAchievementPopup(self.achievementID)', 1, true)
     and launcherSource:find('OpenAchievementATTGuide(self.achievementID)',
@@ -210,9 +212,9 @@ assert(searchSource:find(
         1, true)
     and searchSource:find('separatorBase:SetPoint("TOPRIGHT", row, "TOPRIGHT")',
         1, true)
-    and searchSource:find('separator:SetPoint("LEFT", row, "TOPLEFT")',
+    and searchSource:find('separator:SetPoint("LEFT", row, "TOPLEFT", -20, 0)',
         1, true)
-    and searchSource:find('separator:SetPoint("RIGHT", row, "TOPRIGHT")',
+    and searchSource:find('separator:SetPoint("RIGHT", row, "TOPRIGHT", 20, 0)',
         1, true)
     and searchSource:find('SetTextureAtlas(separator, "AftLevelup-GlowLine")',
         1, true)
@@ -234,7 +236,8 @@ assert(searchSource:find(
 assert(searchSource:find('messageRow:SetHeight(28)', 1, true)
     and searchSource:find('messageRow:EnableMouse(false)', 1, true)
     and searchSource:find('message:SetPoint("LEFT", messageRow, "LEFT", inputOffsetX, 0)', 1, true)
-    and searchSource:find('messageSeparator:SetPoint("LEFT", messageRow, "TOPLEFT")', 1, true)
+    and searchSource:find('messageSeparator:SetPoint("LEFT", messageRow, "TOPLEFT", -20, 0)', 1, true)
+    and searchSource:find('messageSeparator:SetPoint("RIGHT", messageRow, "TOPRIGHT", 20, 0)', 1, true)
     and searchSource:find('messageRow:SetShown(shown == 0)', 1, true)
     and searchSource:find('math.max(shown, 1) * 28', 1, true),
     "launcher empty-search message must occupy one non-clickable result row")
