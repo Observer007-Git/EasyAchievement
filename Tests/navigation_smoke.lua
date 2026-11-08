@@ -205,6 +205,7 @@ function addon:RegisterEvent() end
 function addon.NumberSetting() return function(value) return value end end
 function addon.BooleanSetting(value) return not not value end
 ui.RemoveAchievementDoing = function() end
+SlashCmdList = SlashCmdList or {}
 assert(loadfile("EasyAchievement/Modules/Achievements/Launcher.lua"))(
     "EasyAchievement", addon)
 local shield = {
@@ -262,6 +263,11 @@ assert(frame:IsShown() and frame.sourceAchievementID == 106
 ui.OpenAchievementPanel()
 assert(frame.historyIndex == previousIndex and #frame.history == previousCount,
     "opening an already visible panel appended history")
+frame:Hide()
+_G.EasyAchievement_OnAddonCompartmentClick("EasyAchievement", "LeftButton")
+assert(frame:IsShown() and frame.historyIndex == previousIndex
+    and #frame.history == previousCount,
+    "addon compartment did not reopen the current panel without changing navigation")
 
 -- Exercise real node click handlers and menus, with only drawing APIs mocked.
 local function Widget()

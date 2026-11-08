@@ -52,6 +52,7 @@ ui.SetAchievementShieldAtlas = function(texture, width)
     return true
 end
 ui.CreateAchievementShieldBrightness = function() end
+ui.NormalizeAchievementCardAppearance = function() end
 ui.UpdateAchievementRewardCategoryRail = function() end
 ui.LoadAchievementUI = function() return achievementUILoaded end
 

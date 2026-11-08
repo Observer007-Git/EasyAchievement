@@ -183,6 +183,7 @@ assert(loadfile("EasyAchievement/Modules/AchievementTreeLayout.lua"))(
     "EasyAchievement", Addon)
 assert(loadfile("EasyAchievement/Modules/AchievementUI.lua"))(
     "EasyAchievement", Addon)
+SlashCmdList = {}
 local achievementUIModules = {
     "Core.lua",
     "Navigation.lua",
@@ -691,6 +692,17 @@ assert(openedChildID == 4321,
     "achievement child did not open its achievement card")
 
 local popupObjectives = { metas = { childButton } }
+local function AppearanceTexture()
+    return {
+        SetTexture = function(self, value) self.texture = value end,
+        SetTexCoord = function() end,
+        SetPoint = function() end,
+        SetAlpha = function() end,
+        SetVertexColor = function() end,
+        Hide = function(self) self.hidden = true end,
+    }
+end
+childButton.Border = AppearanceTexture()
 local popupCard = {
     Init = function() end,
     GetHighlightTexture = function() end,
@@ -700,7 +712,19 @@ local popupCard = {
         return 142
     end,
     Expand = function() end,
+    Icon = { frame = AppearanceTexture() },
+    TitleBar = AppearanceTexture(),
+    BottomTsunami1 = AppearanceTexture(),
+    TopTsunami1 = AppearanceTexture(),
+    Glow = AppearanceTexture(),
+    Tabard = AppearanceTexture(),
+    GuildCornerL = AppearanceTexture(),
+    GuildCornerR = AppearanceTexture(),
+    Background = AppearanceTexture(),
+    Shield = { Points = AppearanceTexture() },
+    SetBackdropBorderColor = function() end,
 }
+ACHIEVEMENT_RED_BORDER_COLOR = { GetRGB = function() return 1, 0, 0 end }
 function popupObjectives:GetParent() return popupCard end
 local popupFrame = {
     Card = popupCard,
@@ -718,6 +742,11 @@ for _, childID in ipairs({ 4321, 4322 }) do
     childButton.id = childID
     openedChildID = nil
     AchievementUI.PopulateAchievementPopup(popupFrame, { id = 1234 })
+    assert(popupCard.Background.texture
+        == "Interface\\AchievementFrame\\UI-Achievement-Parchment-Horizontal-Desaturated"
+        and popupCard.Tabard.hidden and popupCard.GuildCornerL.hidden
+        and popupCard.GuildCornerR.hidden,
+        "popup card retained the official guild achievement appearance")
     assert(childButton.scripts.OnClick,
         "popup population did not bind achievement child navigation")
     childButton.scripts.OnClick(childButton, "LeftButton")

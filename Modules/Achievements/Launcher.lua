@@ -270,14 +270,14 @@ end
 local function CreateAchievementDoingMenu(owner)
     local menu = CreateFrame("Frame", nil, UIParent)
     local inputOffsetX = (owner:GetWidth() + owner.Icon:GetWidth()) / 2 + 1
-    menu:SetWidth(owner.QuickSearch:GetWidth() + inputOffsetX)
+    menu:SetWidth(owner.QuickSearch:GetWidth() + inputOffsetX - 2)
     menu:SetFrameStrata("DIALOG")
     menu:SetFrameLevel(owner:GetFrameLevel() + 10)
     menu:SetClampedToScreen(true)
     menu:EnableMouse(true)
     menu:EnableMouseWheel(true)
     menu:SetPoint("TOPLEFT", owner.QuickSearch.SearchBox, "BOTTOMLEFT",
-        -inputOffsetX, -3)
+        -inputOffsetX + 1, -3)
     local background = menu:CreateTexture(nil, "BACKGROUND")
     background:SetAllPoints()
     background:SetColorTexture(0.025, 0.025, 0.025, 0.96)
@@ -692,7 +692,10 @@ Addon:RegisterEvent("PLAYER_LOGIN", function()
 end)
 
 _G.SLASH_EASYACHIEVEMENT1 = "/eat"
-_G.SlashCmdList = _G.SlashCmdList or {}
 _G.SlashCmdList.EASYACHIEVEMENT = function()
+    OpenAchievementPanel()
+end
+
+_G.EasyAchievement_OnAddonCompartmentClick = function()
     OpenAchievementPanel()
 end

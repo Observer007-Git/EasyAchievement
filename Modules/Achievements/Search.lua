@@ -545,13 +545,14 @@ function CreateAchievementLauncherSearch(anchor, icon)
 
     local resultsBackground = panel:CreateTexture(nil, "BACKGROUND")
     resultsBackground:SetPoint("TOPLEFT", search, "BOTTOMLEFT",
-        -inputOffsetX, -resultsGap)
-    resultsBackground:SetPoint("BOTTOMRIGHT", panel, "BOTTOMRIGHT", 0, 4)
+        -inputOffsetX + 1, -resultsGap)
+    resultsBackground:SetPoint("BOTTOMRIGHT", panel, "BOTTOMRIGHT", -1, 4)
     resultsBackground:SetColorTexture(0.025, 0.025, 0.025, 0.96)
     local roundedBottom = panel:CreateTexture(nil, "BACKGROUND", nil, -1)
     roundedBottom:SetPoint("BOTTOMLEFT", resultsBackground,
         "BOTTOMLEFT", 0, -4)
-    roundedBottom:SetSize(inputOffsetX + panel:GetWidth(), anchorHeight)
+    roundedBottom:SetSize(inputOffsetX + panel:GetWidth() - 2,
+        anchorHeight)
     if not SetTextureAtlas(roundedBottom, searchBackground:GetAtlas()) then
         roundedBottom:SetTexture(searchBackground:GetTexture())
         roundedBottom:SetTexCoord(searchBackground:GetTexCoord())

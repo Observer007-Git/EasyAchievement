@@ -43,6 +43,7 @@ end
 function pinMethods:SetPosition(x, y) self.x, self.y = x, y end
 function pinMethods:SetAtlas(atlas) self.atlas = atlas end
 function pinMethods:SetText(value) self.text = value end
+function pinMethods:SetTextColor(...) self.textColor = { ... } end
 for _, method in ipairs({ "EnableMouse", "UseFrameLevelType",
     "SetScalingLimits", "SetSize", "SetAllPoints", "SetPoint",
     "SetShown", "RegisterForClicks", "Show", "Hide",
@@ -100,7 +101,10 @@ assert(pin:IsSuppressed() == false,
 pin:OnAcquired(markers.GetAll()[1], 1)
 assert(pin.x == 0.225 and pin.y == 0.41
     and pin.icon.atlas == "XMarksTheSpot"
-    and pin.label.text == "Test pin",
+    and pin.label.text == "Test pin"
+    and pin.label.textColor[1] == 0.25
+    and pin.label.textColor[2] == 1
+    and pin.label.textColor[3] == 0.35,
     "world map pin did not use the saved position and atlas")
 local editedIndex
 markers.OpenEditor = function(index) editedIndex = index end

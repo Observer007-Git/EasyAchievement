@@ -80,6 +80,7 @@ local function BuildSettingsPage(frame)
     if sample then
         card.EasyAchievementElementData = { id = sample.id }
         card:Init(card.EasyAchievementElementData)
+        NormalizeAchievementCardAppearance(card)
     end
     page.CardPreview = card
 
@@ -103,6 +104,7 @@ local function BuildSettingsPage(frame)
     if sample then
         popupCard.EasyAchievementElementData = { id = sample.id }
         popupCard:Init(popupCard.EasyAchievementElementData)
+        NormalizeAchievementCardAppearance(popupCard)
     end
     page.PopupPreview = popup
     page:HookScript("OnHide", function() popup:Hide() end)

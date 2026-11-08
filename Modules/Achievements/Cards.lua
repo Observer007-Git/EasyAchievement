@@ -28,6 +28,56 @@ function FormatAchievementCardDate(card, data)
     card.DateCompleted:Show()
 end
 
+-- Blizzard's AchievementTemplate reads the official window's guild tab state.
+-- Restore the ordinary card artwork for cards owned by this addon.
+function NormalizeAchievementCardAppearance(card)
+    local borders = "Interface\\AchievementFrame\\UI-Achievement-Borders"
+    local iconFrame = card.Icon.frame
+    iconFrame:SetTexture("Interface\\AchievementFrame\\UI-Achievement-IconFrame")
+    iconFrame:SetTexCoord(0, 0.5625, 0, 0.5625)
+    iconFrame:SetPoint("CENTER", -1, 2)
+    card.TitleBar:SetAlpha(0.8)
+    card.BottomTsunami1:SetTexture(borders)
+    card.BottomTsunami1:SetTexCoord(0, 0.72265, 0.51953125, 0.58203125)
+    card.BottomTsunami1:SetAlpha(0.35)
+    card.TopTsunami1:SetTexture(borders)
+    card.TopTsunami1:SetTexCoord(0.72265, 0, 0.58203125, 0.51953125)
+    card.TopTsunami1:SetAlpha(0.3)
+    card.Glow:SetTexCoord(0, 1, 0.00390625, 0.25390625)
+    card.Tabard:Hide()
+    card.GuildCornerL:Hide()
+    card.GuildCornerR:Hide()
+
+    if card.completed then
+        card.Background:SetTexture("Interface\\AchievementFrame\\UI-Achievement-Parchment-Horizontal")
+        if card.accountWide then
+            card.TitleBar:SetTexture("Interface\\AchievementFrame\\AccountLevel-AchievementHeader")
+            card.TitleBar:SetTexCoord(0, 1, 0, 0.375)
+            card:SetBackdropBorderColor(ACHIEVEMENT_BLUE_BORDER_COLOR:GetRGB())
+            card.saturatedStyle = "account"
+        else
+            card.TitleBar:SetTexture(borders)
+            card.TitleBar:SetTexCoord(0, 1, 0.66015625, 0.73828125)
+            card:SetBackdropBorderColor(ACHIEVEMENT_RED_BORDER_COLOR:GetRGB())
+            card.saturatedStyle = "normal"
+        end
+        card.Shield.Points:SetVertexColor(1, 1, 1)
+    else
+        card.Background:SetTexture("Interface\\AchievementFrame\\UI-Achievement-Parchment-Horizontal-Desaturated")
+        if card.accountWide then
+            card.TitleBar:SetTexture("Interface\\AchievementFrame\\AccountLevel-AchievementHeader")
+            card.TitleBar:SetTexCoord(0, 1, 0.40625, 0.78125)
+        else
+            card.TitleBar:SetTexture(borders)
+            card.TitleBar:SetTexCoord(0, 1, 0.91796875, 0.99609375)
+        end
+    end
+    for _, meta in ipairs(card:GetObjectiveFrame().metas or {}) do
+        meta.Border:SetTexture("Interface\\AchievementFrame\\UI-Achievement-Progressive-IconBorder")
+        meta.Border:SetTexCoord(0, 0.65625, 0, 0.65625)
+    end
+end
+
 function ConfigureAchievementCardChildLinks(objectivesFrame)
     for _, button in ipairs(objectivesFrame.metas or {}) do
         button:RegisterForClicks("LeftButtonUp", "RightButtonUp")
@@ -219,6 +269,7 @@ function PopulateAchievementPopup(frame, data)
     local height = card:DisplayObjectives(data.id, card.completed)
     ConfigureAchievementCardChildLinks(card:GetObjectiveFrame())
     card:Expand(height)
+    NormalizeAchievementCardAppearance(card)
     FormatAchievementCardDate(card, data)
     frame.achievementID = data.id
     ApplyAchievementPopupScale(GetAchievementPopupScale())
@@ -685,6 +736,7 @@ function ShowAchievementCardInTree(frame, achievementID, progressOnly)
         local height = card:DisplayObjectives(data.id, card.completed)
         ConfigureAchievementCardChildLinks(card:GetObjectiveFrame())
         card:Expand(height)
+        NormalizeAchievementCardAppearance(card)
         FormatAchievementCardDate(card, data)
     end
     if not progressOnly then

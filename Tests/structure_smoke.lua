@@ -35,6 +35,9 @@ assert(rewardDatabasePosition < rewardDatabaseAPIPosition
 assert(tocSource:find("Modules/Achievements/Launcher.lua", 1, true)
         < tocSource:find("Modules/Achievements/SettingsPage.lua", 1, true),
     "settings preview callbacks must load after their settings are registered")
+assert(tocSource:find(
+    "## AddonCompartmentFunc: EasyAchievement_OnAddonCompartmentClick",
+    1, true), "official addon compartment entry is missing")
 
 assert(not tocSource:find("Modules/Achievements%.lua"),
     "legacy monolithic achievement module is still loaded")
@@ -113,6 +116,7 @@ assert(launcherSource:find(
     and launcherSource:find('"achievementShowMinimapIcon"', 1, true)
     and launcherSource:find('_G.SLASH_EASYACHIEVEMENT1 = "/eat"', 1,
         true)
+    and not launcherSource:find('_G.SlashCmdList =', 1, true)
     and launcherSource:find("CreateAchievementMinimapButton()", 1, true)
     and not launcherSource:find("CreateAchievementFavoritesPanel(self)", 1,
         true),
@@ -192,9 +196,9 @@ assert(searchSource:find(
         'resultsBackground:SetPoint("TOPLEFT", search, "BOTTOMLEFT"',
         1, true)
     and searchSource:find(
-        'resultsBackground:SetPoint("BOTTOMRIGHT", panel, "BOTTOMRIGHT", 0, 4)',
+        'resultsBackground:SetPoint("BOTTOMRIGHT", panel, "BOTTOMRIGHT", -1, 4)',
         1, true)
-    and searchSource:find('roundedBottom:SetSize(inputOffsetX + panel:GetWidth(), anchorHeight)',
+    and searchSource:find('roundedBottom:SetSize(inputOffsetX + panel:GetWidth() - 2,',
         1, true)
     and searchSource:find('SetTextureAtlas(roundedBottom, searchBackground:GetAtlas())',
         1, true)

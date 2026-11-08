@@ -8,6 +8,7 @@
 ## SavedVariables: EasyAchievementDB
 ## OptionalDeps: AllTheThings
 ## IconAtlas: UI-HUD-MicroMenu-Achievements-Mouseover
+## AddonCompartmentFunc: EasyAchievement_OnAddonCompartmentClick
 
 Core/Database.lua
 Data/AchievementRewardDatabase.lua
