@@ -13,4 +13,6 @@ for directory in Config Core Data Locales Modules; do
         "${TARGET_DIR}/${directory}/"
 done
 
+find "${TARGET_DIR}" -type f -name '.DS_Store' -exec rm -f {} +
+
 echo "Synced EasyAchievement runtime files to ${TARGET_DIR}"
