@@ -115,7 +115,7 @@ function CreateAchievementTreeFrame()
     frame:SetPoint("CENTER")
     frame:SetFrameStrata("DIALOG")
     frame:SetToplevel(true)
-    frame:SetClampedToScreen(true)
+    frame:SetClampedToScreen(false)
     frame:SetResizable(true)
     frame:SetResizeBounds(MIN_FRAME_WIDTH, MIN_FRAME_HEIGHT,
         MAX_FRAME_WIDTH, MAX_FRAME_HEIGHT)
