@@ -561,9 +561,11 @@ function CreateAchievementLauncherSearch(anchor, icon)
     local resultsEdges = {}
     for _, side in ipairs({ "LEFT", "RIGHT" }) do
         local edge = panel:CreateTexture(nil, "BORDER")
-        edge:SetPoint("TOP" .. side, resultsBackground, "TOP" .. side)
+        local offsetX = side == "LEFT" and -0.8 or 0.8
+        edge:SetPoint("TOP" .. side, resultsBackground, "TOP" .. side,
+            offsetX, 0)
         edge:SetPoint("BOTTOM" .. side, resultsBackground,
-            "BOTTOM" .. side)
+            "BOTTOM" .. side, offsetX, 0)
         edge:SetWidth(1)
         edge:SetColorTexture(0.38, 0.35, 0.29, 0.9)
         edge:Hide()

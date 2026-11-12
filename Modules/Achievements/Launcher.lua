@@ -283,8 +283,9 @@ local function CreateAchievementDoingMenu(owner)
     background:SetColorTexture(0.025, 0.025, 0.025, 0.96)
     for _, side in ipairs({ "LEFT", "RIGHT" }) do
         local edge = menu:CreateTexture(nil, "BORDER")
-        edge:SetPoint("TOP" .. side)
-        edge:SetPoint("BOTTOM" .. side)
+        local offsetX = side == "LEFT" and -0.8 or 0.8
+        edge:SetPoint("TOP" .. side, offsetX, 0)
+        edge:SetPoint("BOTTOM" .. side, offsetX, 0)
         edge:SetWidth(1)
         edge:SetColorTexture(0.38, 0.35, 0.29, 0.9)
     end
