@@ -4,7 +4,7 @@
 ## Notes: An independent achievement tree, card, reward preview, favorites, and search addon.
 ## Notes-zhCN: 独立的成就树、卡片、奖励预览、收藏与搜索插件。
 ## Author: Observer007
-## Version: 1.0.0
+## Version: 1.0.2
 ## SavedVariables: EasyAchievementDB
 ## OptionalDeps: AllTheThings
 ## IconAtlas: UI-HUD-MicroMenu-Achievements-Mouseover
@@ -21,6 +21,7 @@ Core/MapSearch.lua
 Core/MapMarkers.lua
 Locales/enUS.lua
 Locales/zhCN.lua
+Data/Changelog.lua
 Core/Anchors.lua
 Modules/AchievementTreeData.lua
 Modules/AchievementRewards.lua

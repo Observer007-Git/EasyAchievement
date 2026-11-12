@@ -21,6 +21,10 @@ end
 
 -- The page owns navigation meaning; frame fields are renderer-facing aliases.
 function Navigation.ApplyPage(frame, page)
+    if frame.RewardPointsPositive then
+        frame.RewardPointsPositive:Hide()
+        frame.RewardPointsZero:Hide()
+    end
     if frame.CatalogFallbackCard then
         frame.CatalogFallbackCard:Hide()
     end

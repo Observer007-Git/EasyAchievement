@@ -159,6 +159,7 @@ function CreateAchievementTreeFrame()
         -2, 4)
     portraitIcon:AddMaskTexture(portraitMask)
     frame.PortraitIcon = portraitIcon
+    frame.PortraitMask = portraitMask
 
     local headerRow = CreateFrame("Frame", nil, frame)
     headerRow:SetPoint("TOP", frame, "TOP", 0, 0)
@@ -294,6 +295,26 @@ function CreateAchievementTreeFrame()
     frame.TreeScaleMinus = scaleMinus
     frame.TreeScaleValue = scaleValue
     frame.TreeScalePlus = scalePlus
+
+    local function CreateRewardPointsFilter(labelKey, mode)
+        local button = CreateFrame("CheckButton", nil, frame,
+            "UICheckButtonTemplate")
+        button:SetSize(22, 22)
+        local label = button:CreateFontString(nil, "OVERLAY",
+            "GameFontNormalSmall")
+        label:SetPoint("LEFT", button, "RIGHT", 2, 0)
+        label:SetText(L[labelKey])
+        button.Label = label
+        button:SetScript("OnClick", function()
+            SetRewardCategoryPointsMode(frame, mode)
+        end)
+        button:Hide()
+        return button
+    end
+    frame.RewardPointsPositive = CreateRewardPointsFilter(
+        "ACHIEVEMENT_WITH_POINTS", "positive")
+    frame.RewardPointsZero = CreateRewardPointsFilter(
+        "ACHIEVEMENT_WITHOUT_POINTS", "zero")
 
     local scaleSlider = CreateFrame("Slider",
         "EasyAchievementTreeScaleSlider", frame,

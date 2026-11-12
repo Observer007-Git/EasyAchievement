@@ -415,18 +415,39 @@ LayoutAchievementTree = function(nodes, edges, root, preserveScroll, stats,
         frame.TreeScaleControls:SetPoint("RIGHT", frame,
             "TOPRIGHT", -24, -113)
     end
+    local showPointsFilter = categoryMode ~= nil
+        and categoryMode.key ~= "doing"
+    local pointsMode = Addon:GetSetting("achievementRewardPointsMode")
+    frame.RewardPointsPositive:SetChecked(pointsMode ~= "zero")
+    frame.RewardPointsZero:SetChecked(pointsMode == "zero")
+    frame.RewardPointsZero:ClearAllPoints()
+    frame.RewardPointsZero:SetPoint("RIGHT", frame.TreeScaleControls,
+        "LEFT", -8 - frame.RewardPointsZero.Label:GetStringWidth() - 2, 0)
+    frame.RewardPointsPositive:ClearAllPoints()
+    frame.RewardPointsPositive:SetPoint("RIGHT", frame.RewardPointsZero,
+        "LEFT", -8 - frame.RewardPointsPositive.Label:GetStringWidth() - 2, 0)
+    frame.RewardPointsPositive:SetShown(showPointsFilter)
+    frame.RewardPointsZero:SetShown(showPointsFilter)
     frame.Breadcrumb:ClearAllPoints()
     frame.Breadcrumb:SetPoint("LEFT", frame, "TOPLEFT",
         frame.breadcrumbLeftOffset, -113)
     frame.Breadcrumb:SetPoint("RIGHT", showIncompleteFilter
-        and frame.IncompleteOnly or frame.TreeScaleControls,
+        and frame.IncompleteOnly or showPointsFilter
+        and frame.RewardPointsPositive or frame.TreeScaleControls,
         "LEFT", -8, 0)
     local portraitIcon = frame.PortraitIcon
+    if frame.PortraitMask then
+        frame.PortraitMask:ClearAllPoints()
+        frame.PortraitMask:SetPoint("TOPLEFT", portraitIcon, "TOPLEFT", 2, 0)
+        frame.PortraitMask:SetPoint("BOTTOMRIGHT", portraitIcon,
+            "BOTTOMRIGHT", -2, 4)
+    end
     local hasCategoryAtlas = categoryMode and categoryMode.iconAtlas
         and SetTextureAtlas(portraitIcon, categoryMode.iconAtlas)
     portraitIcon:ClearAllPoints()
     if hasCategoryAtlas then
-        portraitIcon:SetPoint("CENTER", -1, -2)
+        portraitIcon:SetPoint("CENTER", categoryMode.key == "other"
+            and -2 or -1, categoryMode.key == "other" and -1 or -2)
         portraitIcon:SetSize(58, 58)
     else
         portraitIcon:SetPoint("CENTER", -1, -2)

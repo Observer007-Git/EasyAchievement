@@ -17,6 +17,9 @@ end }, L = setmetatable({
     return key
 end }), AchievementRewardDatabase = { build = "12.1.5.70575" } }
 function addon:GetSetting(key) return settings[key] end
+function addon:RegisterSetting(key, default)
+    if settings[key] == nil then settings[key] = default end
+end
 function addon:SetSetting(key, value)
     settings[key] = value
     for _, callback in ipairs(callbacks[key] or {}) do callback() end
@@ -29,6 +32,13 @@ assert(loadfile("EasyAchievement/Modules/AchievementUI.lua"))(
     "EasyAchievement", addon)
 local ui = addon.AchievementUI
 ui.L = addon.L
+assert(loadfile("EasyAchievement/Data/Changelog.lua"))(
+    "EasyAchievement", addon)
+addon.Changelog[3] = {
+    version = "0.9.0", date = "2026-10-01",
+    enUS = "Earlier English notes.",
+    zhCN = "较早版本中文说明。",
+}
 local achievementUILoaded = false
 ui.GetAchievementData = function(id)
     return id == 6 and { id = 6 } or nil
@@ -77,12 +87,17 @@ function methods:CreateTexture() return Widget() end
 function methods:CreateFontString() return Widget() end
 function methods:SetPoint(...) self.point = { ... } end
 function methods:GetStringWidth() return #(self.text or "") * 6 end
+function methods:GetStringHeight() return #(self.text or "") > 0 and 14 or 0 end
+function methods:GetWidth() return self.width or 500 end
+function methods:GetHeight() return self.height or 300 end
 function methods:SetSize(width, height)
     self.width, self.height = width, height
 end
-for _, name in ipairs({ "SetWidth", "SetHeight",
-    "SetColorTexture", "SetAllPoints", "SetTextColor",
-    "SetJustifyH", "SetWordWrap", "SetParent", "ClearAllPoints",
+function methods:SetWidth(width) self.width = width end
+function methods:SetHeight(height) self.height = height end
+function methods:SetScrollChild(child) self.scrollChild = child end
+for _, name in ipairs({ "SetColorTexture", "SetAllPoints", "SetTextColor",
+    "SetJustifyH", "SetJustifyV", "SetWordWrap", "SetParent", "ClearAllPoints",
     "EnableMouse", "SetFrameStrata", "SetFrameLevel",
     "SetTexture" }) do
     methods[name] = function() end
@@ -102,14 +117,19 @@ local page = Widget()
 GetBuildInfo = function() return "12.1.5", "70575" end
 C_AddOns = { GetAddOnMetadata = function(name, key)
     assert(name == "EasyAchievement" and key == "Version")
-    return "1.0.0"
+    return C_AddOns.version
 end }
+C_AddOns.version = "1.0.2"
+local locale = "enUS"
+GetLocale = function() return locale end
 InCombatLockdown = function() return false end
 IsAltKeyDown = function() return false end
 IsControlKeyDown = function() return true end
 IsShiftKeyDown = function() return false end
 IsMetaKeyDown = function() return false end
 local frame = { SettingsPanel = page, ScrollFrame = Widget(),
+    PortraitIcon = Widget(),
+    RewardCategoryRailButtons = { settings = { NewBadge = Widget() } },
     GetFrameLevel = function() return 1 end }
 for _, name in ipairs({ "HorizontalScroll", "BackButton", "ForwardButton",
     "Breadcrumb", "TreeScaleControls", "IncompleteOnly",
@@ -132,21 +152,59 @@ assert(frame.settingsPageShown and page.shown
     and page.SettingsRows.card.Selected.shown
     and page.CardPreview.shown and not page.PopupPreview.shown,
     "settings tab did not open the in-panel card preview")
+assert(page.SettingsRows.changelog.NewBadge.shown
+    and page.SettingsRows.changelog.NewBadge.height == 28
+    and frame.RewardCategoryRailButtons.settings.NewBadge.shown,
+    "unread update notes did not show both New badges")
+assert(page.ChangelogScroll.scrollChild
+    and page.ChangelogScroll.scrollChild.width > 0,
+    "update notes did not create a scrollable content frame")
+local newest = page.ChangelogText.text:find("V1.0.2", 1, true)
+local baseline = page.ChangelogText.text:find("V1.0.0", 1, true)
+local older = page.ChangelogText.text:find("V0.9.0  (2026-10-01)", 1, true)
+assert(newest and baseline and older and newest < baseline
+    and baseline < older
+    and page.ChangelogText.text:find("Earlier English notes.", 1, true),
+    "update notes did not render the full version history in order")
+page.SettingsRows.changelog.scripts.OnClick()
+assert(page.ChangelogScroll.shown
+    and page.ChangelogScroll.scrollChild.height
+        >= page.ChangelogScroll:GetHeight()
+    and settings.achievementReadChangelogVersion == "1.0.2"
+    and not page.SettingsRows.changelog.NewBadge.shown
+    and not frame.RewardCategoryRailButtons.settings.NewBadge.shown,
+    "opening update notes did not mark this version as read")
+C_AddOns.version = "1.0.3"
+ui.ShowAchievementSettingsPage(frame)
+assert(page.SettingsRows.changelog.NewBadge.shown
+    and frame.RewardCategoryRailButtons.settings.NewBadge.shown,
+    "a new addon version did not restore both New badges")
+C_AddOns.version = "1.0.2"
+page.SettingsRows.card.scripts.OnClick()
+assert(frame.PortraitIcon.atlas == "decor-controls-settings-active"
+    and frame.PortraitIcon.width == 58
+    and frame.PortraitIcon.point[2] == -2
+    and frame.PortraitIcon.point[3] == -1,
+    "settings portrait did not fit the circular frame")
 assert(page.CardPreview.initializedID == 6,
     "settings card preview must initialize after native UI loading")
 assert(page.LauncherPreview.atlas == "UI-HUD-MicroMenu-Achievements-Up",
     "launcher preview did not use the screen icon atlas")
 assert(page.GameVersion.text == "12.1.5.70575"
     and page.DataVersion.text == "|cff40d94012.1.5.70575|r"
-    and page.AddonVersion.text == "V1.0.0"
+    and page.AddonVersion.text == "V1.0.2"
     and page.GameVersion.point[4] == page.DataVersion.point[4]
     and page.DataVersion.point[4] + 2 == page.AddonVersion.point[4],
     "settings footer did not show the game and TOC versions")
 addon.AchievementRewardDatabase.build = "12.1.5.70576"
 page.SettingsRows = nil
+locale = "zhCN"
 ui.ShowAchievementSettingsPage(frame)
 assert(page.DataVersion.text == "|cffff404012.1.5.70576|r",
     "outdated data version must be shown in red")
+assert(page.ChangelogText.text:find("较早版本中文说明。", 1, true)
+    and not page.ChangelogText.text:find("Earlier English notes.", 1, true),
+    "update notes did not select the client's language")
 addon:SetSetting("achievementCardScale", 0.7)
 assert(page.CardPreview.scale == 0.7,
     "card preview did not react to live scale changes")

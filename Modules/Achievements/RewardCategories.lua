@@ -1,4 +1,4 @@
-local _, Addon = ...
+local addonName, Addon = ...
 local UI = assert(Addon.AchievementUI,
     "EasyAchievement achievement UI environment was not loaded")
 
@@ -29,7 +29,7 @@ local CATEGORY_DEFINITIONS = {
 }
 local DOING_DEFINITION = {
     key = "doing", labelKey = "ACHIEVEMENT_DOING_TAB",
-    iconAtlas = "UI-HUD-MicroMenu-Achievements-Mouseover",
+    iconAtlas = "tokens-changeName-large",
 }
 
 local categoryIndex
@@ -217,6 +217,14 @@ function UpdateAchievementRewardCategoryRail(frame)
             button.SelectedBottom:SetShown(key == category)
         end
     end
+    local settingsButton = frame.RewardCategoryRailButtons.settings
+    if settingsButton and settingsButton.NewBadge then
+        local version = C_AddOns and C_AddOns.GetAddOnMetadata
+            and C_AddOns.GetAddOnMetadata(addonName, "Version") or ""
+        settingsButton.NewBadge:SetShown(
+            Addon:GetSetting("achievementReadChangelogVersion")
+                ~= version)
+    end
 end
 
 function CreateAchievementRewardCategoryRail(frame)
@@ -297,6 +305,14 @@ function CreateAchievementRewardCategoryRail(frame)
         label:SetTextColor(1, 1, 1)
         label:SetText(tab.label)
         button.Label = label
+        if tab.key == "settings" then
+            local badge = button:CreateTexture(nil, "OVERLAY")
+            local height = math.max(12, label:GetStringHeight())
+            badge:SetSize(height * 2 * 64 / 48, height * 2)
+            badge:SetPoint("LEFT", label, "RIGHT", 3, 0)
+            SetTextureAtlas(badge, "CharacterCreate-NewLabel")
+            button.NewBadge = badge
+        end
         button:SetScript("OnClick", function()
             if tab.key == "all" then
                 ShowOfficialAchievementCategory(0)
@@ -310,20 +326,30 @@ function CreateAchievementRewardCategoryRail(frame)
         button:SetPoint("TOPLEFT", content, "TOPLEFT", 1, 0)
     end
     local function LayoutTabs()
-        local width = math.max(66, scroll:GetWidth() / #tabs)
+        local availableWidth = math.max(1, bar:GetWidth() - 55
+            - GetAchievementSearchBoxWidth(frame.SearchBox) - 36)
+        local minimumWidths = {}
+        local minimumTotal = 0
         for _, tab in ipairs(tabs) do
-            width = math.max(width,
+            local minimum = math.max(66,
                 frame.RewardCategoryRailButtons[tab.key].Label:GetStringWidth()
-                    + 18)
+                    + (tab.key == "settings" and 90 or 18))
+            minimumWidths[#minimumWidths + 1] = minimum
+            minimumTotal = minimumTotal + minimum
         end
-        content:SetWidth(width * #tabs + 2)
+        local extra = math.max(0, availableWidth - minimumTotal) / #tabs
+        local offset = 1
         for index, tab in ipairs(tabs) do
             local button = frame.RewardCategoryRailButtons[tab.key]
+            local width = minimumWidths[index] + extra
             button:ClearAllPoints()
-            button:SetPoint("TOPLEFT", content, "TOPLEFT",
-                1 + (index - 1) * width, 0)
+            button:SetPoint("TOPLEFT", content, "TOPLEFT", offset, 0)
             button:SetWidth(width)
+            offset = offset + width
         end
+        content:SetWidth(offset + 1)
+        scroll:SetHorizontalScroll(math.min(scroll:GetHorizontalScroll() or 0,
+            math.max(0, offset + 1 - availableWidth)))
     end
     bar:SetScript("OnSizeChanged", LayoutTabs)
     LayoutTabs()
@@ -338,6 +364,8 @@ local function RenderRewardCategory(frame, definition, achievementIDs,
     end
     local nodes = {}
     local orderedAchievementIDs = {}
+    local state = frame.categoryRestoreState
+    local pointsMode = Addon:GetSetting("achievementRewardPointsMode") or "positive"
     for _, achievementID in ipairs(achievementIDs or {}) do
         local catalog = Addon.AchievementCatalog
         local visible = not catalog or catalog.IsVisible(achievementID)
@@ -345,7 +373,8 @@ local function RenderRewardCategory(frame, definition, achievementIDs,
             GetAchievementData(achievementID)
                 or definition.key == "doing"
                     and GetCatalogAchievementData(achievementID))
-        if node then
+        if node and (definition.key == "doing"
+            or ((tonumber(node.points) or 0) > 0) == (pointsMode == "positive")) then
             node.depth = 1
             node.hasChildren = false
             nodes[#nodes + 1] = node
@@ -373,7 +402,6 @@ local function RenderRewardCategory(frame, definition, achievementIDs,
     frame.EmptyText:SetText(L.ACHIEVEMENT_REWARD_CATEGORY_EMPTY)
     LayoutAchievementTree(nodes, {}, root, false,
         GetAchievementTreeStats(nodes), root)
-    local state = frame.categoryRestoreState
     frame.categoryRestoreState = nil
     if revealSelection and state and state.selectedAchievementID then
         for _, node in ipairs(nodes) do
@@ -401,6 +429,17 @@ local function RenderRewardCategory(frame, definition, achievementIDs,
     end
     SaveAchievementRewardCategoryState(frame)
     SaveCurrentAchievementNavigation(frame)
+end
+
+SetRewardCategoryPointsMode = function(frame, pointsMode)
+    local mode = frame.rewardCategoryMode
+    if not mode or mode.key == "doing" then return end
+    local snapshot = {
+        visitID = mode.visitID,
+        viewState = CaptureAchievementViewState(frame),
+    }
+    Addon:SetSetting("achievementRewardPointsMode", pointsMode)
+    ShowAchievementRewardCategory(mode.key, "history", snapshot)
 end
 
 ShowAchievementRewardCategory = function(category, navigationMode, snapshot)
@@ -440,7 +479,7 @@ ShowAchievementRewardCategory = function(category, navigationMode, snapshot)
     elseif categoryIndexState == "ready" then
         RestoreCategoryState(frame, category, snapshot and snapshot.viewState)
         RenderRewardCategory(frame, definition,
-            snapshot and snapshot.achievementIDs or categoryIndex[category],
+            categoryIndex[category],
             navigationMode == "return" or navigationMode == "history")
     else
         frame.EmptyText:SetText(L.ACHIEVEMENT_REWARD_CATEGORY_LOADING)
@@ -459,7 +498,7 @@ ShowAchievementRewardCategory = function(category, navigationMode, snapshot)
                 RestoreCategoryState(frame, category,
                     snapshot and snapshot.viewState)
                 RenderRewardCategory(frame, definition,
-                    snapshot and snapshot.achievementIDs or index[category],
+                    index[category],
                     navigationMode == "return" or navigationMode == "history")
             end
         end)

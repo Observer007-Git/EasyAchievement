@@ -405,7 +405,7 @@ assert(rewardCategoriesSource:find(
     "top reward tabs do not use the store-style navigation")
 assert(treeSource:find('frame.OfficialCategoryBrowser.pane:GetWidth()',
         1, true)
-    and treeSource:find('and frame.IncompleteOnly or frame.TreeScaleControls',
+    and treeSource:find('and frame.RewardPointsPositive or frame.TreeScaleControls',
         1, true)
     and searchSource:find('frame.breadcrumbLeftOffset or 82', 1, true),
     "breadcrumbs can overlap the expanded category pane or tree filter")

@@ -2,6 +2,10 @@ local addonName, Addon = ...
 local UI = assert(Addon.AchievementUI)
 if setfenv then setfenv(1, UI) else _ENV = UI end
 
+Addon:RegisterSetting("achievementReadChangelogVersion", nil, function(value)
+    return type(value) == "string" and #value <= 32 and value or nil
+end)
+
 local OPTIONS = {
     { key = "card", label = "ACHIEVEMENT_CARD_SCALE",
         controls = "CardScaleControls" },
@@ -13,7 +17,38 @@ local OPTIONS = {
     { key = "screenIcon", label = "ACHIEVEMENT_LAUNCHER_SHOW" },
     { key = "minimap", label = "ACHIEVEMENT_MINIMAP_SHOW" },
     { key = "mapMarkerShortcut", label = "ACHIEVEMENT_MAP_MARKER_SHORTCUT" },
+    { key = "changelog", label = "ACHIEVEMENT_CHANGELOG" },
 }
+
+local function GetAddonVersion()
+    return C_AddOns.GetAddOnMetadata(addonName, "Version") or ""
+end
+
+local function GetChangelogText()
+    local locale = GetLocale()
+    local versions = {}
+    for _, entry in ipairs(Addon.Changelog or {}) do
+        local heading = "V" .. entry.version
+        if entry.date and entry.date ~= "" then
+            heading = heading .. "  (" .. entry.date .. ")"
+        end
+        versions[#versions + 1] = heading .. "\n"
+            .. (entry[locale] or entry.enUS or "")
+    end
+    return table.concat(versions, "\n\n")
+end
+
+local function UpdateChangelogBadges(frame)
+    local unread = Addon:GetSetting("achievementReadChangelogVersion")
+        ~= GetAddonVersion()
+    local page = frame.SettingsPanel
+    if page.SettingsRows and page.SettingsRows.changelog then
+        page.SettingsRows.changelog.NewBadge:SetShown(unread)
+    end
+    local tab = frame.RewardCategoryRailButtons
+        and frame.RewardCategoryRailButtons.settings
+    if tab and tab.NewBadge then tab.NewBadge:SetShown(unread) end
+end
 
 local function IsScreenIconVisible()
     return not Addon:GetSetting("achievementLauncherHidden")
@@ -44,6 +79,7 @@ local function RefreshPreview(frame)
     page.PopupPreview:SetScale(GetAchievementPopupScale())
     page.PopupPreview:SetAlpha(GetAchievementPopupAlpha())
     page.LauncherPreview:SetShown(key == "launcher")
+    page.ChangelogScroll:SetShown(key == "changelog")
 end
 
 function HideAchievementSettingsPage(frame)
@@ -121,6 +157,32 @@ local function BuildSettingsPage(frame)
     end
     page.LauncherPreview = launcher
 
+    local changelogScroll = CreateFrame("ScrollFrame", nil, page,
+        "UIPanelScrollFrameTemplate")
+    changelogScroll:SetPoint("TOPLEFT", page, "TOPLEFT", 246, -14)
+    changelogScroll:SetPoint("BOTTOMRIGHT", page, "BOTTOMRIGHT", -30, 12)
+    local changelogContent = CreateFrame("Frame", nil, changelogScroll)
+    changelogScroll:SetScrollChild(changelogContent)
+    local changelogText = changelogContent:CreateFontString(nil, "OVERLAY",
+        "GameFontHighlight")
+    changelogText:SetPoint("TOPLEFT", changelogContent, "TOPLEFT", 0, 0)
+    changelogText:SetJustifyH("LEFT")
+    changelogText:SetJustifyV("TOP")
+    changelogText:SetWordWrap(true)
+    changelogText:SetText(GetChangelogText())
+    page.ChangelogText = changelogText
+    local function LayoutChangelog()
+        local width = math.max(1, changelogScroll:GetWidth() - 4)
+        changelogContent:SetWidth(width)
+        changelogText:SetWidth(width)
+        changelogContent:SetHeight(math.max(changelogScroll:GetHeight(),
+            changelogText:GetStringHeight() + 8))
+    end
+    changelogScroll:SetScript("OnSizeChanged", LayoutChangelog)
+    LayoutChangelog()
+    changelogScroll:Hide()
+    page.ChangelogScroll = changelogScroll
+
     for index, option in ipairs(OPTIONS) do
         local row = CreateFrame("Button", nil, page)
         row:SetSize(212, 28)
@@ -136,6 +198,14 @@ local function BuildSettingsPage(frame)
         local label = row:CreateFontString(nil, "OVERLAY", "GameFontNormal")
         label:SetPoint("LEFT", 12, 0)
         label:SetText(L[option.label])
+        if option.key == "changelog" then
+            local badge = row:CreateTexture(nil, "OVERLAY")
+            local height = math.max(12, label:GetStringHeight())
+            badge:SetSize(height * 2 * 64 / 48, height * 2)
+            badge:SetPoint("LEFT", label, "RIGHT", 4, 0)
+            SetTextureAtlas(badge, "CharacterCreate-NewLabel")
+            row.NewBadge = badge
+        end
         row.ActiveControls = CreateFrame("Frame", nil, page)
         row.ActiveControls:SetPoint("TOPLEFT", page, "TOPLEFT", 246, -18)
         row.ActiveControls:SetSize(300, 32)
@@ -281,6 +351,11 @@ local function BuildSettingsPage(frame)
         end
         row:SetScript("OnClick", function()
             page.selectedKey = option.key
+            if option.key == "changelog" then
+                Addon:SetSetting("achievementReadChangelogVersion",
+                    GetAddonVersion())
+                UpdateChangelogBadges(frame)
+            end
             RefreshPreview(frame)
         end)
         rows[option.key] = row
@@ -323,12 +398,28 @@ local function BuildSettingsPage(frame)
     page.AddonVersion = addonVersion
     page.selectedKey = "card"
     page.SettingsRows = rows
+    UpdateChangelogBadges(frame)
     RefreshPreview(frame)
     return true
 end
 
 function ShowAchievementSettingsPage(frame)
+    if frame.RewardPointsPositive then
+        frame.RewardPointsPositive:Hide()
+        frame.RewardPointsZero:Hide()
+    end
     if not BuildSettingsPage(frame) then return end
+    frame.PortraitIcon:ClearAllPoints()
+    frame.PortraitIcon:SetPoint("CENTER", -2, -1)
+    frame.PortraitIcon:SetSize(58, 58)
+    SetTextureAtlas(frame.PortraitIcon, "decor-controls-settings-active")
+    if frame.PortraitMask then
+        frame.PortraitMask:ClearAllPoints()
+        frame.PortraitMask:SetPoint("TOPLEFT", frame.PortraitIcon,
+            "TOPLEFT", 2, 0)
+        frame.PortraitMask:SetPoint("BOTTOMRIGHT", frame.PortraitIcon,
+            "BOTTOMRIGHT", -2, 4)
+    end
     frame.settingsPageShown = true
     frame.ScrollFrame:Hide()
     frame.HorizontalScroll:Hide()
@@ -358,6 +449,7 @@ function ShowAchievementSettingsPage(frame)
     end
     if achievementRewardFrame then achievementRewardFrame:Hide() end
     frame.SettingsPanel:Show()
+    UpdateChangelogBadges(frame)
     RefreshPreview(frame)
     UpdateAchievementRewardCategoryRail(frame)
 end

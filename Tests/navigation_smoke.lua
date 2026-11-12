@@ -29,7 +29,8 @@ ui.SanitizeAchievementID = addon.AchievementData.SanitizeID
 ui.TrimAchievementTreeStates = addon.AchievementData.TrimTreeStates
 ui.GetAchievementHistoryEntry = addon.AchievementData.GetHistoryEntry
 ui.GetAchievementData = function(id)
-    return { id = id, name = string.format("Achievement %03d", id), depth = 1 }
+    return { id = id, name = string.format("Achievement %03d", id),
+        points = id == 109 and 0 or 10, depth = 1 }
 end
 ui.GetAchievementTreeStats = function(nodes)
     return { incomplete = #nodes, total = #nodes, completed = 0 }
@@ -114,6 +115,15 @@ scroll.x, scroll.y, frame.treeScale = 120, 30, 0.7
 frame.collapsedNodes = { [12] = true }
 ui.ShowAchievementRewardCategory("mount")
 assert(#frame.history == 2 and frame.historyIndex == 2)
+assert(#frame.rewardCategoryMode.achievementIDs == 8,
+    "positive-points category filter included a zero-point achievement")
+ui.SetRewardCategoryPointsMode(frame, "zero")
+assert(#frame.rewardCategoryMode.achievementIDs == 1
+    and frame.rewardCategoryMode.achievementIDs[1] == 109,
+    "zero-point filter did not rebuild the category navigation list")
+ui.SetRewardCategoryPointsMode(frame, "positive")
+assert(#frame.rewardCategoryMode.achievementIDs == 8,
+    "shared points filter did not restore positive-point achievements")
 assert(frame.RewardCategoryRailButtons.mount.Selected.shown
     and not frame.RewardCategoryRailButtons.pet.Selected.shown,
     "reward rail did not highlight the active category")
@@ -283,7 +293,9 @@ local function Widget()
         elseif key == "GetStringWidth" then
             return function() return 60 end
         elseif key == "GetWidth" then
-            return function() return 900 end
+            return function(self) return rawget(self, "width") or 900 end
+        elseif key == "SetWidth" then
+            return function(self, width) self.width = width end
         elseif key == "GetFrameLevel" then
             return function() return 1 end
         elseif key == "SetShown" then
@@ -311,6 +323,15 @@ for _, button in pairs(frame.RewardCategoryRailButtons) do
 end
 assert(railCount == 10 and frame.RewardCategoryRail,
     "top navigation omitted achievement, reward, or settings tabs")
+local narrowTabWidth = frame.RewardCategoryRailButtons.all.width
+frame.RewardCategoryRail.width = 1200
+frame.RewardCategoryRail.scripts.OnSizeChanged()
+assert(frame.RewardCategoryRailButtons.all.width > narrowTabWidth,
+    "top tabs did not expand when the panel gained width")
+frame.RewardCategoryRail.width = 900
+frame.RewardCategoryRail.scripts.OnSizeChanged()
+assert(frame.RewardCategoryRailButtons.all.width == narrowTabWidth,
+    "top tabs did not return to their narrow-panel width")
 frame.RewardCategoryRailButtons.toy.scripts.OnClick()
 assert(frame.rewardCategoryMode.key == "toy"
     and frame.RewardCategoryRailButtons.toy.Selected.shown,

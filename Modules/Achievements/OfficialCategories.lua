@@ -1114,9 +1114,15 @@ ShowCategoryContent = function(frame)
     end
     frame.Stats:Show()
     frame.PortraitIcon:ClearAllPoints()
-    frame.PortraitIcon:SetPoint("CENTER", -1, -2)
-    frame.PortraitIcon:SetSize(58, 58)
-    SetTextureAtlas(frame.PortraitIcon, "UI-Achievement-Shield-NoPoints")
+    frame.PortraitIcon:SetPoint("CENTER", 0, 0)
+    frame.PortraitIcon:SetSize(66, 64)
+    SetTextureAtlas(frame.PortraitIcon, "lemixArtifact-node-FX")
+    if frame.PortraitMask then
+        frame.PortraitMask:ClearAllPoints()
+        frame.PortraitMask:SetPoint("CENTER", frame.PortraitIcon:GetParent(),
+            "CENTER", 0, 0)
+        frame.PortraitMask:SetSize(68, 68)
+    end
     frame.BackButton:SetShown((frame.historyIndex or 1) > 1)
     frame.ForwardButton:SetShown((frame.historyIndex or 0)
         < #(frame.history or {}))

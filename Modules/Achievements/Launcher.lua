@@ -664,6 +664,8 @@ Addon:RegisterSetting("achievementMinimapAngle", DEFAULT_MINIMAP_ANGLE,
 Addon:RegisterSetting("achievementFavorites", {},
     SanitizeAchievementFavorites)
 Addon:RegisterSetting("achievementDoing", {}, SanitizeAchievementFavorites)
+Addon:RegisterSetting("achievementRewardPointsMode", "positive",
+    function(value) return value == "zero" and "zero" or "positive" end)
 Addon:RegisterSetting("achievementRecent", {}, SanitizeAchievementFavorites)
 Addon:RegisterSetting("achievementTreeStates", {},
     SanitizeAchievementTreeStates)

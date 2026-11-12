@@ -61,6 +61,8 @@ local function Widget()
             return function(self) return self.width end
         elseif key == "GetHeight" then
             return function(self) return self.height end
+        elseif key == "GetParent" then
+            return function(self) return self.parent end
         elseif key == "SetText" then
             return function(self, value) self.text = value end
         elseif key == "SetJustifyH" then
@@ -177,9 +179,11 @@ for _, key in ipairs({ "RewardCategoryRail", "RewardCategoryRailToggle",
     "EmptyText", "CardScaleControls", "TreeScaleControls",
     "IncompleteOnly", "IncompleteOnlyLabel",
     "FitButton", "Breadcrumb", "ATTButton", "PortraitIcon",
+    "PortraitMask",
     "BackButton", "ForwardButton", "Stats", "AllAchievementsButton" }) do
     frame[key] = Widget()
 end
+frame.PortraitIcon.parent = Widget()
 frame.ApplyRewardRailProgress = function(progress)
     frame.RewardCategoryRail:SetShown(progress > 0)
 end
@@ -228,9 +232,15 @@ assert(categoryCalls == 1 and frame.title == "Exploration"
     "official categories were not read live from the game API")
 assert(frame.width == 900 and frame.RewardCategoryRail.shown,
     "official browser changed the panel width or hid top navigation")
-assert(frame.PortraitIcon.width == 58
-    and frame.PortraitIcon.height == 58,
+assert(frame.PortraitIcon.width == 66
+    and frame.PortraitIcon.height == 64
+    and frame.PortraitIcon.point[2] == 0
+    and frame.PortraitIcon.atlas == "lemixArtifact-node-FX",
     "all-achievements portrait must fit inside the circular frame")
+assert(frame.PortraitMask.width == 68
+    and frame.PortraitMask.height == 68
+    and frame.PortraitMask.point[2] == frame.PortraitIcon.parent,
+    "the enlarged atlas must use a fixed mask centered on the portrait ring")
 assert(frame.OfficialCategoryBrowser.leftRows[2].Count.text
         == "3(|cff33cc332|r/|cff9999991|r)",
     "parent category counts must include child achievements")
